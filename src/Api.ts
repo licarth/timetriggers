@@ -1,0 +1,13 @@
+import * as TE from "fp-ts/lib/TaskEither";
+import { JobDefinition } from "./JobDefinition";
+import { JobId } from "./JobId";
+
+/**
+ * Main interface for scheduling a callback.
+ */
+export interface Api {
+  schedule(args: Omit<JobDefinition, "id">): TE.TaskEither<any, JobId>;
+  cancel(args: { jobId: JobId }): TE.TaskEither<any, void>;
+  getNextPlanned(count: number): TE.TaskEither<any, JobDefinition[]>;
+  cancelAllJobs(): TE.TaskEither<any, void>;
+}
