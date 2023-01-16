@@ -5,19 +5,24 @@ import axios, { AxiosResponse } from "axios";
 import { FirebaseError } from "firebase-admin";
 import * as T from "fp-ts/lib/Task";
 import _ from "lodash";
+import { Clock } from "@/Clock/Clock";
 
 export class FirestoreProcessor {
   firestore;
   rootDocumentPath;
   unsubscribe?: () => void;
-  state: "idle" | "running" = "idle";
+  state: "idle" | "running" | "closed" = "idle";
+  reject?: (reason?: any) => void;
+  clock;
 
   constructor(props: {
     firestore: FirebaseFirestore.Firestore;
     rootDocumentPath: string;
+    clock: Clock;
   }) {
     this.firestore = props.firestore;
     this.rootDocumentPath = props.rootDocumentPath;
+    this.clock = props.clock;
   }
 
   run() {
@@ -27,6 +32,9 @@ export class FirestoreProcessor {
   }
 
   waitForNextJob(): TE.TaskEither<any, JobDefinition> {
+    if (this.state === "closed") {
+      return TE.left(new Error("Processor is not running"));
+    }
     return pipe(
       TE.tryCatch(
         // Listen to the queue and check if there is a job to run
@@ -34,6 +42,7 @@ export class FirestoreProcessor {
           new Promise<
             FirebaseFirestore.QuerySnapshot<FirebaseFirestore.DocumentData>
           >((resolve, reject) => {
+            this.reject = reject;
             this.unsubscribe = this.firestore
               .collection(`${this.rootDocumentPath}/queued`)
               .orderBy("scheduledAt", "asc")
@@ -126,10 +135,16 @@ export class FirestoreProcessor {
       TE.chainW(
         TE.tryCatchK(
           async (jobDefinition) => {
-            console.log("Received job", jobDefinition.id);
-            return axios.post("http://localhost:3001", {
+            const executionStartDate = this.clock.now();
+            const axiosResponse = await axios.post("http://localhost:3001", {
               callbackId: jobDefinition.id,
             });
+            return {
+              axiosResponse,
+              executionStartDate,
+              durationMs:
+                this.clock.now().getTime() - executionStartDate.getTime(),
+            };
           },
           (e) => e
         )
@@ -139,9 +154,17 @@ export class FirestoreProcessor {
   }
 
   markJobAsComplete(jobDefinition: JobDefinition) {
-    return (axiosReponse: AxiosResponse) =>
+    return ({
+      axiosResponse,
+      durationMs,
+      executionStartDate,
+    }: {
+      axiosResponse: AxiosResponse;
+      durationMs: number;
+      executionStartDate: Date;
+    }) =>
       pipe(
-        TE.of(axiosReponse),
+        TE.of(axiosResponse),
         TE.chainW(
           TE.tryCatchK(
             async () => {
@@ -154,7 +177,11 @@ export class FirestoreProcessor {
                     {
                       jobDefinition:
                         JobDefinition.firestoreCodec.encode(jobDefinition),
-                      status: axiosReponse.status,
+                      status: axiosResponse.status,
+                      executionLagMs:
+                        executionStartDate.getTime() -
+                        jobDefinition.scheduledAt.date.getTime(),
+                      durationMs,
                     }
                   );
                   transaction.delete(
@@ -177,7 +204,9 @@ export class FirestoreProcessor {
   }
 
   close() {
+    this.state = "closed";
     this.unsubscribe && this.unsubscribe();
+    this.reject && this.reject();
   }
 }
 

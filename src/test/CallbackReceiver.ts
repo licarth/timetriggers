@@ -20,7 +20,8 @@ export class CallbackReceiver {
     this.app = app;
     this.server = server;
 
-    app.post("/", (req, res) => {
+    app.post("/", async (req, res) => {
+      await sleepRandom(0, 500);
       res.sendStatus(200);
       this.callbackIdsReceived.push(req.body.callbackId);
     });
@@ -70,9 +71,7 @@ export class CallbackReceiver {
 
     app.use(express.json());
 
-    const server = app.listen(port, () => {
-      console.log(`Example app listening on port ${port}`);
-    });
+    const server = app.listen(port, () => {});
 
     return new this({ app, server });
   }
@@ -81,3 +80,9 @@ export class CallbackReceiver {
     this.server.close();
   }
 }
+
+const sleepRandom = (min: number, max: number) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, Math.random() * (max - min) + min);
+  });
+};

@@ -29,7 +29,6 @@ export class FirestoreScheduler {
   }
 
   run() {
-    console.log("Running firestore scheduler");
     return pipe(this.scheduleNext2Hours());
   }
 

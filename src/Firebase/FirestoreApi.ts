@@ -41,6 +41,7 @@ export class FirestoreApi implements Api {
         new FirestoreProcessor({
           firestore: this.firestore,
           rootDocumentPath: this.rootDocumentPath,
+          clock: this.clock,
         })
     );
   }
@@ -126,7 +127,10 @@ export class FirestoreApi implements Api {
       this.scheduler.close(),
       TE.chainFirstW(() =>
         TE.tryCatch(
-          () => this.firestore.terminate(),
+          () =>
+            this.firestore.terminate().catch((e) => {
+              // ignore error
+            }),
           () => null
         )
       )

@@ -1,4 +1,4 @@
-import { addSeconds } from "date-fns";
+import { addMilliseconds, addSeconds } from "date-fns";
 import { sequenceS } from "fp-ts/lib/Apply.js";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
@@ -7,6 +7,7 @@ import * as TE from "fp-ts/lib/TaskEither.js";
 import { draw } from "io-ts/lib/Decoder.js";
 import _ from "lodash";
 import { Api } from "./Api.js";
+import { SystemClock } from "./Clock/SystemClock.js";
 import { TestClock } from "./Clock/TestClock.js";
 import { FirestoreApi } from "./Firebase/FirestoreApi.js";
 import { InMemoryApi } from "./InMemory/InMemoryApi.js";
@@ -17,15 +18,15 @@ import { CallbackReceiver } from "./test/CallbackReceiver.js";
 jest.setTimeout(10000);
 
 describe("Api", () => {
-  const clock = new TestClock();
+  const clock = new SystemClock();
 
   const apiBuilders = {
-    // InMemory: () => TE.of(new InMemoryApi(clock)),
+    InMemory: () => TE.of(new InMemoryApi(clock)),
     Firestore: () =>
       FirestoreApi.build({
         clock,
-        rootDocumentPath: "example-collection/job-queue-a",
-        numProcessors: 5,
+        rootDocumentPath: "example-collection/job-queue-b",
+        numProcessors: 3,
       }),
   } as Record<string, () => TE.TaskEither<any, Api>>;
 
@@ -89,17 +90,17 @@ describe("Api", () => {
           ])
         );
 
-        clock.tickSeconds(3);
+        // clock.tickSeconds(3);
 
         await callbackReceiver.waitForCallback(callbackId);
       });
 
       it("should schedule 10 jobs and execute them one by one", async () => {
-        const jobDateUtcString = addSeconds(clock.now(), 3).toISOString();
-
-        const arrayOfTe = _.times(10, () =>
+        const arrayOfTe = _.times(10, (i) =>
           api.schedule({
-            scheduledAt: ScheduledAt.fromUTCString(jobDateUtcString),
+            scheduledAt: ScheduledAt.fromUTCString(
+              addMilliseconds(clock.now(), i * 300).toISOString()
+            ),
           })
         );
         const callbackIds = await pipe(
@@ -112,7 +113,7 @@ describe("Api", () => {
           throw new Error("Failed to schedule jobs");
         }
 
-        clock.tickSeconds(3);
+        // clock.tickSeconds(3);
 
         for (const callbackId of callbackIds) {
           await callbackReceiver.waitForCallback(callbackId);
