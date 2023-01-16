@@ -13,15 +13,17 @@ export class JobDefinition {
     this.scheduledAt = props.scheduledAt;
   }
 
-  static propsCodec = Codec.struct({
+  static firestorePropsCodec = Codec.struct({
     id: JobId.codec,
-    scheduledAt: ScheduledAt.dateCodec,
+    scheduledAt: ScheduledAt.firestoreCodec,
   });
 
-  static codec = pipe(
-    JobDefinition.propsCodec,
+  static firestoreCodec = pipe(
+    JobDefinition.firestorePropsCodec,
     Codec.compose(fromClassCodec(JobDefinition))
   );
 }
 
-export type JobDefinitionProps = Codec.TypeOf<typeof JobDefinition.propsCodec>;
+export type JobDefinitionProps = Codec.TypeOf<
+  typeof JobDefinition.firestorePropsCodec
+>;

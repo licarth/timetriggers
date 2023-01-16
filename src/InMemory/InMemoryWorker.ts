@@ -4,8 +4,7 @@ import axios from "axios";
 export class InMemoryWorker {
   constructor(private dataStructure: InMemoryDataStructure) {
     dataStructure.queuedJobs.subscribe(async (jobDefinition) => {
-      console.log("Received job", jobDefinition.id);
-      axios.post("http://localhost:3000", {
+      axios.post("http://localhost:3001", {
         callbackId: jobDefinition.id,
       });
     });

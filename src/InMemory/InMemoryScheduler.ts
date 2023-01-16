@@ -22,7 +22,6 @@ export class InMemoryScheduler {
       0,
       jobDefinition.scheduledAt.date.getTime() - this.clock.now().getTime()
     );
-    console.log(`Scheduling job ${jobDefinition.id} in ${waitMs} ms`);
     const timeoutId = this.clock.setTimeout(() => {
       this.dataStructure.subscriber?.next(jobDefinition);
       this.plannedTimeouts.delete(jobDefinition.id);

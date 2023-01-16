@@ -65,7 +65,7 @@ export class CallbackReceiver {
     }
   }
 
-  static async build({ port = 3000 }: { port?: number } = {}) {
+  static async build({ port = 3001 }: { port?: number } = {}) {
     const app = express();
 
     app.use(express.json());
@@ -78,7 +78,6 @@ export class CallbackReceiver {
   }
 
   async close() {
-    console.log("Closing server");
     this.server.close();
   }
 }

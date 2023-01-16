@@ -11,11 +11,13 @@ export class InMemoryDataStructure {
   private clock: Clock;
   plannedJobs: JobDefinition[] = [];
   subscriber?: Subscriber<JobDefinition>;
+
   queuedJobs: Observable<JobDefinition> = new Observable<JobDefinition>(
     (subscriber) => {
       this.subscriber = subscriber;
     }
   );
+
   doneJobs: JobDefinition[] = [];
 
   private scheduler;

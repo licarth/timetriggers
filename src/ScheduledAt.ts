@@ -15,12 +15,14 @@ export class ScheduledAt {
     date: UtcDate.stringCodec,
   });
 
-  static firebasePropsCodec = Codec.struct({
-    date: UtcDate.firebaseDateCodec,
-  });
-
-  static dateCodec = pipe(
-    this.firebasePropsCodec,
+  static firestoreCodec = pipe(
+    UtcDate.firestoreDateCodec,
+    Codec.compose(
+      Codec.make(
+        { decode: (d: Date) => D.success({ date: d }) },
+        { encode: (s) => s.date }
+      )
+    ),
     Codec.compose(fromClassCodec(ScheduledAt))
   );
 

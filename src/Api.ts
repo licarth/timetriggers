@@ -10,4 +10,5 @@ export interface Api {
   cancel(args: { jobId: JobId }): TE.TaskEither<any, void>;
   getNextPlanned(count: number): TE.TaskEither<any, JobDefinition[]>;
   cancelAllJobs(): TE.TaskEither<any, void>;
+  close(): TE.TaskEither<any, void>;
 }

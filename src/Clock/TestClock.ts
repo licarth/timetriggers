@@ -1,8 +1,14 @@
+import _ from "lodash";
 import { Clock } from "./Clock";
 
 export class TestClock implements Clock {
   private _now: Date = new Date();
-  private _timeouts: { [key: number]: () => void } = {};
+  private _timeouts: {
+    [key: number]: {
+      executeAtTs: number;
+      cb: () => void;
+    };
+  } = {};
 
   constructor(now?: Date) {
     if (now) {
@@ -14,13 +20,12 @@ export class TestClock implements Clock {
     const newTs = this._now.getTime() + milliseconds;
     this._now = new Date(newTs);
     // Execute timeouts in between
-    Object.keys(this._timeouts)
-      .map((key) => parseInt(key))
-      .filter((key) => key <= newTs)
-      .forEach((key) => {
-        this._timeouts[key]();
-        delete this._timeouts[key];
-      });
+    _.map(this._timeouts, ({ cb, executeAtTs }, key) => {
+      if (executeAtTs <= newTs) {
+        cb();
+        delete this._timeouts[Number(key)];
+      }
+    });
   }
 
   tickSeconds(seconds: number) {
@@ -47,12 +52,15 @@ export class TestClock implements Clock {
     return this._now;
   }
 
-  setTimeout(callback: () => void, milliseconds: number): NodeJS.Timeout {
-    const id = this._now.getTime() + milliseconds;
+  setTimeout(cb: () => void, milliseconds: number): NodeJS.Timeout {
+    const id = randomInt32();
     if (milliseconds <= 0) {
-      callback();
+      cb();
     } else {
-      this._timeouts[id] = callback;
+      this._timeouts[id] = {
+        executeAtTs: this._now.getTime() + milliseconds,
+        cb,
+      };
     }
 
     return {

@@ -49,4 +49,9 @@ export class InMemoryApi implements Api {
     this.dataStructure.cancellAllJobs();
     return TE.right(undefined);
   }
+
+  close() {
+    // Nothing to do here
+    return TE.right(undefined);
+  }
 }

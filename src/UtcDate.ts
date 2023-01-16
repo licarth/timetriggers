@@ -16,13 +16,13 @@ export namespace UtcDate {
     }
   );
 
-  export const firebaseDateCodec = C.make(
+  export const firestoreDateCodec = C.make(
     {
       decode: (i: unknown) => {
         if (!isFirebaseTimesamp(i)) {
-          return D.failure(i, "is not a firebase timestamp");
+          return D.failure(i, " firebase timestamp");
         }
-        return D.success((i as Timestamp).toDate());
+        return D.success(i.toDate());
       },
     },
     {
@@ -31,5 +31,13 @@ export namespace UtcDate {
   );
 }
 
-const isFirebaseTimesamp = (i: unknown): i is Timestamp =>
-  i instanceof Timestamp;
+const isFirebaseTimesamp = function (i: unknown): i is Timestamp {
+  return (
+    i instanceof Timestamp ||
+    (i !== null &&
+      typeof i === "object" &&
+      i.hasOwnProperty("_seconds") &&
+      i.hasOwnProperty("_nanoseconds")) ||
+    false
+  );
+};

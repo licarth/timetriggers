@@ -3,33 +3,57 @@ import { SystemClock } from "@/Clock/SystemClock";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither";
 import * as C from "io-ts/lib/Codec";
+import _ from "lodash";
 import { Api } from "../Api";
 import { JobDefinition } from "../JobDefinition";
 import { JobId } from "../JobId";
+import { FirestoreProcessor } from "./FirestoreProcessor";
 import { FirestoreScheduler } from "./FirestoreScheduler";
 import { initializeApp } from "./initializeApp.js";
 
-const { firestore } = initializeApp();
-const jobDefinitionCollection = firestore.collection("jobDefinitions");
+type FirestoreApiProps = {
+  clock?: Clock;
+  rootDocumentPath: string;
+  numProcessors: number;
+};
 
 export class FirestoreApi implements Api {
+  firestore;
+  rootDocumentPath;
   clock: Clock = new SystemClock();
   scheduler: FirestoreScheduler;
+  processors;
 
-  private constructor(props: { clock?: Clock } = {}) {
+  private constructor(props: FirestoreApiProps) {
     if (props.clock) {
       this.clock = props.clock;
     }
+    this.rootDocumentPath = props.rootDocumentPath;
+    this.firestore = initializeApp().firestore;
     this.scheduler = new FirestoreScheduler({
       clock: this.clock,
-      firestore,
-      collection: jobDefinitionCollection,
+      firestore: this.firestore,
+      rootDocumentPath: this.rootDocumentPath,
     });
+    this.processors = _.times(
+      props.numProcessors,
+      () =>
+        new FirestoreProcessor({
+          firestore: this.firestore,
+          rootDocumentPath: this.rootDocumentPath,
+        })
+    );
   }
 
-  static build(props: { clock?: Clock }) {
+  static build(props: FirestoreApiProps) {
     return pipe(
       TE.of(new FirestoreApi(props)),
+      TE.chainFirstW((api) =>
+        pipe(
+          api.processors.map((p) => p.run()),
+          TE.sequenceArray
+        )
+      ),
       TE.chainFirstW((api) => api.scheduler.run())
     );
   }
@@ -39,8 +63,12 @@ export class FirestoreApi implements Api {
       async () => {
         const id = JobId.factory();
         const jobDefinition = new JobDefinition({ ...args, id });
-        const jobDefinitionRef = jobDefinitionCollection.doc(id);
-        await jobDefinitionRef.set(JobDefinition.codec.encode(jobDefinition));
+        const jobDefinitionRef = this.firestore
+          .collection(`${this.rootDocumentPath}/registered`)
+          .doc(id);
+        await jobDefinitionRef.set(
+          JobDefinition.firestoreCodec.encode(jobDefinition)
+        );
         return id;
       },
       (reason) => new Error(`Failed to schedule job: ${reason}`)
@@ -50,7 +78,9 @@ export class FirestoreApi implements Api {
   cancel(args: { jobId: JobId }) {
     return TE.tryCatch(
       async () => {
-        const jobDefinitionRef = jobDefinitionCollection.doc(args.jobId);
+        const jobDefinitionRef = this.firestore
+          .collection(`${this.rootDocumentPath}/registered`)
+          .doc(args.jobId);
         await jobDefinitionRef.delete();
       },
       (reason) => new Error(`Failed to cancel job: ${reason}`)
@@ -60,8 +90,10 @@ export class FirestoreApi implements Api {
   cancelAllJobs() {
     return TE.tryCatch(
       async () => {
-        const jobDefinitions = await jobDefinitionCollection.get();
-        const batch = firestore.batch();
+        const jobDefinitions = await this.firestore
+          .collection(`${this.rootDocumentPath}/registered`)
+          .get();
+        const batch = this.firestore.batch();
         jobDefinitions.forEach((doc) => {
           batch.delete(doc.ref);
         });
@@ -75,8 +107,8 @@ export class FirestoreApi implements Api {
     return pipe(
       TE.tryCatch(
         async () => {
-          return await firestore
-            .collection("jobDefinitions")
+          return await this.firestore
+            .collection(`${this.rootDocumentPath}/registered`)
             .orderBy("scheduledAt", "asc")
             .limit(count)
             .get();
@@ -84,7 +116,20 @@ export class FirestoreApi implements Api {
         (reason) => new Error(`Failed to get next planned jobs: ${reason}`)
       ),
       TE.map((x) => x.docs.map((doc) => doc.data())),
-      TE.chainEitherKW(C.array(JobDefinition.codec).decode)
+      TE.chainEitherKW(C.array(JobDefinition.firestoreCodec).decode)
+    );
+  }
+
+  close() {
+    this.processors.forEach((p) => p.close());
+    return pipe(
+      this.scheduler.close(),
+      TE.chainFirstW(() =>
+        TE.tryCatch(
+          () => this.firestore.terminate(),
+          () => null
+        )
+      )
     );
   }
 }
