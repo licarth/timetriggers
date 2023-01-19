@@ -7,7 +7,6 @@ import * as TE from "fp-ts/lib/TaskEither.js";
 import { draw } from "io-ts/lib/Decoder.js";
 import _ from "lodash";
 import { Api } from "./Api.js";
-import { SystemClock } from "./Clock/SystemClock.js";
 import { TestClock } from "./Clock/TestClock.js";
 import { FirestoreApi } from "./Firebase/FirestoreApi.js";
 import { InMemoryApi } from "./InMemory/InMemoryApi.js";
@@ -18,7 +17,7 @@ import { CallbackReceiver } from "./test/CallbackReceiver.js";
 jest.setTimeout(10000);
 
 describe("Api", () => {
-  const clock = new SystemClock();
+  const clock = new TestClock();
 
   const apiBuilders = {
     InMemory: () => TE.of(new InMemoryApi(clock)),
@@ -90,7 +89,7 @@ describe("Api", () => {
           ])
         );
 
-        // clock.tickSeconds(3);
+        clock.tickSeconds(20);
 
         await callbackReceiver.waitForCallback(callbackId);
       });
@@ -113,12 +112,12 @@ describe("Api", () => {
           throw new Error("Failed to schedule jobs");
         }
 
-        // clock.tickSeconds(3);
+        clock.tickSeconds(20);
 
         for (const callbackId of callbackIds) {
           await callbackReceiver.waitForCallback(callbackId);
         }
-        // expect(callbackReceiver.getCallbackIdsReceived()).toHaveLength(10);
+        expect(callbackReceiver.getCallbackIdsReceived()).toHaveLength(10);
       });
     });
   }

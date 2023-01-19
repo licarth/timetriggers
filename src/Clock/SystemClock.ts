@@ -1,6 +1,6 @@
-import { Clock } from "./Clock";
+import { AbstractClock } from "./AbstractClock";
 
-export class SystemClock implements Clock {
+export class SystemClock extends AbstractClock {
   now(): Date {
     return new Date();
   }
@@ -9,5 +9,9 @@ export class SystemClock implements Clock {
   }
   clearTimeout(timeoutId: NodeJS.Timeout): void {
     clearTimeout(timeoutId);
+  }
+
+  tickMs(milliseconds: number) {
+    // This has no eeffect on the system clock
   }
 }
