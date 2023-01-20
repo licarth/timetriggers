@@ -1,5 +1,6 @@
 import { JobId } from "@/JobId";
 import express from "express";
+import getPort from "get-port";
 
 /**
  * In tests, this is used to act as a client we want to send callbacks to.
@@ -7,18 +8,22 @@ import express from "express";
 export class CallbackReceiver {
   private app;
   private server;
+  port;
 
   private callbackIdsReceived: string[] = [];
 
   private constructor({
     app,
     server,
+    port,
   }: {
     app: express.Application;
     server: ReturnType<express.Application["listen"]>;
+    port: number;
   }) {
     this.app = app;
     this.server = server;
+    this.port = port;
 
     app.post("/", async (req, res) => {
       await sleepRandom(0, 500);
@@ -66,14 +71,16 @@ export class CallbackReceiver {
     }
   }
 
-  static async build({ port = 3001 }: { port?: number } = {}) {
+  static async build() {
     const app = express();
 
     app.use(express.json());
 
+    const port = await getPort();
+
     const server = app.listen(port, () => {});
 
-    return new this({ app, server });
+    return new this({ app, server, port });
   }
 
   async close() {

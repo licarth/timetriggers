@@ -1,7 +1,7 @@
 import { pipe } from "fp-ts/lib/function";
 import * as C from "io-ts/lib/Codec";
 import * as D from "io-ts/lib/Decoder";
-import { Timestamp } from "firebase/firestore";
+import { Timestamp } from "firebase-admin/firestore";
 
 export namespace UtcDate {
   export const stringCodec = C.make(

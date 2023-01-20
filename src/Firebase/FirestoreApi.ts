@@ -8,20 +8,25 @@ import { Api } from "../Api";
 import { JobDefinition } from "../JobDefinition";
 import { JobId } from "../JobId";
 import { FirestoreProcessor } from "./FirestoreProcessor";
-import { FirestoreScheduler } from "./FirestoreScheduler";
+import {
+  FirestoreScheduler,
+  REGISTERED_JOBS_COLL_PATH,
+} from "./FirestoreScheduler";
 import { initializeApp } from "./initializeApp.js";
+import * as O from "fp-ts/lib/Option";
 
-type FirestoreApiProps = {
+export type FirestoreApiProps = {
   clock?: Clock;
   rootDocumentPath: string;
   numProcessors: number;
+  runScheduler?: boolean;
 };
 
 export class FirestoreApi implements Api {
   firestore;
   rootDocumentPath;
   clock: Clock = new SystemClock();
-  scheduler: FirestoreScheduler;
+  scheduler: O.Option<FirestoreScheduler>;
   processors;
 
   private constructor(props: FirestoreApiProps) {
@@ -30,11 +35,16 @@ export class FirestoreApi implements Api {
     }
     this.rootDocumentPath = props.rootDocumentPath;
     this.firestore = initializeApp().firestore;
-    this.scheduler = new FirestoreScheduler({
-      clock: this.clock,
-      firestore: this.firestore,
-      rootDocumentPath: this.rootDocumentPath,
-    });
+    this.scheduler = pipe(
+      props.runScheduler
+        ? new FirestoreScheduler({
+            clock: this.clock,
+            firestore: this.firestore,
+            rootDocumentPath: this.rootDocumentPath,
+          })
+        : null,
+      O.fromNullable
+    );
     this.processors = _.times(
       props.numProcessors,
       () =>
@@ -55,7 +65,15 @@ export class FirestoreApi implements Api {
           TE.sequenceArray
         )
       ),
-      TE.chainFirstW((api) => api.scheduler.run())
+      TE.chainFirstW((api) =>
+        pipe(
+          api.scheduler,
+          O.fold(
+            () => TE.of(void 0),
+            (scheduler) => scheduler.run()
+          )
+        )
+      )
     );
   }
 
@@ -65,7 +83,7 @@ export class FirestoreApi implements Api {
         const id = JobId.factory();
         const jobDefinition = new JobDefinition({ ...args, id });
         const jobDefinitionRef = this.firestore
-          .collection(`${this.rootDocumentPath}/registered`)
+          .collection(`${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`)
           .doc(id);
         await jobDefinitionRef.set(
           JobDefinition.firestoreCodec.encode(jobDefinition)
@@ -80,7 +98,7 @@ export class FirestoreApi implements Api {
     return TE.tryCatch(
       async () => {
         const jobDefinitionRef = this.firestore
-          .collection(`${this.rootDocumentPath}/registered`)
+          .collection(`${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`)
           .doc(args.jobId);
         await jobDefinitionRef.delete();
       },
@@ -92,7 +110,7 @@ export class FirestoreApi implements Api {
     return TE.tryCatch(
       async () => {
         const jobDefinitions = await this.firestore
-          .collection(`${this.rootDocumentPath}/registered`)
+          .collection(`${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`)
           .get();
         const batch = this.firestore.batch();
         jobDefinitions.forEach((doc) => {
@@ -109,7 +127,7 @@ export class FirestoreApi implements Api {
       TE.tryCatch(
         async () => {
           return await this.firestore
-            .collection(`${this.rootDocumentPath}/registered`)
+            .collection(`${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`)
             .orderBy("scheduledAt", "asc")
             .limit(count)
             .get();
@@ -124,7 +142,13 @@ export class FirestoreApi implements Api {
   close() {
     this.processors.forEach((p) => p.close());
     return pipe(
-      this.scheduler.close(),
+      pipe(
+        this.scheduler,
+        O.fold(
+          () => TE.of(void 0),
+          (scheduler) => scheduler.close()
+        )
+      ),
       TE.chainFirstW(() =>
         TE.tryCatch(
           () =>

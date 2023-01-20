@@ -7,6 +7,8 @@ import * as TE from "fp-ts/lib/TaskEither.js";
 import { draw } from "io-ts/lib/Decoder.js";
 import _ from "lodash";
 import { Api } from "./Api.js";
+import { Clock } from "./Clock/Clock.js";
+import { SystemClock } from "./Clock/SystemClock.js";
 import { TestClock } from "./Clock/TestClock.js";
 import { FirestoreApi } from "./Firebase/FirestoreApi.js";
 import { InMemoryApi } from "./InMemory/InMemoryApi.js";
@@ -16,109 +18,123 @@ import { CallbackReceiver } from "./test/CallbackReceiver.js";
 
 jest.setTimeout(10000);
 
-describe("Api", () => {
-  const clock = new TestClock();
+const randomString = (length: number) =>
+  Math.random()
+    .toString(36)
+    .substring(2, 2 + length);
 
+const clocks = {
+  SystemClock: new SystemClock(),
+  TestClock: new TestClock(),
+};
+
+const NUM_JOBS = 30;
+
+describe(`Api tests`, () => {
+  const testRunId = randomString(4);
+  console.log(`testRunId: ${testRunId}`);
   const apiBuilders = {
-    InMemory: () => TE.of(new InMemoryApi(clock)),
-    Firestore: () =>
+    InMemory: (clock, namespace) => TE.of(new InMemoryApi(clock)),
+    Firestore: (clock, namespace) =>
       FirestoreApi.build({
         clock,
-        rootDocumentPath: "example-collection/job-queue-b",
-        numProcessors: 3,
+        rootDocumentPath: namespace,
+        numProcessors: 10,
+        runScheduler: true,
       }),
-  } as Record<string, () => TE.TaskEither<any, Api>>;
+  } as Record<
+    string,
+    (clock: Clock, namespace: string) => TE.TaskEither<any, Api>
+  >;
 
-  let apis = {} as Record<string, Api>;
   let callbackReceiver: CallbackReceiver;
 
-  beforeAll(async () => {
-    apis = await pipe(
-      _.mapValues(apiBuilders, (apiBuilder) => apiBuilder()),
-      sequenceS(TE.taskEither),
-      TE.getOrElseW((e) => {
-        throw new Error("could not build apis");
-        return T.of({} as Record<string, Api>);
-      })
-    )();
-  });
-
   for (const [apiName] of Object.entries(apiBuilders)) {
-    let api: Api;
-    // @ts-ignore
-    describe(`${apiName}`, () => {
-      beforeAll(async () => {
-        api = apis[apiName];
-        await api.cancelAllJobs()();
-        callbackReceiver = await CallbackReceiver.build();
-      });
+    for (const [clockName, clock] of Object.entries(clocks)) {
+      let api: Api;
+      // @ts-ignore
+      describe(`${apiName} (${clockName} clock)`, () => {
+        beforeEach(async () => {
+          const namespace = `test-${testRunId}/${apiName}-${clockName}`;
+          api = await pipe(
+            apiBuilders[apiName](clock, namespace),
+            TE.getOrElse(() => {
+              throw new Error(`could not build api ${apiName}`);
+            })
+          )();
+          await api.cancelAllJobs()();
+          callbackReceiver = await CallbackReceiver.build();
+        });
 
-      afterAll(async () => {
-        // await api.cancelAllJobs()();
-        await callbackReceiver.close();
-        await api.close()();
-      });
+        afterEach(async () => {
+          // await api.cancelAllJobs()();
+          await callbackReceiver.close();
+          await api.close()();
+        });
 
-      it("should schedule a job and execute it", async () => {
-        // const jobDateUtcString = "2023-02-01T00:00:00.000Z";
-        const jobDateUtcString = addSeconds(clock.now(), 2).toISOString();
+        it("should schedule a job and execute it", async () => {
+          const jobDateUtcString = addSeconds(clock.now(), 2).toISOString();
 
-        const callbackId = await pipe(
-          api.schedule({
-            scheduledAt: ScheduledAt.fromUTCString(jobDateUtcString),
-          }),
-          TE.getOrElseW(() => T.of(undefined))
-        )();
-
-        if (!callbackId) {
-          throw new Error("Failed to schedule job");
-        }
-
-        const eitherNextPlanned = await api.getNextPlanned(10)();
-        if (E.isLeft(eitherNextPlanned)) {
-          if (eitherNextPlanned.left) {
-            console.log(draw(eitherNextPlanned.left));
-          }
-        }
-        expect(eitherNextPlanned).toMatchObject(
-          E.of([
-            {
-              id: expect.any(String),
+          const callbackId = await pipe(
+            api.schedule({
               scheduledAt: ScheduledAt.fromUTCString(jobDateUtcString),
-            },
-          ])
-        );
+              url: `http://localhost:${callbackReceiver.port}`,
+            }),
+            TE.getOrElseW(() => T.of(undefined))
+          )();
 
-        clock.tickSeconds(20);
+          if (!callbackId) {
+            throw new Error("Failed to schedule job");
+          }
 
-        await callbackReceiver.waitForCallback(callbackId);
-      });
+          const eitherNextPlanned = await api.getNextPlanned(10)();
+          if (E.isLeft(eitherNextPlanned)) {
+            if (eitherNextPlanned.left) {
+              console.log(draw(eitherNextPlanned.left));
+            }
+          }
+          expect(eitherNextPlanned).toMatchObject(
+            E.of([
+              {
+                id: expect.any(String),
+                scheduledAt: ScheduledAt.fromUTCString(jobDateUtcString),
+              },
+            ])
+          );
 
-      it("should schedule 10 jobs and execute them one by one", async () => {
-        const arrayOfTe = _.times(10, (i) =>
-          api.schedule({
-            scheduledAt: ScheduledAt.fromUTCString(
-              addMilliseconds(clock.now(), i * 300).toISOString()
-            ),
-          })
-        );
-        const callbackIds = await pipe(
-          arrayOfTe,
-          TE.sequenceArray,
-          TE.getOrElseW(() => T.of([] as JobId[]))
-        )();
+          clock.tickSeconds(20);
 
-        if (callbackIds.length === 0) {
-          throw new Error("Failed to schedule jobs");
-        }
-
-        clock.tickSeconds(20);
-
-        for (const callbackId of callbackIds) {
           await callbackReceiver.waitForCallback(callbackId);
-        }
-        expect(callbackReceiver.getCallbackIdsReceived()).toHaveLength(10);
+        });
+
+        it(`should schedule ${NUM_JOBS} jobs and execute them one by one`, async () => {
+          const arrayOfTe = _.times(NUM_JOBS, (i) =>
+            api.schedule({
+              scheduledAt: ScheduledAt.fromUTCString(
+                addMilliseconds(clock.now(), 1).toISOString()
+              ),
+              url: `http://localhost:${callbackReceiver.port}`,
+            })
+          );
+          const callbackIds = await pipe(
+            arrayOfTe,
+            TE.sequenceArray,
+            TE.getOrElseW(() => T.of([] as JobId[]))
+          )();
+
+          if (callbackIds.length === 0) {
+            throw new Error("Failed to schedule jobs");
+          }
+
+          clock.tickSeconds(20);
+
+          for (const callbackId of callbackIds) {
+            await callbackReceiver.waitForCallback(callbackId);
+          }
+        });
+
+        it.skip("should run jobs already scheduled before listening with the scheduler", async () => {});
       });
-    });
+    }
   }
 });

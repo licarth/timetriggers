@@ -24,6 +24,7 @@ export default {
   transform: {
     "\\.[jt]sx?$": ["ts-jest", { useESM: true }],
   },
+  transformIgnorePatterns: ["node_modules/(?!get-port/.*)"],
   extensionsToTreatAsEsm: [".ts"],
 
   roots: ["<rootDir>"],

@@ -2,10 +2,15 @@ import { JobDefinition } from "@/JobDefinition";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
 import axios, { AxiosResponse } from "axios";
-import { FirebaseError } from "firebase-admin";
 import * as T from "fp-ts/lib/Task";
 import _ from "lodash";
 import { Clock } from "@/Clock/Clock";
+import {
+  COMPLETE_JOBS_COLL_PATH,
+  QUEUED_JOBS_COLL_PATH,
+  RUNNING_JOBS_COLL_PATH,
+} from "./FirestoreScheduler";
+import { isFirebaseError } from "./isFirebaseError";
 
 export class FirestoreProcessor {
   firestore;
@@ -44,7 +49,7 @@ export class FirestoreProcessor {
           >((resolve, reject) => {
             this.reject = reject;
             this.unsubscribe = this.firestore
-              .collection(`${this.rootDocumentPath}/queued`)
+              .collection(`${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`)
               .orderBy("scheduledAt", "asc")
               .limit(5)
               .onSnapshot((snapshot) => {
@@ -103,18 +108,15 @@ export class FirestoreProcessor {
     return TE.tryCatchK(
       async () => {
         await this.firestore
-          .runTransaction(
-            async (transaction) => {
-              transaction.delete(jobDocument.ref, { exists: true });
-              transaction.create(
-                this.firestore.doc(
-                  `${this.rootDocumentPath}/running/${jobDocument.id}`
-                ),
-                jobDocument.data()
-              );
-            },
-            { maxAttempts: 1 }
-          )
+          .runTransaction(async (transaction) => {
+            transaction.delete(jobDocument.ref, { exists: true });
+            transaction.create(
+              this.firestore.doc(
+                `${this.rootDocumentPath}${RUNNING_JOBS_COLL_PATH}/${jobDocument.id}`
+              ),
+              jobDocument.data()
+            );
+          })
           .catch((e) => {
             if (isFirebaseError(e)) {
               throw new Error(
@@ -131,24 +133,48 @@ export class FirestoreProcessor {
 
   processJob(jobDefinition: JobDefinition) {
     return pipe(
-      TE.of(jobDefinition),
-      TE.chainW(
-        TE.tryCatchK(
-          async (jobDefinition) => {
-            const executionStartDate = this.clock.now();
-            const axiosResponse = await axios.post("http://localhost:3001", {
-              callbackId: jobDefinition.id,
-            });
-            return {
-              axiosResponse,
-              executionStartDate,
-              durationMs:
-                this.clock.now().getTime() - executionStartDate.getTime(),
-            };
-          },
-          (e) => e
+      TE.of({ executionStartDate: this.clock.now(), jobDefinition }),
+      TE.bindW(
+        "executionResult",
+        pipe(
+          TE.tryCatchK(
+            async ({ jobDefinition }) => {
+              try {
+                const axiosResponse = await axios.post(jobDefinition.url, {
+                  callbackId: jobDefinition.id,
+                });
+                return {
+                  axiosResponse,
+                };
+              } catch (e) {
+                if (axios.isAxiosError(e)) {
+                  return {
+                    axiosResponse: e.response,
+                    errorMessage: e.message,
+                  };
+                } else if (e instanceof Error) {
+                  return {
+                    errorMessage: e.message,
+                  };
+                }
+                throw e;
+              }
+            },
+            (e) => e
+          )
+          // TE.orElseW((e) =>
+          //   TE.of({
+          //     errorMessage: "Unknown error",
+          //   })
+          // )
         )
       ),
+      TE.map(({ executionResult, executionStartDate }) => ({
+        ...executionResult,
+        durationMs: this.clock.now().getTime() - executionStartDate.getTime(),
+        executionStartDate,
+      })),
+      TE.map((x) => x),
       TE.chainW(this.markJobAsComplete(jobDefinition))
     );
   }
@@ -159,7 +185,7 @@ export class FirestoreProcessor {
       durationMs,
       executionStartDate,
     }: {
-      axiosResponse: AxiosResponse;
+      axiosResponse?: AxiosResponse;
       durationMs: number;
       executionStartDate: Date;
     }) =>
@@ -168,34 +194,31 @@ export class FirestoreProcessor {
         TE.chainW(
           TE.tryCatchK(
             async () => {
-              await this.firestore.runTransaction(
-                async (transaction) => {
-                  transaction.create(
-                    this.firestore.doc(
-                      `${this.rootDocumentPath}/complete/${jobDefinition.id}`
-                    ),
-                    {
-                      jobDefinition:
-                        JobDefinition.firestoreCodec.encode(jobDefinition),
-                      status: axiosResponse.status,
-                      executionLagMs:
-                        executionStartDate.getTime() -
-                        jobDefinition.scheduledAt.date.getTime(),
-                      durationMs,
-                    }
-                  );
-                  transaction.delete(
-                    this.firestore.doc(
-                      `${this.rootDocumentPath}/running/${jobDefinition.id}`
-                    ),
-                    { exists: true }
-                  );
-                },
-                { maxAttempts: 1 }
-              );
+              await this.firestore.runTransaction(async (transaction) => {
+                transaction.create(
+                  this.firestore.doc(
+                    `${this.rootDocumentPath}${COMPLETE_JOBS_COLL_PATH}/${jobDefinition.id}`
+                  ),
+                  {
+                    jobDefinition:
+                      JobDefinition.firestoreCodec.encode(jobDefinition),
+                    status: axiosResponse?.status,
+                    executionLagMs:
+                      executionStartDate.getTime() -
+                      jobDefinition.scheduledAt.date.getTime(),
+                    durationMs,
+                  }
+                );
+                transaction.delete(
+                  this.firestore.doc(
+                    `${this.rootDocumentPath}${RUNNING_JOBS_COLL_PATH}/${jobDefinition.id}`
+                  ),
+                  { exists: true }
+                );
+              });
             },
             (e) => {
-              console.log("Error: " + e);
+              // console.log("Error: " + e);
               return TE.of(undefined);
             }
           )
@@ -209,7 +232,3 @@ export class FirestoreProcessor {
     this.reject && this.reject();
   }
 }
-
-const isFirebaseError = (e: unknown): e is FirebaseError => {
-  return (e as FirebaseError)?.code !== undefined;
-};

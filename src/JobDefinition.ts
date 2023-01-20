@@ -7,15 +7,18 @@ import { JobId } from "./JobId";
 export class JobDefinition {
   id;
   scheduledAt;
+  url;
 
   constructor(props: JobDefinitionProps) {
     this.id = props.id;
     this.scheduledAt = props.scheduledAt;
+    this.url = props.url;
   }
 
   static firestorePropsCodec = Codec.struct({
     id: JobId.codec,
     scheduledAt: ScheduledAt.firestoreCodec,
+    url: Codec.string,
   });
 
   static firestoreCodec = pipe(
