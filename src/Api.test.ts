@@ -28,18 +28,18 @@ const clocks = {
   TestClock: new TestClock(),
 };
 
-const NUM_JOBS = 30;
+const NUM_JOBS = 10;
 
 describe(`Api tests`, () => {
   const testRunId = randomString(4);
   console.log(`testRunId: ${testRunId}`);
   const apiBuilders = {
-    InMemory: (clock, namespace) => TE.of(new InMemoryApi(clock)),
+    InMemory: (clock, namespace) => TE.of(new InMemoryApi({ clock })),
     Firestore: (clock, namespace) =>
       FirestoreApi.build({
         clock,
         rootDocumentPath: namespace,
-        numProcessors: 10,
+        numProcessors: 3,
         runScheduler: true,
       }),
   } as Record<

@@ -1,3 +1,4 @@
+import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
 import { Clock } from "@/Clock/Clock";
 import { SystemClock } from "@/Clock/SystemClock";
 import * as TE from "fp-ts/lib/TaskEither";
@@ -6,16 +7,12 @@ import { JobDefinition } from "../JobDefinition";
 import { JobId } from "../JobId";
 import { InMemoryDataStructure } from "./InMemoryDataStructure";
 
-export class InMemoryApi implements Api {
-  private clock: Clock;
+export type InMemoryApiProps = AbstractApiProps & {};
+export class InMemoryApi extends AbstractApi {
   private dataStructure;
 
-  constructor(clock?: Clock) {
-    if (clock) {
-      this.clock = clock;
-    } else {
-      this.clock = new SystemClock();
-    }
+  constructor({ clock }: InMemoryApiProps) {
+    super({ clock });
     this.dataStructure = new InMemoryDataStructure(this.clock);
   }
 
@@ -29,16 +26,6 @@ export class InMemoryApi implements Api {
     this.dataStructure.cancel(args.jobId);
     return TE.right(undefined);
   }
-
-  // getJobStatus(args: { jobId: JobId }) {
-  //   const job = this.dataStructure.plannedJobs.find(
-  //     (job) => job.id === args.jobId
-  //   );
-  //   if (job) {
-  //     return TE.right(JobStatusUpdate.planned);
-  //   }
-  //   return TE.right(JobStatusUpdate.completed);
-  // }
 
   getNextPlanned(count: number) {
     return TE.of(this.dataStructure.getNextPLanned(count));

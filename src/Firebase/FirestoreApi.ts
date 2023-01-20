@@ -14,25 +14,22 @@ import {
 } from "./FirestoreScheduler";
 import { initializeApp } from "./initializeApp.js";
 import * as O from "fp-ts/lib/Option";
+import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
 
-export type FirestoreApiProps = {
-  clock?: Clock;
+export type FirestoreApiProps = AbstractApiProps & {
   rootDocumentPath: string;
   numProcessors: number;
   runScheduler?: boolean;
 };
 
-export class FirestoreApi implements Api {
+export class FirestoreApi extends AbstractApi {
   firestore;
   rootDocumentPath;
-  clock: Clock = new SystemClock();
   scheduler: O.Option<FirestoreScheduler>;
   processors;
 
   private constructor(props: FirestoreApiProps) {
-    if (props.clock) {
-      this.clock = props.clock;
-    }
+    super(props);
     this.rootDocumentPath = props.rootDocumentPath;
     this.firestore = initializeApp().firestore;
     this.scheduler = pipe(
