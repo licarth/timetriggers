@@ -1,12 +1,12 @@
 import { InMemoryDataStructure } from "./InMemoryDataStructure";
-import axios from "axios";
+import { AxiosWorker } from "@/AxiosWorker";
 
 export class InMemoryWorker {
   constructor(private dataStructure: InMemoryDataStructure) {
     dataStructure.queuedJobs.subscribe(async (jobDefinition) => {
-      axios.post(jobDefinition.url, {
-        callbackId: jobDefinition.id,
-      });
+      new AxiosWorker({ clock: this.dataStructure.clock })
+        .execute(jobDefinition)
+        .subscribe();
     });
   }
 

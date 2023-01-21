@@ -26,11 +26,25 @@ export class CallbackReceiver {
     this.port = port;
 
     app.post("/", async (req, res) => {
-      await sleepRandom(0, 500);
-      res.sendStatus(200);
       this.callbackIdsReceived.push(req.body.callbackId);
+      await sleepRandom(0, 100);
+      // just hung up
+      this.randomlyChoseBetween(
+        () => res.sendStatus(this.randomStatus()),
+        () => res.destroy()
+      );
     });
   }
+
+  randomlyChoseBetween = (...fns: (() => void)[]) => {
+    const fn = fns[Math.floor(Math.random() * fns.length)];
+    fn();
+  };
+
+  randomStatus = () => {
+    const statuses = [200, 200, 200, 200, 401, 500];
+    return statuses[Math.floor(Math.random() * statuses.length)];
+  };
 
   getCallbackIdsReceived() {
     return this.callbackIdsReceived;

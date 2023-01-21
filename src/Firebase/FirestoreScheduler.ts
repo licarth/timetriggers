@@ -1,28 +1,38 @@
 import { Clock } from "@/Clock/Clock";
-import { pipe } from "fp-ts/lib/function";
-import type { Firestore } from "firebase-admin/firestore";
-import * as TE from "fp-ts/lib/TaskEither";
-import { addHours, addMilliseconds } from "date-fns";
 import { JobDefinition } from "@/JobDefinition";
-import * as E from "fp-ts/lib/Either";
 import { JobId } from "@/JobId";
-import { moveJobDefinition } from "./moveJobFromCollectionToCollection";
+import { WorkerPool } from "@/WorkerPool";
+import { addMilliseconds } from "date-fns";
+import type { Firestore } from "firebase-admin/firestore";
+import * as E from "fp-ts/lib/Either";
+import { pipe } from "fp-ts/lib/function";
+import * as TE from "fp-ts/lib/TaskEither";
 import { isFirebaseError } from "./isFirebaseError";
+import { moveJobDefinition } from "./moveJobFromCollectionToCollection";
 
 export const REGISTERED_JOBS_COLL_PATH = `/registered`;
 export const QUEUED_JOBS_COLL_PATH = `/queued`;
 export const RUNNING_JOBS_COLL_PATH = `/running`;
-export const COMPLETE_JOBS_COLL_PATH = `/complete`;
+export const COMPLETED_JOBS_COLL_PATH = `/completed`;
 
 /**
  * Amount of time to schedule jobs in advance locally for.
  */
 const SCHEDULE_ADVANCE_MS = 10 * 60 * 1000; // 10 minutes
 
+type State = "starting" | "running" | "stopped";
+
+type FirestoreSchedulerProps = {
+  clock: Clock;
+  firestore: Firestore;
+  rootDocumentPath: string;
+};
+
 export class FirestoreScheduler {
   clock;
   firestore;
   rootDocumentPath;
+  state: State = "starting";
   // Acquire a lock on the namespace
   // Listen to changes in the scheduled jobs collection
 
@@ -30,11 +40,7 @@ export class FirestoreScheduler {
 
   unsubscribeListeningToNewJobs?: () => void;
 
-  constructor(props: {
-    clock: Clock;
-    firestore: Firestore;
-    rootDocumentPath: string;
-  }) {
+  constructor(props: FirestoreSchedulerProps) {
     this.clock = props.clock;
     this.firestore = props.firestore;
     this.rootDocumentPath = props.rootDocumentPath;
@@ -48,6 +54,7 @@ export class FirestoreScheduler {
   };
 
   run() {
+    this.state = "running";
     this.runEveryMs(Math.floor(SCHEDULE_ADVANCE_MS / 2), () => {
       this.scheduleNext2Hours();
     });
@@ -99,6 +106,10 @@ export class FirestoreScheduler {
 
   async queueJob(jobDefinition: JobDefinition) {
     try {
+      // Check that we're still running
+      if (this.state !== "running") {
+        return;
+      }
       await moveJobDefinition({
         firestore: this.firestore,
         jobDefinition,

@@ -8,7 +8,7 @@ import { InMemoryScheduler } from "./InMemoryScheduler";
 import { InMemoryWorker } from "./InMemoryWorker";
 
 export class InMemoryDataStructure {
-  private clock: Clock;
+  clock: Clock;
   plannedJobs: JobDefinition[] = [];
   subscriber?: Subscriber<JobDefinition>;
 

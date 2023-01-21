@@ -2,12 +2,18 @@ import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
 import * as Encoder from "io-ts/lib/Encoder.js";
 import { fromClassCodec } from "@iots/index.js";
+import { Proped } from "./Proped";
+import { fromClassCodecNotExtends } from "./fromClassCodecNotExtends";
 
-export const taggedUnionClassCodec = <S, T extends S>(
-  propsCodec: Codec.Codec<unknown, S, S>,
+export const taggedUnionClassCodec = <
+  PropsType,
+  SerializedPropsType,
+  ClassType extends Proped<PropsType>
+>(
+  propsCodec: Codec.Codec<unknown, SerializedPropsType, PropsType>,
   tag: string,
-  type: new (s: S) => T
-): Codec.Codec<unknown, S, T> =>
+  typeConstructor: new (s: PropsType) => ClassType
+): Codec.Codec<unknown, SerializedPropsType, ClassType> =>
   pipe(
     Codec.make(
       propsCodec,
@@ -16,5 +22,6 @@ export const taggedUnionClassCodec = <S, T extends S>(
         Encoder.compose({ encode: (i) => ({ ...i, _tag: tag }) })
       )
     ),
-    Codec.compose(fromClassCodec(type))
+    (x) => x,
+    Codec.compose(fromClassCodecNotExtends(typeConstructor))
   );

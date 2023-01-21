@@ -1,16 +1,26 @@
+import { Clock } from "@/Clock/Clock";
+import { HttpCallCompleted } from "@/HttpCallStatusUpdate/HttpCallCompleted";
+import { HttpCallErrored } from "@/HttpCallStatusUpdate/HttpCallErrored";
+import { HttpCallLastStatus } from "@/HttpCallStatusUpdate/HttpCallLastStatus";
+import { HttpCallStarted } from "@/HttpCallStatusUpdate/HttpCallStarted";
 import { JobDefinition } from "@/JobDefinition";
+import { WorkerPool } from "@/WorkerPool";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
-import axios, { AxiosResponse } from "axios";
-import * as T from "fp-ts/lib/Task";
 import _ from "lodash";
-import { Clock } from "@/Clock/Clock";
 import {
-  COMPLETE_JOBS_COLL_PATH,
+  COMPLETED_JOBS_COLL_PATH,
   QUEUED_JOBS_COLL_PATH,
   RUNNING_JOBS_COLL_PATH,
 } from "./FirestoreScheduler";
 import { isFirebaseError } from "./isFirebaseError";
+
+type FirestoreProcessorProps = {
+  firestore: FirebaseFirestore.Firestore;
+  rootDocumentPath: string;
+  clock: Clock;
+  workerPool: WorkerPool;
+};
 
 export class FirestoreProcessor {
   firestore;
@@ -19,15 +29,13 @@ export class FirestoreProcessor {
   state: "idle" | "running" | "closed" = "idle";
   reject?: (reason?: any) => void;
   clock;
+  workerPool;
 
-  constructor(props: {
-    firestore: FirebaseFirestore.Firestore;
-    rootDocumentPath: string;
-    clock: Clock;
-  }) {
+  constructor(props: FirestoreProcessorProps) {
     this.firestore = props.firestore;
     this.rootDocumentPath = props.rootDocumentPath;
     this.clock = props.clock;
+    this.workerPool = props.workerPool;
   }
 
   run() {
@@ -134,75 +142,61 @@ export class FirestoreProcessor {
   processJob(jobDefinition: JobDefinition) {
     return pipe(
       TE.of({ executionStartDate: this.clock.now(), jobDefinition }),
+      TE.bindW("worker", () => this.workerPool.nextWorker()),
       TE.bindW(
-        "executionResult",
-        pipe(
-          TE.tryCatchK(
-            async ({ jobDefinition }) => {
-              try {
-                const axiosResponse = await axios.post(jobDefinition.url, {
-                  callbackId: jobDefinition.id,
-                });
-                return {
-                  axiosResponse,
-                };
-              } catch (e) {
-                if (axios.isAxiosError(e)) {
-                  return {
-                    axiosResponse: e.response,
-                    errorMessage: e.message,
-                  };
-                } else if (e instanceof Error) {
-                  return {
-                    errorMessage: e.message,
-                  };
-                }
-                throw e;
-              }
-            },
-            (e) => e
+        "lastStatusUpdate",
+        // send job to worker (local or remote) and listen to result stream.
+        ({ worker, jobDefinition }) =>
+          TE.tryCatch(
+            () =>
+              new Promise<HttpCallLastStatus>((resolve, reject) =>
+                worker.execute(jobDefinition).subscribe((next) => {
+                  if (next instanceof HttpCallStarted) {
+                    // Report Call started
+                  } else if (next instanceof HttpCallCompleted) {
+                    resolve(next);
+                  } else if (next instanceof HttpCallErrored) {
+                    resolve(next);
+                  }
+                })
+              ),
+            (e) => new Error("Could not execute job")
           )
-          // TE.orElseW((e) =>
-          //   TE.of({
-          //     errorMessage: "Unknown error",
-          //   })
-          // )
-        )
       ),
-      TE.map(({ executionResult, executionStartDate }) => ({
-        ...executionResult,
+      TE.map(({ lastStatusUpdate, executionStartDate }) => ({
+        lastStatusUpdate,
         durationMs: this.clock.now().getTime() - executionStartDate.getTime(),
         executionStartDate,
       })),
-      TE.map((x) => x),
       TE.chainW(this.markJobAsComplete(jobDefinition))
     );
   }
 
   markJobAsComplete(jobDefinition: JobDefinition) {
     return ({
-      axiosResponse,
+      lastStatusUpdate,
       durationMs,
       executionStartDate,
     }: {
-      axiosResponse?: AxiosResponse;
+      lastStatusUpdate: HttpCallLastStatus;
       durationMs: number;
       executionStartDate: Date;
     }) =>
       pipe(
-        TE.of(axiosResponse),
+        TE.of(lastStatusUpdate),
         TE.chainW(
           TE.tryCatchK(
             async () => {
               await this.firestore.runTransaction(async (transaction) => {
                 transaction.create(
                   this.firestore.doc(
-                    `${this.rootDocumentPath}${COMPLETE_JOBS_COLL_PATH}/${jobDefinition.id}`
+                    `${this.rootDocumentPath}${COMPLETED_JOBS_COLL_PATH}/${jobDefinition.id}`
                   ),
                   {
                     jobDefinition:
                       JobDefinition.firestoreCodec.encode(jobDefinition),
-                    status: axiosResponse?.status,
+                    lastStatusUpdate:
+                      HttpCallLastStatus.codec.encode(lastStatusUpdate),
                     executionLagMs:
                       executionStartDate.getTime() -
                       jobDefinition.scheduledAt.date.getTime(),

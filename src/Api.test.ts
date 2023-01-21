@@ -11,12 +11,11 @@ import { Clock } from "./Clock/Clock.js";
 import { SystemClock } from "./Clock/SystemClock.js";
 import { TestClock } from "./Clock/TestClock.js";
 import { FirestoreApi } from "./Firebase/FirestoreApi.js";
+import { initializeApp } from "./Firebase/initializeApp.js";
 import { InMemoryApi } from "./InMemory/InMemoryApi.js";
 import { JobId } from "./JobId.js";
 import { ScheduledAt } from "./ScheduledAt.js";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
-
-jest.setTimeout(10000);
 
 const randomString = (length: number) =>
   Math.random()
@@ -30,12 +29,26 @@ const clocks = {
 
 const NUM_JOBS = 10;
 
+const firestore = initializeApp().firestore;
+
 describe(`Api tests`, () => {
+  afterAll(async () => {
+    await firestore.terminate();
+  });
+
   const testRunId = randomString(4);
   console.log(`testRunId: ${testRunId}`);
   const apiBuilders = {
     InMemory: (clock, namespace) => TE.of(new InMemoryApi({ clock })),
-    Firestore: (clock, namespace) =>
+    FirestoreExternal: (clock, namespace) =>
+      FirestoreApi.build({
+        clock,
+        rootDocumentPath: namespace,
+        numProcessors: 3,
+        runScheduler: true,
+        firestore,
+      }),
+    FirestoreInternal: (clock, namespace) =>
       FirestoreApi.build({
         clock,
         rootDocumentPath: namespace,
@@ -133,7 +146,9 @@ describe(`Api tests`, () => {
           }
         });
 
-        it.skip("should run jobs already scheduled before listening with the scheduler", async () => {});
+        it.skip("should run jobs already scheduled before listening with the scheduler", async () => {
+          // Only applicable to Api implementations that have a scheduler
+        });
       });
     }
   }

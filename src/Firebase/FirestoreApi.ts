@@ -1,10 +1,11 @@
-import { Clock } from "@/Clock/Clock";
-import { SystemClock } from "@/Clock/SystemClock";
+import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
+import { withTimeout } from "fp-ts-contrib/Task/withTimeout";
+import * as E from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/function.js";
+import * as O from "fp-ts/lib/Option";
 import * as TE from "fp-ts/lib/TaskEither";
 import * as C from "io-ts/lib/Codec";
 import _ from "lodash";
-import { Api } from "../Api";
 import { JobDefinition } from "../JobDefinition";
 import { JobId } from "../JobId";
 import { FirestoreProcessor } from "./FirestoreProcessor";
@@ -13,17 +14,17 @@ import {
   REGISTERED_JOBS_COLL_PATH,
 } from "./FirestoreScheduler";
 import { initializeApp } from "./initializeApp.js";
-import * as O from "fp-ts/lib/Option";
-import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
 
 export type FirestoreApiProps = AbstractApiProps & {
   rootDocumentPath: string;
   numProcessors: number;
   runScheduler?: boolean;
+  firestore?: FirebaseFirestore.Firestore;
 };
 
 export class FirestoreApi extends AbstractApi {
   firestore;
+  firestoreOrigin: "internal" | "external";
   rootDocumentPath;
   scheduler: O.Option<FirestoreScheduler>;
   processors;
@@ -31,7 +32,9 @@ export class FirestoreApi extends AbstractApi {
   private constructor(props: FirestoreApiProps) {
     super(props);
     this.rootDocumentPath = props.rootDocumentPath;
-    this.firestore = initializeApp().firestore;
+    this.firestore = props.firestore || initializeApp().firestore;
+    this.firestoreOrigin = props.firestore ? "external" : "internal";
+
     this.scheduler = pipe(
       props.runScheduler
         ? new FirestoreScheduler({
@@ -49,6 +52,7 @@ export class FirestoreApi extends AbstractApi {
           firestore: this.firestore,
           rootDocumentPath: this.rootDocumentPath,
           clock: this.clock,
+          workerPool: this.workerPool,
         })
     );
   }
@@ -70,7 +74,19 @@ export class FirestoreApi extends AbstractApi {
             (scheduler) => scheduler.run()
           )
         )
-      )
+      ),
+      // wait for at least one successful ping
+      TE.chainFirstW((api) => api.healthCheck())
+    );
+  }
+
+  healthCheck() {
+    return pipe(
+      TE.tryCatch(
+        () => this.firestore.listCollections(),
+        (e) => new Error(`Failed to ping Firestore.`)
+      ),
+      withTimeout(E.left(new Error("Healthcheck timeout")), 1000)
     );
   }
 
@@ -148,10 +164,14 @@ export class FirestoreApi extends AbstractApi {
       ),
       TE.chainFirstW(() =>
         TE.tryCatch(
-          () =>
-            this.firestore.terminate().catch((e) => {
-              // ignore error
-            }),
+          async () => {
+            if (this.firestoreOrigin === "internal") {
+              return this.firestore.terminate().catch((e) => {
+                // ignore error
+              });
+            }
+            return Promise.resolve();
+          },
           () => null
         )
       )
