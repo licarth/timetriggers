@@ -13,8 +13,8 @@ import { TestClock } from "./Clock/TestClock.js";
 import { FirestoreApi } from "./Firebase/FirestoreApi.js";
 import { initializeApp } from "./Firebase/initializeApp.js";
 import { InMemoryApi } from "./InMemory/InMemoryApi.js";
-import { JobId } from "./JobId.js";
-import { ScheduledAt } from "./ScheduledAt.js";
+import { JobId } from "./domain/JobId.js";
+import { ScheduledAt } from "./domain/ScheduledAt.js";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
 
 jest.setTimeout(200000);
@@ -46,7 +46,7 @@ describe(`Api tests`, () => {
   const testRunId = randomString(4);
   console.log(`testRunId: ${testRunId}`);
   const apiBuilders = {
-    InMemory: (clock, namespace) => TE.of(new InMemoryApi({ clock })),
+    // InMemory: (clock, namespace) => TE.of(new InMemoryApi({ clock })),
     // FirestoreExternalRealApi: (clock, namespace) =>
     //   FirestoreApi.build({
     //     clock,

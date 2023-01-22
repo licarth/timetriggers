@@ -1,6 +1,8 @@
 import { Clock } from "@/Clock/Clock";
-import { JobDefinition } from "@/JobDefinition";
-import { JobId } from "@/JobId";
+import { getShardsToListenTo } from "@/ConsistentHashing/ConsistentHashing";
+import { FirebaseJobDocument } from "@/domain/FirebaseJobDocument";
+import { JobDefinition } from "@/domain/JobDefinition";
+import { JobId } from "@/domain/JobId";
 import { WorkerPool } from "@/WorkerPool";
 import { addMilliseconds } from "date-fns";
 import type { Firestore } from "firebase-admin/firestore";
@@ -8,7 +10,10 @@ import * as E from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
 import { isFirebaseError } from "./isFirebaseError";
-import { moveJobDefinition } from "./moveJobFromCollectionToCollection";
+import {
+  moveJobDefinition,
+  moveJobDocument,
+} from "./moveJobFromCollectionToCollection";
 
 export const REGISTERED_JOBS_COLL_PATH = `/registered`;
 export const QUEUED_JOBS_COLL_PATH = `/queued`;
@@ -26,6 +31,7 @@ type FirestoreSchedulerProps = {
   clock: Clock;
   firestore: Firestore;
   rootDocumentPath: string;
+  shardsToListenTo?: string[];
 };
 
 export class FirestoreScheduler {
@@ -40,11 +46,13 @@ export class FirestoreScheduler {
 
   unsubscribeListeningToNewJobs?: () => void;
   unsubscribeSchedulingNextPeriod?: () => void;
+  shardsToListenTo;
 
   constructor(props: FirestoreSchedulerProps) {
     this.clock = props.clock;
     this.firestore = props.firestore;
     this.rootDocumentPath = props.rootDocumentPath;
+    this.shardsToListenTo = props.shardsToListenTo;
   }
 
   runEveryMs = (ms: number, f: () => void) => () => {
@@ -71,33 +79,42 @@ export class FirestoreScheduler {
   }
 
   startListeningToNewJobs() {
+    let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> =
+      this.firestore.collection(
+        `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`
+      );
+    if (this.shardsToListenTo) {
+      query = query.where(
+        "shards",
+        "array-contains-any",
+        this.shardsToListenTo
+      );
+    }
     return TE.tryCatch(
       async () => {
         let isFirst = true;
-        this.unsubscribeListeningToNewJobs = this.firestore
-          .collection(`${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`)
-          .onSnapshot((snapshot) => {
-            // Ignore first snapshot
-            if (isFirst) {
-              isFirst = false;
-              return;
-            }
-            snapshot
-              .docChanges()
-              .filter(({ type }, i) => type === "added") // New jobs only
-              .forEach((change) =>
-                pipe(
-                  change.doc.data(),
-                  JobDefinition.firestoreCodec.decode,
-                  E.foldW(
-                    () => {},
-                    (jobDefinition) => {
-                      this.scheduleJobLocally(jobDefinition);
-                    }
-                  )
+        this.unsubscribeListeningToNewJobs = query.onSnapshot((snapshot) => {
+          // Ignore first snapshot
+          if (isFirst) {
+            isFirst = false;
+            return;
+          }
+          snapshot
+            .docChanges()
+            .filter(({ type }, i) => type === "added") // New jobs only
+            .forEach((change) =>
+              pipe(
+                change.doc.data(),
+                FirebaseJobDocument.codec.decode,
+                E.foldW(
+                  () => {},
+                  (jobDocument) => {
+                    this.scheduleJobLocally(jobDocument);
+                  }
                 )
-              );
-          });
+              )
+            );
+        });
       },
       (reason) => new Error(`Failed to schedule next 2 hours: ${reason}`)
     );
@@ -107,15 +124,15 @@ export class FirestoreScheduler {
     return `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}/${jobDefinition.id}`;
   }
 
-  async queueJob(jobDefinition: JobDefinition) {
+  async queueJob(jobDocument: FirebaseJobDocument) {
     try {
       // Check that we're still running
       if (this.state !== "running") {
         return;
       }
-      await moveJobDefinition({
+      await moveJobDocument({
         firestore: this.firestore,
-        jobDefinition,
+        jobDocument,
         fromCollectionPath: `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`,
         toCollectionPath: `${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`,
       });
@@ -135,17 +152,17 @@ export class FirestoreScheduler {
         // Report this error somehow to the user !
         // This will not be caught by the caller of this function as it's running in a setTimeout !
         console.log(
-          `[state=${this.state}] Failed to queue job ${jobDefinition.id}: ${reason}`
+          `[state=${this.state}] Failed to queue job ${jobDocument.jobDefinition.id}: ${reason}`
         );
       }
     }
   }
 
-  scheduleJobLocally(jobDefinition: JobDefinition) {
+  scheduleJobLocally(jobDocument: FirebaseJobDocument) {
     const timeoutId = this.clock.setTimeout(() => {
-      this.queueJob(jobDefinition);
-    }, jobDefinition.scheduledAt.date.getTime() - this.clock.now().getTime());
-    this.plannedTimeouts.set(jobDefinition.id, timeoutId);
+      this.queueJob(jobDocument);
+    }, jobDocument.jobDefinition.scheduledAt.date.getTime() - this.clock.now().getTime());
+    this.plannedTimeouts.set(jobDocument.jobDefinition.id, timeoutId);
   }
 
   /**
@@ -160,17 +177,18 @@ export class FirestoreScheduler {
         );
         const snapshot = await this.firestore
           .collection(`${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`)
-          .where("scheduledAt", "<=", periodFromNow)
+          .where("shards", "array-contains-any", this.shardsToListenTo)
+          .where("jobDefinition.scheduledAt", "<=", periodFromNow)
           .get();
         // console.log("Scheduled jobs: " + snapshot.size);
         snapshot.docs.forEach((doc) =>
           pipe(
             doc.data(),
-            JobDefinition.firestoreCodec.decode,
+            FirebaseJobDocument.codec.decode,
             E.foldW(
               () => {},
-              (jobDefinition) => {
-                this.scheduleJobLocally(jobDefinition);
+              (jobDocument) => {
+                this.scheduleJobLocally(jobDocument);
               }
             )
           )

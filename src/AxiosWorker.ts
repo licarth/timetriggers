@@ -8,7 +8,7 @@ import { HttpCallResponse } from "./HttpCallStatusUpdate/HttpCallResponse";
 import { HttpCallStarted } from "./HttpCallStatusUpdate/HttpCallStarted";
 import { HttpCallStatusUpdate } from "./HttpCallStatusUpdate/HttpCallStatusUpdate";
 import { StatusCode } from "./HttpCallStatusUpdate/StatusCode";
-import { JobDefinition } from "./JobDefinition";
+import { JobDefinition } from "./domain/JobDefinition";
 import { Worker } from "./Worker";
 import * as TE from "fp-ts/lib/TaskEither";
 import { pipe } from "fp-ts/lib/function";

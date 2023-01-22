@@ -3,7 +3,7 @@ import { HttpCallCompleted } from "@/HttpCallStatusUpdate/HttpCallCompleted";
 import { HttpCallErrored } from "@/HttpCallStatusUpdate/HttpCallErrored";
 import { HttpCallLastStatus } from "@/HttpCallStatusUpdate/HttpCallLastStatus";
 import { HttpCallStarted } from "@/HttpCallStatusUpdate/HttpCallStarted";
-import { JobDefinition } from "@/JobDefinition";
+import { JobDefinition } from "@/domain/JobDefinition";
 import { WorkerPool } from "@/WorkerPool";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
@@ -58,7 +58,7 @@ export class FirestoreProcessor {
             this.reject = reject;
             this.unsubscribe = this.firestore
               .collection(`${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`)
-              .orderBy("scheduledAt", "asc")
+              .orderBy("jobDefinition.scheduledAt", "asc")
               .limit(5)
               .onSnapshot((snapshot) => {
                 if (snapshot.size !== 0) {
@@ -96,7 +96,7 @@ export class FirestoreProcessor {
       return this.waitForNextJob();
     }
     return pipe(
-      JobDefinition.firestoreCodec.decode(jobDocument.data()),
+      JobDefinition.firestoreCodec.decode(jobDocument.data().jobDefinition),
       TE.fromEither,
       TE.chainFirstW(this.markJobAsRunning(jobDocument)), // Must fail if the job is already running
       TE.orElseW(() => this.takeFirstValidAvailableJob(docs, index + 1))

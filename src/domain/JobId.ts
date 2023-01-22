@@ -1,5 +1,5 @@
 import * as Codec from "io-ts/lib/Codec.js";
-import { stringOpaqueCodec } from "./iots/Opaque";
+import { stringOpaqueCodec } from "../iots/Opaque";
 
 export namespace JobId {
   export const codec = stringOpaqueCodec("JobId");

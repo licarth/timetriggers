@@ -1,7 +1,7 @@
 import { Clock } from "@/Clock/Clock";
 import { SystemClock } from "@/Clock/SystemClock";
-import { JobDefinition } from "src/JobDefinition";
-import { JobId } from "src/JobId";
+import { JobDefinition } from "@/domain/JobDefinition";
+import { JobId } from "@/domain/JobId";
 import { InMemoryDataStructure } from "./InMemoryDataStructure";
 
 export class InMemoryScheduler {

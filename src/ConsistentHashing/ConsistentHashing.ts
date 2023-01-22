@@ -1,13 +1,12 @@
-// @ts-nocheck
-import ConsistentHash from "consistent-hashing";
 import _ from "lodash";
+import { CustomConsistentHashing as ConsistentHash } from "./CustomConsistentHashing";
 
 export const consistentHashingFirebaseArray = (
   resourceName: string | number,
   tensOfServerCount: number
 ): string[] => {
   const firebaseArray = [];
-  const hr = new ConsistentHash([]);
+  const hr = ConsistentHash.build([]);
 
   for (let serverCount = 1; serverCount <= tensOfServerCount; serverCount++) {
     _.times(10, (i) => hr.addNode(String((serverCount - 1) * 10 + i)));
@@ -18,8 +17,35 @@ export const consistentHashingFirebaseArray = (
   return firebaseArray;
 };
 
+export const consistentHashingFirebaseArrayPreloaded = (
+  tensOfServerCount: number
+) => {
+  const hrs: ConsistentHash[] = [];
+
+  let hr = ConsistentHash.build([]);
+  for (let serverCount = 1; serverCount <= tensOfServerCount; serverCount++) {
+    _.times(10, (i) => hr.addNode(String((serverCount - 1) * 10 + i)));
+    hrs.push(hr.clone());
+  }
+
+  return (resourceName: string | number): string[] => {
+    return hrs.map((hr, i) => {
+      const serverToUse = hr.getNode(String(resourceName));
+      return `${i + 1}-${serverToUse}`;
+    });
+
+    // for (let serverCount = 1; serverCount <= tensOfServerCount; serverCount++) {
+    //   _.times(10, (i) => hr.addNode(String((serverCount - 1) * 10 + i)));
+    //   const serverToUse = hr.getNode(String(resourceName));
+    //   firebaseArray.push(`${serverCount}-${serverToUse}`);
+    // }
+
+    // return firebaseArray;
+  };
+};
+
 export const consistentHashing = (serverCount: number) => {
-  const hr = new ConsistentHash(_.times(serverCount, (i) => String(i)));
+  const hr = ConsistentHash.build(_.times(serverCount, (i) => String(i)));
   return (resourceName: string | number) => {
     return Number(hr.getNode(String(resourceName)));
   };
@@ -56,6 +82,7 @@ export const getShardsToListenTo = (
       newLine.push(matrix[k].pop());
       k = modulo(k - 1, i - 1);
     }
+    //@ts-ignore
     matrix.push(newLine.sort((a, b) => a - b));
   }
 

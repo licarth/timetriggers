@@ -1,4 +1,8 @@
 import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
+import {
+  consistentHashingFirebaseArray,
+  consistentHashingFirebaseArrayPreloaded,
+} from "@/ConsistentHashing/ConsistentHashing";
 import { withTimeout } from "fp-ts-contrib/Task/withTimeout";
 import * as E from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/function.js";
@@ -6,14 +10,16 @@ import * as O from "fp-ts/lib/Option";
 import * as TE from "fp-ts/lib/TaskEither";
 import * as C from "io-ts/lib/Codec";
 import _ from "lodash";
-import { JobDefinition } from "../JobDefinition";
-import { JobId } from "../JobId";
+import { JobDefinition } from "../domain/JobDefinition";
+import { JobId } from "../domain/JobId";
 import { FirestoreProcessor } from "./FirestoreProcessor";
 import {
   FirestoreScheduler,
   REGISTERED_JOBS_COLL_PATH,
 } from "./FirestoreScheduler";
 import { initializeApp } from "./initializeApp.js";
+
+const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(50);
 
 export type FirestoreApiProps = AbstractApiProps & {
   rootDocumentPath: string;
@@ -98,9 +104,10 @@ export class FirestoreApi extends AbstractApi {
         const jobDefinitionRef = this.firestore
           .collection(`${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`)
           .doc(id);
-        await jobDefinitionRef.set(
-          JobDefinition.firestoreCodec.encode(jobDefinition)
-        );
+        await jobDefinitionRef.set({
+          jobDefinition: JobDefinition.firestoreCodec.encode(jobDefinition),
+          shards: preloadedHashingFunction(jobDefinition.id).slice(1),
+        });
         return id;
       },
       (reason) => new Error(`Failed to schedule job: ${reason}`)

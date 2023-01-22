@@ -2,8 +2,8 @@ import { Clock } from "@/Clock/Clock";
 import { SystemClock } from "@/Clock/SystemClock";
 import _ from "lodash";
 import { Observable, Subscriber } from "rxjs";
-import { JobDefinition } from "src/JobDefinition";
-import { JobId } from "src/JobId";
+import { JobDefinition } from "@/domain/JobDefinition";
+import { JobId } from "@/domain/JobId";
 import { InMemoryScheduler } from "./InMemoryScheduler";
 import { InMemoryWorker } from "./InMemoryWorker";
 

@@ -3,8 +3,8 @@ import { Clock } from "@/Clock/Clock";
 import { SystemClock } from "@/Clock/SystemClock";
 import * as TE from "fp-ts/lib/TaskEither";
 import { Api } from "../Api";
-import { JobDefinition } from "../JobDefinition";
-import { JobId } from "../JobId";
+import { JobDefinition } from "../domain/JobDefinition";
+import { JobId } from "../domain/JobId";
 import { InMemoryDataStructure } from "./InMemoryDataStructure";
 
 export type InMemoryApiProps = AbstractApiProps & {};

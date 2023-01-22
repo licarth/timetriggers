@@ -1,5 +1,5 @@
+import { UtcDate } from "@/domain/UtcDate";
 import { taggedUnionClassCodec } from "@/iots";
-import { UtcDate } from "@/UtcDate";
 import * as Codec from "io-ts/lib/Codec.js";
 
 export class HttpCallErrored {
