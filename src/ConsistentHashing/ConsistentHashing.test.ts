@@ -13,7 +13,7 @@ describe("Firebase Consistent Hashing", () => {
 
   it("should be deterministic", async () => {
     const s = randomString();
-    console.log(_.times(10, (i) => consistentHashing(`${i}`, 2)));
+    console.log(_.times(10, (i) => consistentHashing(`string-${i}`, 5)));
     expect(consistentHashing(s, 10)).toEqual(consistentHashing(s, 10));
   });
 
