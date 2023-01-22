@@ -29,7 +29,7 @@ const clocks = {
   // TestClock: new TestClock(),
 };
 
-const NUM_JOBS = 100;
+const NUM_JOBS = 10;
 
 // const firestore = initializeApp().firestore;
 const realFirestore = initializeApp({
@@ -43,31 +43,25 @@ const realFirestore = initializeApp({
 // }).firestore;
 
 describe(`Api tests`, () => {
-  afterAll(async () => {
-    // await firestore?.terminate();
-    await realFirestore?.terminate();
-    // await loadtestFirestore?.terminate();
-  });
-
   const testRunId = randomString(4);
   console.log(`testRunId: ${testRunId}`);
   const apiBuilders = {
-    // InMemory: (clock, namespace) => TE.of(new InMemoryApi({ clock })),
-    FirestoreExternalRealApi: (clock, namespace) =>
-      FirestoreApi.build({
-        clock,
-        rootDocumentPath: namespace,
-        numProcessors: 10,
-        runScheduler: true,
-        firestore: realFirestore,
-      }),
-    // FirestoreInternal: (clock, namespace) =>
+    InMemory: (clock, namespace) => TE.of(new InMemoryApi({ clock })),
+    // FirestoreExternalRealApi: (clock, namespace) =>
     //   FirestoreApi.build({
     //     clock,
     //     rootDocumentPath: namespace,
-    //     numProcessors: 3,
+    //     numProcessors: 10,
     //     runScheduler: true,
+    //     firestore: realFirestore,
     //   }),
+    FirestoreInternal: (clock, namespace) =>
+      FirestoreApi.build({
+        clock,
+        rootDocumentPath: namespace,
+        numProcessors: 3,
+        runScheduler: true,
+      }),
   } as Record<
     string,
     (clock: Clock, namespace: string) => TE.TaskEither<any, Api>

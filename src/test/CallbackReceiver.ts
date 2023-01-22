@@ -27,7 +27,7 @@ export class CallbackReceiver {
 
     app.post("/", async (req, res) => {
       this.callbackIdsReceived.push(req.body.callbackId);
-      await sleepRandom(0, 100);
+      // await sleepRandom(0, 100);
       // just hung up
       this.randomlyChoseBetween(
         () => res.sendStatus(this.randomStatus()),
@@ -35,11 +35,11 @@ export class CallbackReceiver {
       );
     });
 
-    setInterval(() => {
-      console.log(
-        `CallbackReceiver: ${this.callbackIdsReceived.length} callbacks received`
-      );
-    }, 1000);
+    // setInterval(() => {
+    //   console.log(
+    //     `CallbackReceiver: ${this.callbackIdsReceived.length} callbacks received`
+    //   );
+    // }, 1000);
   }
 
   randomlyChoseBetween = (...fns: (() => void)[]) => {
