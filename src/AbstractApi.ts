@@ -13,8 +13,8 @@ export type AbstractApiProps = {
 export abstract class AbstractApi implements Api {
   protected clock;
   workerPool = new AxiosWorkerPool({
-    minSize: 2,
-    maxSize: 10,
+    minSize: 1,
+    maxSize: 2,
   });
 
   constructor({ clock }: AbstractApiProps) {

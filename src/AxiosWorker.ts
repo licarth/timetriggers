@@ -10,10 +10,12 @@ import { HttpCallStatusUpdate } from "./HttpCallStatusUpdate/HttpCallStatusUpdat
 import { StatusCode } from "./HttpCallStatusUpdate/StatusCode";
 import { JobDefinition } from "./JobDefinition";
 import { Worker } from "./Worker";
+import * as TE from "fp-ts/lib/TaskEither";
+import { pipe } from "fp-ts/lib/function";
 
 type AxiosWorkerProps = {
   clock?: Clock;
-  releaseFromPool?: (axiosWorker: AxiosWorker) => void;
+  releaseFromPool?: (axiosWorker: AxiosWorker) => TE.TaskEither<Error, void>;
 };
 
 export class AxiosWorker implements Worker {
@@ -32,7 +34,6 @@ export class AxiosWorker implements Worker {
   }
 
   close(): Promise<void> {
-    this.releaseFromPool && this.releaseFromPool(this);
     return Promise.resolve();
   }
 
@@ -94,6 +95,13 @@ export class AxiosWorker implements Worker {
       }
     } finally {
       subscriber.complete();
+      this.releaseFromPool &&
+        pipe(
+          this.releaseFromPool(this),
+          TE.mapLeft((e) => {
+            console.log(e);
+          })
+        )();
     }
   }
 }

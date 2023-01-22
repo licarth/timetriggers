@@ -162,6 +162,7 @@ export class FirestoreApi extends AbstractApi {
           (scheduler) => scheduler.close()
         )
       ),
+      TE.chainFirstW(() => this.workerPool.close()),
       TE.chainFirstW(() =>
         TE.tryCatch(
           async () => {
@@ -172,7 +173,7 @@ export class FirestoreApi extends AbstractApi {
             }
             return Promise.resolve();
           },
-          () => null
+          () => new Error(`Failed to close Firestore.`)
         )
       )
     );

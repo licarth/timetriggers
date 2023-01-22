@@ -32,13 +32,13 @@ export class InMemoryScheduler {
   cancel(jobId: JobId) {
     const timeout = this.plannedTimeouts.get(jobId);
     if (timeout) {
-      clearTimeout(timeout);
+      this.clock.clearTimeout(timeout);
     }
   }
 
   cancelAllJobs() {
     this.plannedTimeouts.forEach((timeout) => {
-      clearTimeout(timeout);
+      this.clock.clearTimeout(timeout);
     });
     this.plannedTimeouts.clear();
   }

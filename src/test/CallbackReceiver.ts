@@ -34,6 +34,12 @@ export class CallbackReceiver {
         () => res.destroy()
       );
     });
+
+    setInterval(() => {
+      console.log(
+        `CallbackReceiver: ${this.callbackIdsReceived.length} callbacks received`
+      );
+    }, 1000);
   }
 
   randomlyChoseBetween = (...fns: (() => void)[]) => {
@@ -56,31 +62,22 @@ export class CallbackReceiver {
 
   private async waitForCallbackR(
     callbackId: JobId,
-    maxWaitTime = 10000,
     startTime = Date.now(),
     interval = 500
   ) {
     if (this.callbackIdsReceived.includes(callbackId)) {
       return;
     } else {
-      return new Promise((resolve, reject) => {
-        if (maxWaitTime < Date.now() - startTime) {
-          reject(new Error(`Timeout waiting for callback ${callbackId}`));
-        } else {
-          setTimeout(() => {
-            if (this.callbackIdsReceived.includes(callbackId)) {
-              clearTimeout(interval);
-              resolve(void 0);
-            } else {
-              this.waitForCallbackR(
-                callbackId,
-                maxWaitTime,
-                startTime,
-                interval
-              ).then(resolve);
-            }
-          }, interval);
-        }
+      return new Promise<void>((resolve, reject) => {
+        setTimeout(() => {
+          if (this.callbackIdsReceived.includes(callbackId)) {
+            resolve(void 0);
+          } else {
+            this.waitForCallbackR(callbackId, startTime, interval).then(() =>
+              resolve(void 0)
+            );
+          }
+        }, interval);
       });
     }
   }

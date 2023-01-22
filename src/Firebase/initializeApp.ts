@@ -8,23 +8,32 @@ let initializationOptions = {};
 let firestore: Firestore;
 let app: App;
 
-export function initializeApp() {
-  if (process.env.PUBLIC_USE_EMULATORS === "true") {
-    // console.log("🔸 Using Emulators in the Jobs");
+export function initializeApp({
+  appName,
+  serviceAccount,
+}: Partial<{
+  appName: string;
+  serviceAccount: string;
+}> = {}) {
+  if (process.env.PUBLIC_USE_EMULATORS === "true" && !serviceAccount) {
+    console.log("🔸 Using Emulators in the Jobs");
     process.env["FIRESTORE_EMULATOR_HOST"] = "localhost:8080";
     initializationOptions = {
       ...initializationOptions,
-      projectId: "flightplot-web",
+      projectId: "doi-test-2dc76",
     };
   } else {
+    delete process.env["FIRESTORE_EMULATOR_HOST"];
     initializationOptions = {
       ...initializationOptions,
       credential: cert(
-        JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || "")
+        JSON.parse(
+          serviceAccount || process.env.FIREBASE_SERVICE_ACCOUNT_KEY || ""
+        )
       ),
     };
   }
-  app = firebaseInit(initializationOptions, randomString());
+  app = firebaseInit(initializationOptions, appName || randomString());
   firestore = getFirestore(app);
   firestore.settings({
     ignoreUndefinedProperties: true,

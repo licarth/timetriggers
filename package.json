@@ -23,7 +23,7 @@
     "now:prod": "node ./built/now",
     "dev": "ts-node -r tsconfig-paths/register ./src/index.ts",
     "build": "tsc && resolve-tspaths",
-    "test": "dotenv -f .env.test jest",
+    "test": "dotenv -e .env.test -e.env.test.local jest",
     "emulators": "firebase emulators:start --only firestore"
   },
   "devDependencies": {

@@ -11,6 +11,8 @@ export interface WorkerPool {
    * If no worker is available, it blocks until one is available.
    * */
   nextWorker(): TE.TaskEither<Error, Worker>;
+
+  close(): TE.TaskEither<Error, void>;
 }
 
 // Zips an Observable of queued tasks with an Observable of workers

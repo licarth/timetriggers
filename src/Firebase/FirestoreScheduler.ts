@@ -39,6 +39,7 @@ export class FirestoreScheduler {
   plannedTimeouts = new Map<JobId, NodeJS.Timeout>();
 
   unsubscribeListeningToNewJobs?: () => void;
+  unsubscribeSchedulingNextPeriod?: () => void;
 
   constructor(props: FirestoreSchedulerProps) {
     this.clock = props.clock;
@@ -50,7 +51,9 @@ export class FirestoreScheduler {
     const id = setInterval(() => {
       f();
     }, ms);
-    clearInterval(id);
+    this.unsubscribeSchedulingNextPeriod = () => {
+      clearInterval(id);
+    };
   };
 
   run() {
@@ -115,20 +118,26 @@ export class FirestoreScheduler {
         jobDefinition,
         fromCollectionPath: `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`,
         toCollectionPath: `${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`,
-      }).catch((reason) => {
-        // If code is 5 (NOT_FOUND), then the job was already moved by another instance
-        if (isFirebaseError(reason) && Number(reason.code) === 5) {
-          // console.log(
-          //   `Ignoring job ${jobDefinition.id} as it was already moved by another instance`
-          // );
-          return;
-        }
-        console.log(`Failed to queue job ${jobDefinition.id}: ${reason}`);
       });
     } catch (reason) {
-      // Report this error somehow to the user !
-      // This will not be caught by the caller of this function as it's running in a setTimeout !
-      console.log(`Failed to queue job ${jobDefinition.id} locally: ${reason}`);
+      // If code is 5 (NOT_FOUND), then the job was already moved by another instance
+      if (isFirebaseError(reason) && Number(reason.code) === 5) {
+        // console.log(
+        //   `Ignoring job ${jobDefinition.id} as it was already moved by another instance`
+        // );
+        return;
+      } else if (
+        String(reason).includes("The client has already been terminated") &&
+        this.state === "stopped" // This is expected if we're stopping
+      ) {
+        return;
+      } else {
+        // Report this error somehow to the user !
+        // This will not be caught by the caller of this function as it's running in a setTimeout !
+        console.log(
+          `[state=${this.state}] Failed to queue job ${jobDefinition.id}: ${reason}`
+        );
+      }
     }
   }
 
@@ -172,10 +181,13 @@ export class FirestoreScheduler {
   }
 
   close() {
+    this.state = "stopped";
     return TE.tryCatch(
       async () => {
         this.unsubscribeListeningToNewJobs &&
           this.unsubscribeListeningToNewJobs();
+        this.unsubscribeSchedulingNextPeriod &&
+          this.unsubscribeSchedulingNextPeriod();
       },
       (reason) => new Error(`Failed to close firestore scheduler: ${reason}`)
     );
@@ -186,7 +198,7 @@ export class FirestoreScheduler {
     return TE.tryCatch(
       async () => {
         this.plannedTimeouts.forEach((timeout) => {
-          clearTimeout(timeout);
+          this.clock.clearTimeout(timeout);
         });
         this.plannedTimeouts.clear();
       },

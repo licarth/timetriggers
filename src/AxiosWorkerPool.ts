@@ -42,7 +42,14 @@ export class AxiosWorkerPool implements WorkerPool {
   release(worker: AxiosWorker) {
     return TE.tryCatch(
       () => this._pool.release(worker),
-      (e) => new Error(`Failed to release axios worker`)
+      (reason) => new Error(`Failed to release axios worker: ${reason}`)
+    );
+  }
+
+  close(): TE.TaskEither<Error, void> {
+    return TE.tryCatch(
+      () => this._pool.drain().then(() => this._pool.clear()),
+      (reason) => new Error(`Failed to close axios worker pool: ${reason}`)
     );
   }
 }
