@@ -1,5 +1,5 @@
 // @ts-nocheck
-import ConsistentHash from "./consistent-hash";
+import ConsistentHash from "consistent-hashing";
 import _ from "lodash";
 
 export const consistentHashing = (
@@ -8,16 +8,9 @@ export const consistentHashing = (
 ): string[] => {
   const firebaseArray = [];
   for (let serverCount = 1; serverCount <= maxNumberOfServers; serverCount++) {
-    const hr = new ConsistentHash({
-      // distribution: "uniform",
-      // weight: 10,
-      // range: 1003,
-    });
-
-    _.times(serverCount * 10, (i) => hr.add(`${i}`));
-
-    const serverToUse = hr.get(resourceName);
-    firebaseArray.push(`${serverCount}-${serverToUse}`);
+    const hr = new ConsistentHash(_.times(10 * serverCount, (i) => `${i}`));
+    const serverToUse = hr.getNode(String(resourceName));
+    firebaseArray.push(serverToUse);
   }
 
   return firebaseArray;
