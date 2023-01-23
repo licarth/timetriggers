@@ -5,10 +5,7 @@ import {
   consistentHashingFirebaseArrayPreloaded,
   getShardsToListenTo,
 } from "./ConsistentHashing";
-
-const randomString = () => {
-  return Math.random().toString(36).substring(7);
-};
+import { randomString } from "../test/randomString";
 
 describe("Firebase Consistent Hashing", () => {
   it("should return an empty array when only one server", async () => {
