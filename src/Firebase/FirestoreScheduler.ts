@@ -1,19 +1,15 @@
 import { Clock } from "@/Clock/Clock";
-import { getShardsToListenTo } from "@/ConsistentHashing/ConsistentHashing";
 import { FirebaseJobDocument } from "@/domain/FirebaseJobDocument";
 import { JobDefinition } from "@/domain/JobDefinition";
 import { JobId } from "@/domain/JobId";
-import { WorkerPool } from "@/WorkerPool";
 import { addMilliseconds } from "date-fns";
 import type { Firestore } from "firebase-admin/firestore";
 import * as E from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither";
 import { isFirebaseError } from "./isFirebaseError";
-import {
-  moveJobDefinition,
-  moveJobDocument,
-} from "./moveJobFromCollectionToCollection";
+import { moveJobDocument } from "./moveJobFromCollectionToCollection";
+import { shardedFirestoreQuery } from "./shardedFirestoreQuery";
 
 export const REGISTERED_JOBS_COLL_PATH = `/registered`;
 export const QUEUED_JOBS_COLL_PATH = `/queued`;
@@ -79,21 +75,15 @@ export class FirestoreScheduler {
   }
 
   startListeningToNewJobs() {
-    let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> =
-      this.firestore.collection(
-        `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`
-      );
-    if (this.shardsToListenTo) {
-      query = query.where(
-        "shards",
-        "array-contains-any",
-        this.shardsToListenTo
-      );
-    }
     return TE.tryCatch(
       async () => {
         let isFirst = true;
-        this.unsubscribeListeningToNewJobs = query.onSnapshot((snapshot) => {
+        this.unsubscribeListeningToNewJobs = shardedFirestoreQuery(
+          this.firestore.collection(
+            `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`
+          ),
+          this.shardsToListenTo
+        ).onSnapshot((snapshot) => {
           // Ignore first snapshot
           if (isFirst) {
             isFirst = false;

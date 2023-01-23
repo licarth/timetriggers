@@ -19,7 +19,7 @@ import {
 } from "./FirestoreScheduler";
 import { initializeApp } from "./initializeApp.js";
 
-const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(50);
+const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(15);
 
 export type FirestoreApiProps = AbstractApiProps & {
   rootDocumentPath: string;
@@ -42,7 +42,7 @@ export class FirestoreApi extends AbstractApi {
     this.firestoreOrigin = props.firestore ? "external" : "internal";
 
     this.scheduler = pipe(
-      props.runScheduler
+      props.runScheduler === true || props.runScheduler === undefined
         ? new FirestoreScheduler({
             clock: this.clock,
             firestore: this.firestore,

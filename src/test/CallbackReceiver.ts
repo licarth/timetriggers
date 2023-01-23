@@ -60,6 +60,12 @@ export class CallbackReceiver {
     return this.waitForCallbackR(callbackId, maxWaitTime);
   }
 
+  async waitForAllCallbacks(callbackIds: JobId[]) {
+    return Promise.all(
+      callbackIds.map((callbackId) => this.waitForCallback(callbackId))
+    );
+  }
+
   private async waitForCallbackR(
     callbackId: JobId,
     startTime = Date.now(),

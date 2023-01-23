@@ -211,7 +211,7 @@ export class ZookeeperCoordinationClient implements CoordinationClient {
   }
 
   getClusterNodeInformation(): Observable<ClusterNodeInformation> {
-    return pipe(this.subject.asObservable(), debounceTime(1000));
+    return pipe(this.subject.asObservable(), debounceTime(300));
   }
 
   close(): TE.TaskEither<Error, void> {

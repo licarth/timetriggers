@@ -14,12 +14,15 @@ import {
   RUNNING_JOBS_COLL_PATH,
 } from "./FirestoreScheduler";
 import { isFirebaseError } from "./isFirebaseError";
+import { SystemClock } from "@/Clock/SystemClock";
+import { shardedFirestoreQuery } from "./shardedFirestoreQuery";
 
 type FirestoreProcessorProps = {
   firestore: FirebaseFirestore.Firestore;
   rootDocumentPath: string;
-  clock: Clock;
+  clock?: Clock;
   workerPool: WorkerPool;
+  shardsToListenTo?: string[] | null; // Null means all shards !
 };
 
 export class FirestoreProcessor {
@@ -30,12 +33,14 @@ export class FirestoreProcessor {
   reject?: (reason?: any) => void;
   clock;
   workerPool;
+  shardsToListenTo;
 
   constructor(props: FirestoreProcessorProps) {
     this.firestore = props.firestore;
     this.rootDocumentPath = props.rootDocumentPath;
-    this.clock = props.clock;
+    this.clock = props.clock || new SystemClock();
     this.workerPool = props.workerPool;
+    this.shardsToListenTo = props.shardsToListenTo;
   }
 
   run() {
@@ -56,8 +61,12 @@ export class FirestoreProcessor {
             FirebaseFirestore.QuerySnapshot<FirebaseFirestore.DocumentData>
           >((resolve, reject) => {
             this.reject = reject;
-            this.unsubscribe = this.firestore
-              .collection(`${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`)
+            this.unsubscribe = shardedFirestoreQuery(
+              this.firestore.collection(
+                `${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`
+              ),
+              this.shardsToListenTo
+            )
               .orderBy("jobDefinition.scheduledAt", "asc")
               .limit(5)
               .onSnapshot((snapshot) => {
@@ -107,7 +116,7 @@ export class FirestoreProcessor {
   takeNextJob(): TE.TaskEither<any, void> {
     return pipe(
       this.waitForNextJob(),
-      TE.chainFirstW((jobDefinition) => pipe(this.processJob(jobDefinition))),
+      TE.chainFirstW((jobDefinition) => this.processJob(jobDefinition)),
       TE.chainW(() => this.takeNextJob())
     );
   }
@@ -201,6 +210,9 @@ export class FirestoreProcessor {
                       executionStartDate.getTime() -
                       jobDefinition.scheduledAt.date.getTime(),
                     durationMs,
+                    clusterSizeWhenProcessed: this.shardsToListenTo
+                      ? Number(this.shardsToListenTo[0].split("-")[0])
+                      : 1,
                   }
                 );
                 transaction.delete(

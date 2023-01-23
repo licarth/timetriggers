@@ -283,3 +283,30 @@ describe("getShardsToListenTo", () => {
     expect(res).toEqual(["11-10"]);
   });
 });
+
+describe.skip("consistentHashingFirebaseArrayPreloaded", () => {
+  let testedFunction: (s: string) => string[];
+  beforeAll(() => {
+    const now = Date.now();
+    testedFunction = consistentHashingFirebaseArrayPreloaded(30);
+    console.log("data preloaded in: " + (Date.now() - now) + "ms");
+    // 30 * 10 servers takes 440 ms
+    // 50 * 10 servers takes 1.1 seconds
+    // 100 * 10 servers takes 5.2 seconds
+  });
+
+  it("should be able to return 100 results under 5 seconds", () => {
+    jest.setTimeout(20000);
+    const start = Date.now();
+    for (let i = 0; i < 100; i++) {
+      testedFunction(randomString());
+    }
+    const end = Date.now();
+    expect(end - start).toBeLessThan(5000);
+    console.log("it took: " + (end - start) + "ms");
+  });
+});
+
+// 30 * 10 servers (300 servers max) => 130 ms per generation
+// 50 * 10 servers (500 servers max) => 360 ms per generation
+// 100 * 10 servers (1000 servers max) => 1.560 s per generation 😵
