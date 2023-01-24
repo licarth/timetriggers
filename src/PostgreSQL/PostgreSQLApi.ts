@@ -1,5 +1,5 @@
 import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
-import * as TE from "fp-ts/lib/TaskEither";
+import * as TE from "fp-ts/lib/TaskEither.js";
 import { JobDefinition } from "../domain/JobDefinition";
 import { JobId } from "../domain/JobId";
 

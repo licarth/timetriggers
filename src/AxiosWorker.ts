@@ -10,8 +10,8 @@ import { HttpCallStatusUpdate } from "./HttpCallStatusUpdate/HttpCallStatusUpdat
 import { StatusCode } from "./HttpCallStatusUpdate/StatusCode";
 import { JobDefinition } from "./domain/JobDefinition";
 import { Worker } from "./Worker";
-import * as TE from "fp-ts/lib/TaskEither";
-import { pipe } from "fp-ts/lib/function";
+import * as TE from "fp-ts/lib/TaskEither.js";
+import { pipe } from "fp-ts/lib/function.js";
 
 type AxiosWorkerProps = {
   clock?: Clock;

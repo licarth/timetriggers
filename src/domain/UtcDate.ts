@@ -1,6 +1,6 @@
-import { pipe } from "fp-ts/lib/function";
-import * as C from "io-ts/lib/Codec";
-import * as D from "io-ts/lib/Decoder";
+import { pipe } from "fp-ts/lib/function.js";
+import * as C from "io-ts/lib/Codec.js";
+import * as D from "io-ts/lib/Decoder.js";
 import { Timestamp } from "firebase-admin/firestore";
 
 export namespace UtcDate {

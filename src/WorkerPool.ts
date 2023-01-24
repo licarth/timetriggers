@@ -1,5 +1,5 @@
 import { Worker } from "./Worker";
-import * as TE from "fp-ts/lib/TaskEither";
+import * as TE from "fp-ts/lib/TaskEither.js";
 
 /**
  * An actor executes a job when it's time to do so.

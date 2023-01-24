@@ -21,10 +21,8 @@
     "tsconfig-paths": "^4.1.1"
   },
   "scripts": {
-    "start": "node ./built",
+    "start": "dotenv -e .env node --experimental-loader=newrelic/esm-loader.mjs ./built",
     "deploy": "flyctl deploy --remote-only",
-    "now": "ts-node -r tsconfig-paths/register ./src/now.ts",
-    "now:prod": "node ./built/now",
     "dev": "ts-node -r tsconfig-paths/register ./src/index.ts",
     "build": "tsc && resolve-tspaths",
     "test": "dotenv -e .env.test -e.env.test.local jest",

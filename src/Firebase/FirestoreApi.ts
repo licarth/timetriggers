@@ -1,10 +1,10 @@
 import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
-import * as E from "fp-ts/lib/Either";
+import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
-import * as O from "fp-ts/lib/Option";
-import * as TE from "fp-ts/lib/TaskEither";
-import * as C from "io-ts/lib/Codec";
+import * as O from "fp-ts/lib/Option.js";
+import * as TE from "fp-ts/lib/TaskEither.js";
+import * as C from "io-ts/lib/Codec.js";
 import _ from "lodash";
 import { JobDefinition } from "../domain/JobDefinition";
 import { JobId } from "../domain/JobId";

@@ -5,8 +5,8 @@ import { HttpCallLastStatus } from "@/HttpCallStatusUpdate/HttpCallLastStatus";
 import { HttpCallStarted } from "@/HttpCallStatusUpdate/HttpCallStarted";
 import { JobDefinition } from "@/domain/JobDefinition";
 import { WorkerPool } from "@/WorkerPool";
-import { pipe } from "fp-ts/lib/function";
-import * as TE from "fp-ts/lib/TaskEither";
+import { pipe } from "fp-ts/lib/function.js";
+import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import {
   COMPLETED_JOBS_COLL_PATH,

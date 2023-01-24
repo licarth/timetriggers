@@ -1,7 +1,7 @@
 import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
 import { Clock } from "@/Clock/Clock";
 import { SystemClock } from "@/Clock/SystemClock";
-import * as TE from "fp-ts/lib/TaskEither";
+import * as TE from "fp-ts/lib/TaskEither.js";
 import { Api } from "../Api";
 import { JobDefinition } from "../domain/JobDefinition";
 import { JobId } from "../domain/JobId";

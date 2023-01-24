@@ -1,7 +1,7 @@
 /**
  * @since 0.1.0
  */
-import { Task } from "fp-ts/lib/Task";
+import { Task } from "fp-ts/lib/Task.js";
 
 export const never: Task<never> = () => new Promise((_) => undefined);
 

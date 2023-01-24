@@ -3,7 +3,7 @@ import { AxiosWorker } from "./AxiosWorker";
 import { Clock } from "./Clock/Clock";
 import { WorkerPool } from "./WorkerPool";
 import genericPool from "generic-pool";
-import * as TE from "fp-ts/lib/TaskEither";
+import * as TE from "fp-ts/lib/TaskEither.js";
 
 type AxiosWorkerPoolProps = {
   minSize: number;
