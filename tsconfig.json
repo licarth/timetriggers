@@ -22,7 +22,7 @@
       "@services/*": ["src/services/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "newrelic.mjs"],
   "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node"

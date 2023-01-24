@@ -10,35 +10,63 @@ import {
   CoordinationClient,
 } from "./CoordinationClient";
 
-type ZookeeperCoordinationClientBuildProps = {
+type ZookeeperCoordinationClientV2BuildProps = {
   namespace?: string;
 };
-type ZookeeperCoordinationClientProps = {
+type ZookeeperCoordinationClientV2Props = {
   zk: ZK;
   namespace: string;
 };
 
 const { CreateMode } = ZooKeeper;
 
-export class ZookeeperCoordinationClient implements CoordinationClient {
+/**
+ * This is a new version of the Zookeeper coordination client that uses a better
+ * algorithm for creating nodes in Zookeeper.
+ *
+ * It always tries to have contiguous node numbers. When there is a server disconnection,
+ * (e.g. node 2/5 becomes unavailable), then node 5 takes the place of node 2.
+ *
+ * This is because some environment do not allow us to control which node to remove on a scale down (e.g.
+ * Kubernetes Deployment). This would not be needed with a StatefulSet, but we don't want to enforce using
+ * StatefulSets necessarily.
+ *
+ * The algorithm is as follows:
+ * 1. get current children
+ * 2. try to get the first available node (including holes)
+ *   on success, go to step 4
+ *   on failure, go to step 1
+ * 3. listen to children changes
+ *
+ * on children change:
+ * 4. get current children
+ * 5. determine whether nodes are contiguous
+ *   if they are contiguous, go to step 3
+ *   if they are not, go to step 8
+ * 6. determine wether current node is the last one
+ *   if current node = last node, restart the node algithm
+ *   else, go to step 3
+ */
+
+export class ZookeeperCoordinationClientV2 implements CoordinationClient {
   private readonly zk: ZK;
   private subject = new ReplaySubject<ClusterNodeInformation>(1); // Emit the most recent information to new subscribers
   private nodePath?: string;
   private readonly namespace: string;
 
-  constructor(props: ZookeeperCoordinationClientProps) {
+  constructor(props: ZookeeperCoordinationClientV2Props) {
     this.zk = props.zk;
     this.namespace = props.namespace;
   }
 
   static build(
-    props: Partial<ZookeeperCoordinationClientBuildProps> = {}
-  ): TE.TaskEither<Error, ZookeeperCoordinationClient> {
+    props: Partial<ZookeeperCoordinationClientV2BuildProps> = {}
+  ): TE.TaskEither<Error, ZookeeperCoordinationClientV2> {
     const client = ZooKeeper.createClient("localhost:2181", {
       sessionTimeout: 500,
     });
 
-    const coordinationClient = new ZookeeperCoordinationClient({
+    const coordinationClient = new ZookeeperCoordinationClientV2({
       zk: client,
       namespace: props.namespace || "/default",
     });
