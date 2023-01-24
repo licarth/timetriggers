@@ -101,7 +101,12 @@ export class CallbackReceiver {
   }
 
   async close() {
-    this.server.close();
+    await new Promise<void>((resolve) =>
+      this.server.close(() => {
+        console.log("CallbackReceiver closed");
+        resolve();
+      })
+    );
   }
 }
 

@@ -48,7 +48,10 @@ export class AxiosWorkerPool implements WorkerPool {
 
   close(): TE.TaskEither<Error, void> {
     return TE.tryCatch(
-      () => this._pool.drain().then(() => this._pool.clear()),
+      async () => {
+        await this._pool.drain();
+        await this._pool.clear();
+      },
       (reason) => new Error(`Failed to close axios worker pool: ${reason}`)
     );
   }

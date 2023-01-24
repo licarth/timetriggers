@@ -33,14 +33,6 @@ export const consistentHashingFirebaseArrayPreloaded = (
       const serverToUse = hr.getNode(String(resourceName));
       return `${i + 1}-${serverToUse}`;
     });
-
-    // for (let serverCount = 1; serverCount <= tensOfServerCount; serverCount++) {
-    //   _.times(10, (i) => hr.addNode(String((serverCount - 1) * 10 + i)));
-    //   const serverToUse = hr.getNode(String(resourceName));
-    //   firebaseArray.push(`${serverCount}-${serverToUse}`);
-    // }
-
-    // return firebaseArray;
   };
 };
 

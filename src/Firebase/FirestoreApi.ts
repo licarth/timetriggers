@@ -1,9 +1,5 @@
 import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
-import {
-  consistentHashingFirebaseArray,
-  consistentHashingFirebaseArrayPreloaded,
-} from "@/ConsistentHashing/ConsistentHashing";
-import { withTimeout } from "fp-ts-contrib/Task/withTimeout";
+import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
 import * as E from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/function.js";
 import * as O from "fp-ts/lib/Option";
@@ -18,6 +14,7 @@ import {
   REGISTERED_JOBS_COLL_PATH,
 } from "./FirestoreScheduler";
 import { initializeApp } from "./initializeApp.js";
+import { withTimeout } from "../fp-ts/withTimeout";
 
 const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(15);
 
@@ -90,9 +87,9 @@ export class FirestoreApi extends AbstractApi {
     return pipe(
       TE.tryCatch(
         () => this.firestore.listCollections(),
-        (e) => new Error(`Failed to ping Firestore.`)
+        (e) => new Error(`Failed to ping Firestore: ${e}`)
       ),
-      withTimeout(E.left(new Error("Healthcheck timeout")), 1000)
+      withTimeout(E.left(new Error("Healthcheck timeout")), 5000)
     );
   }
 
@@ -172,14 +169,21 @@ export class FirestoreApi extends AbstractApi {
       TE.chainFirstW(() => this.workerPool.close()),
       TE.chainFirstW(() =>
         TE.tryCatch(
-          async () => {
-            if (this.firestoreOrigin === "internal") {
-              return this.firestore.terminate().catch((e) => {
-                // ignore error
-              });
-            }
-            return Promise.resolve();
-          },
+          () =>
+            new Promise<void>((resolve, reject) => {
+              if (this.firestoreOrigin === "internal") {
+                return this.firestore
+                  .terminate()
+                  .catch((e) => {
+                    // ignore error
+                  })
+                  .finally(() => {
+                    resolve();
+                  });
+              } else {
+                resolve();
+              }
+            }),
           () => new Error(`Failed to close Firestore.`)
         )
       )

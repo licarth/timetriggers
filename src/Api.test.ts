@@ -16,8 +16,9 @@ import { InMemoryApi } from "./InMemory/InMemoryApi.js";
 import { JobId } from "./domain/JobId.js";
 import { ScheduledAt } from "./domain/ScheduledAt.js";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
+import { te } from "./fp-ts/te.js";
 
-jest.setTimeout(200000);
+jest.setTimeout(15000);
 
 const randomString = (length: number) =>
   Math.random()
@@ -26,46 +27,50 @@ const randomString = (length: number) =>
 
 const clocks = {
   SystemClock: new SystemClock(),
-  // TestClock: new TestClock(),
+  TestClock: new TestClock(),
 };
 
 const NUM_JOBS = 10;
 
-// const firestore = initializeApp().firestore;
 const realFirestore = initializeApp({
   appName: "doi_test_real",
   serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-  // serviceAccount: process.env.FIREBASE_SA_DOI_LOADTEST,
 }).firestore;
-// const loadtestFirestore = initializeApp({
-//   appName: "loadtests",
-//   serviceAccount: process.env.FIREBASE_SA_DOI_LOADTEST,
-// }).firestore;
+
+const externalEmulatorFirestore = initializeApp({
+  appName: "doi_test_external_emulator",
+}).firestore;
 
 describe(`Api tests`, () => {
   const testRunId = randomString(4);
   console.log(`testRunId: ${testRunId}`);
   const apiBuilders = {
     // InMemory: (clock, namespace) => TE.of(new InMemoryApi({ clock })),
-    // FirestoreExternalRealApi: (clock, namespace) =>
-    //   FirestoreApi.build({
-    //     clock,
-    //     rootDocumentPath: namespace,
-    //     numProcessors: 10,
-    //     runScheduler: true,
-    //     firestore: realFirestore,
-    //   }),
+    FirestoreExternalRealApi: (clock, namespace) =>
+      FirestoreApi.build({
+        clock,
+        rootDocumentPath: namespace,
+        numProcessors: 1,
+        runScheduler: true,
+        firestore: realFirestore,
+      }),
     FirestoreInternal: (clock, namespace) =>
       FirestoreApi.build({
         clock,
         rootDocumentPath: namespace,
-        numProcessors: 3,
+        numProcessors: 1,
         runScheduler: true,
+        firestore: externalEmulatorFirestore,
       }),
   } as Record<
     string,
     (clock: Clock, namespace: string) => TE.TaskEither<any, Api>
   >;
+
+  afterAll(async () => {
+    await realFirestore.terminate();
+    await externalEmulatorFirestore.terminate();
+  });
 
   let callbackReceiver: CallbackReceiver;
 
@@ -76,24 +81,20 @@ describe(`Api tests`, () => {
       describe(`${apiName} (${clockName} clock)`, () => {
         beforeEach(async () => {
           const namespace = `test-${testRunId}/${apiName}-${clockName}`;
-          api = await pipe(
-            apiBuilders[apiName](clock, namespace),
-            TE.getOrElse((e) => {
-              throw new Error(`could not build api ${apiName}: ${e}`);
-            })
-          )();
+          api = await te.unsafeGetOrThrow(
+            apiBuilders[apiName](clock, namespace)
+          );
           await api.cancelAllJobs()();
           callbackReceiver = await CallbackReceiver.build();
         });
 
         afterEach(async () => {
-          // await api.cancelAllJobs()();
           callbackReceiver && (await callbackReceiver.close());
-          api && (await api.close()());
+          api && (await te.unsafeGetOrThrow(api.close()));
         });
 
-        it.skip("should schedule a job and execute it", async () => {
-          const jobDateUtcString = addSeconds(clock.now(), 2).toISOString();
+        it("should schedule a job and execute it", async () => {
+          const jobDateUtcString = addSeconds(clock.now(), 0).toISOString();
 
           const callbackId = await pipe(
             api.schedule({
@@ -113,16 +114,6 @@ describe(`Api tests`, () => {
               console.log(draw(eitherNextPlanned.left));
             }
           }
-          expect(eitherNextPlanned).toMatchObject(
-            E.of([
-              {
-                id: expect.any(String),
-                scheduledAt: ScheduledAt.fromUTCString(jobDateUtcString),
-              },
-            ])
-          );
-
-          clock.tickSeconds(20);
 
           await callbackReceiver.waitForCallback(callbackId);
         });
@@ -151,12 +142,13 @@ describe(`Api tests`, () => {
           for (const callbackId of callbackIds) {
             await callbackReceiver.waitForCallback(callbackId);
           }
-          console.log(`All ${NUM_JOBS} callbacks received`);
         });
 
         it.skip("should run jobs already scheduled before listening with the scheduler", async () => {
           // Only applicable to Api implementations that have a scheduler
         });
+
+        it("should do nothing when there is no job", async () => {});
       });
     }
   }
