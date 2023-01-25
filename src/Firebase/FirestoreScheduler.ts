@@ -2,6 +2,7 @@ import { Clock } from "@/Clock/Clock";
 import { FirebaseJobDocument } from "@/domain/FirebaseJobDocument";
 import { JobDefinition } from "@/domain/JobDefinition";
 import { JobId } from "@/domain/JobId";
+import { te } from "@/fp-ts";
 import { addMilliseconds } from "date-fns";
 import type { Firestore } from "firebase-admin/firestore";
 import * as E from "fp-ts/lib/Either.js";
@@ -27,7 +28,7 @@ type FirestoreSchedulerProps = {
   clock: Clock;
   firestore: Firestore;
   rootDocumentPath: string;
-  shardsToListenTo?: string[];
+  shardsToListenTo?: string[] | null;
 };
 
 export class FirestoreScheduler {
@@ -51,7 +52,8 @@ export class FirestoreScheduler {
     this.shardsToListenTo = props.shardsToListenTo;
   }
 
-  runEveryMs = (ms: number, f: () => void) => () => {
+  runEveryMs = (ms: number, f: () => void) => {
+    f();
     const id = setInterval(() => {
       f();
     }, ms);
@@ -63,7 +65,7 @@ export class FirestoreScheduler {
   run() {
     this.state = "running";
     this.runEveryMs(Math.floor(SCHEDULE_ADVANCE_MS / 2), () => {
-      this.scheduleNext2Hours();
+      te.unsafeGetOrThrow(this.scheduleNext2Hours());
     });
     return pipe(this.startListeningToNewJobs());
 
@@ -151,7 +153,7 @@ export class FirestoreScheduler {
   scheduleJobLocally(jobDocument: FirebaseJobDocument) {
     const timeoutId = this.clock.setTimeout(() => {
       this.queueJob(jobDocument);
-    }, jobDocument.jobDefinition.scheduledAt.date.getTime() - this.clock.now().getTime());
+    }, Math.max(0, jobDocument.jobDefinition.scheduledAt.date.getTime() - this.clock.now().getTime()));
     this.plannedTimeouts.set(jobDocument.jobDefinition.id, timeoutId);
   }
 
@@ -165,12 +167,16 @@ export class FirestoreScheduler {
           this.clock.now(),
           SCHEDULE_ADVANCE_MS
         );
-        const snapshot = await this.firestore
-          .collection(`${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`)
-          .where("shards", "array-contains-any", this.shardsToListenTo)
+        console.log("Scheduling jobs for period: " + periodFromNow);
+        const snapshot = await shardedFirestoreQuery(
+          this.firestore.collection(
+            `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`
+          ),
+          this.shardsToListenTo
+        )
           .where("jobDefinition.scheduledAt", "<=", periodFromNow)
           .get();
-        // console.log("Scheduled jobs: " + snapshot.size);
+        console.log("Found jobs to schedule jobs: " + snapshot.size);
         snapshot.docs.forEach((doc) =>
           pipe(
             doc.data(),

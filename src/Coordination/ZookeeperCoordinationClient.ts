@@ -34,9 +34,12 @@ export class ZookeeperCoordinationClient implements CoordinationClient {
   static build(
     props: Partial<ZookeeperCoordinationClientBuildProps> = {}
   ): TE.TaskEither<Error, ZookeeperCoordinationClient> {
-    const client = ZooKeeper.createClient("localhost:2181", {
-      sessionTimeout: 500,
-    });
+    const client = ZooKeeper.createClient(
+      process.env.ZOOKEEPER_CONNECTION_STRING || "localhost:2181",
+      {
+        sessionTimeout: 500,
+      }
+    );
 
     const coordinationClient = new ZookeeperCoordinationClient({
       zk: client,

@@ -15,6 +15,7 @@ import {
 } from "./FirestoreScheduler";
 import { initializeApp } from "./initializeApp.js";
 import { withTimeout } from "../fp-ts/withTimeout";
+import { firestore } from "firebase-admin";
 
 const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(15);
 
@@ -61,6 +62,10 @@ export class FirestoreApi extends AbstractApi {
   }
 
   static build(props: FirestoreApiProps) {
+    console.log(
+      `Building FirestoreApi with: 
+  - rootDocumentPath: ${props.rootDocumentPath}`
+    );
     return pipe(
       TE.of(new FirestoreApi(props)),
       TE.chainFirstW((api) =>
@@ -86,7 +91,10 @@ export class FirestoreApi extends AbstractApi {
   healthCheck() {
     return pipe(
       TE.tryCatch(
-        () => this.firestore.listCollections(),
+        () =>
+          this.firestore.listCollections().then((coll) => {
+            console.log(coll.map((c) => c.id));
+          }),
         (e) => new Error(`Failed to ping Firestore: ${e}`)
       ),
       withTimeout(E.left(new Error("Healthcheck timeout")), 5000)

@@ -1,0 +1,54 @@
+---
+project: do-it-tomorrow
+
+env:
+  HELM_DEPLOYMENT_NAME: do-it-tomorrow
+  HELM_NAMESPACE: doi-production
+  DOCKER_IMAGE: europe-west3-docker.pkg.dev/doi-production-licarth/do-it-tomorrow/do-it-tomorrow
+
+tasks:
+  docker-auth:
+    cmd: |-
+      gcloud auth configure-docker europe-west3-docker.pkg.dev
+
+  build:
+    cmd: |-
+      # Detect MacOs operating system 
+      if [ "$(uname)" == "Darwin" ]; then
+        echo "Mac OS detected"
+        docker buildx build --platform linux/amd64 --push -t {{ .DOCKER_IMAGE }} .
+      else
+        echo "Linux OS detected"
+        docker build --platform linux/amd64 -t {{ .DOCKER_IMAGE }} .
+        docker push {{ .DOCKER_IMAGE }}
+      fi
+
+  build_for_arm64:
+    cmd: |-
+      docker build --platform=linux/arm64/v8 -t {{ .DOCKER_IMAGE }}-arm64 .
+
+  run:
+    cmd: |-
+      docker run --platform=linux/amd64 --rm -it --name {{ .HELM_DEPLOYMENT_NAME }} {{ .DOCKER_IMAGE }}
+
+  run_for_arm64:
+    cmd: |-
+      docker run --platform=linux/arm64/v8 --rm -it --name {{ .HELM_DEPLOYMENT_NAME }} {{ .DOCKER_IMAGE }}-arm64
+
+  deploy:
+    cmd: |-
+      # Create namespace if it doesn't exist
+      kubectl get namespace {{ .HELM_NAMESPACE }} || kubectl create namespace {{ .HELM_NAMESPACE }}
+      helm upgrade --wait -n {{ .HELM_NAMESPACE }} --install {{ .HELM_DEPLOYMENT_NAME }} ./chart
+
+  diff:
+    cmd: |-
+      helm upgrade --wait -n {{ .HELM_NAMESPACE }} --install {{ .HELM_DEPLOYMENT_NAME }} ./chart
+
+  uninstall:
+    cmd: |-
+      helm uninstall {{ .HELM_DEPLOYMENT_NAME }}
+
+  logs:
+    cmd: |-
+      kubectl -n {{ .HELM_NAMESPACE }} logs -f $(kubectl -n {{ .HELM_NAMESPACE }} get pods -l app={{ .HELM_DEPLOYMENT_NAME }} -o name | cut -c5-)

@@ -4,15 +4,11 @@ import * as T from "fp-ts/lib/Task.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import { Api } from "./Api.js";
-import { AxiosWorkerPool } from "./AxiosWorkerPool.js";
 import { Clock } from "./Clock/Clock.js";
 import { SystemClock } from "./Clock/SystemClock.js";
-import { getShardsToListenTo } from "./ConsistentHashing/ConsistentHashing.js";
-import { ZookeeperCoordinationClient } from "./Coordination/ZookeeperCoordinationClient.js";
 import { JobId } from "./domain/JobId.js";
 import { ScheduledAt } from "./domain/ScheduledAt.js";
 import { FirestoreApi } from "./Firebase/FirestoreApi.js";
-import { FirestoreProcessor } from "./Firebase/FirestoreProcessor.js";
 import { initializeApp } from "./Firebase/initializeApp.js";
 import { te } from "./fp-ts/te.js";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
@@ -27,7 +23,8 @@ const randomString = (length: number) =>
 const NUM_JOBS = 100;
 
 const firestore = initializeApp({
-  serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+  // serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+  serviceAccount: process.env.FIREBASE_SA_DOI_PRODUCTION,
 }).firestore;
 
 describe(`Firebase Seed jobs`, () => {
@@ -46,7 +43,7 @@ describe(`Firebase Seed jobs`, () => {
   it(`should schedule ${NUM_JOBS} jobs and execute them one by one`, async () => {
     const api = await te.unsafeGetOrThrow(
       FirestoreApi.build({
-        rootDocumentPath: `/local-dev/tasks`,
+        rootDocumentPath: `/doi-production/tasks`,
         numProcessors: 0,
         runScheduler: false,
         firestore,
@@ -86,7 +83,7 @@ const createJobs = async ({
   const arrayOfTe = _.times(numJobs, (i) =>
     api.schedule({
       scheduledAt: ScheduledAt.fromUTCString(
-        addMinutes(clock.now(), 1).toISOString()
+        addSeconds(clock.now(), 10).toISOString()
       ),
       url: `http://localhost:${callbackReceiverPort}`,
     })

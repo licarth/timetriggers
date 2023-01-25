@@ -4,17 +4,14 @@ import * as T from "fp-ts/lib/Task.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import { Api } from "./Api.js";
-import { AxiosWorkerPool } from "./AxiosWorkerPool.js";
 import { Clock } from "./Clock/Clock.js";
 import { SystemClock } from "./Clock/SystemClock.js";
-import { getShardsToListenTo } from "./ConsistentHashing/ConsistentHashing.js";
-import { ZookeeperCoordinationClient } from "./Coordination/ZookeeperCoordinationClient.js";
 import { JobId } from "./domain/JobId.js";
 import { ScheduledAt } from "./domain/ScheduledAt.js";
 import { FirestoreApi } from "./Firebase/FirestoreApi.js";
-import { FirestoreProcessor } from "./Firebase/FirestoreProcessor.js";
 import { initializeApp } from "./Firebase/initializeApp.js";
 import { te } from "./fp-ts/te.js";
+import { launchProcessor } from "./launchProcessor";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
 
 jest.setTimeout(20 * 1000);
@@ -54,14 +51,30 @@ describe(`Firebase Distributed`, () => {
       })
     );
 
-    launchProcessor(api, rootDocumentPath, "/" + testRunId);
-    launchProcessor(api, rootDocumentPath, "/" + testRunId);
-    launchProcessor(api, rootDocumentPath, "/" + testRunId);
-    launchProcessor(api, rootDocumentPath, "/" + testRunId);
-    launchProcessor(api, rootDocumentPath, "/" + testRunId);
-    launchProcessor(api, rootDocumentPath, "/" + testRunId);
-    launchProcessor(api, rootDocumentPath, "/" + testRunId);
-    await launchProcessor(api, rootDocumentPath, "/" + testRunId);
+    te.unsafeGetOrThrow(
+      launchProcessor(api, rootDocumentPath, "/" + testRunId)
+    );
+    te.unsafeGetOrThrow(
+      launchProcessor(api, rootDocumentPath, "/" + testRunId)
+    );
+    te.unsafeGetOrThrow(
+      launchProcessor(api, rootDocumentPath, "/" + testRunId)
+    );
+    te.unsafeGetOrThrow(
+      launchProcessor(api, rootDocumentPath, "/" + testRunId)
+    );
+    te.unsafeGetOrThrow(
+      launchProcessor(api, rootDocumentPath, "/" + testRunId)
+    );
+    te.unsafeGetOrThrow(
+      launchProcessor(api, rootDocumentPath, "/" + testRunId)
+    );
+    te.unsafeGetOrThrow(
+      launchProcessor(api, rootDocumentPath, "/" + testRunId)
+    );
+    await te.unsafeGetOrThrow(
+      launchProcessor(api, rootDocumentPath, "/" + testRunId)
+    );
 
     await sleep(2000);
     console.log(`scheduling ${NUM_JOBS} jobs...`);
@@ -116,41 +129,6 @@ const createJobs = async ({
 
   return callbackIds;
 };
-
-async function launchProcessor(
-  api: FirestoreApi,
-  rootDocumentPath: string,
-  namespace: string
-) {
-  console.log(`server launching`);
-  const server1 = await te.unsafeGetOrThrow(
-    ZookeeperCoordinationClient.build({ namespace })
-  );
-  console.log(`server launched: ${server1}`);
-
-  let currentProcessor: FirestoreProcessor | undefined;
-  server1.getClusterNodeInformation().subscribe((newInfo) => {
-    console.log(
-      `restarting processor because of new cluster info: ${
-        newInfo.currentNodeId + 1
-      }/${newInfo.clusterSize}`
-    );
-    currentProcessor && currentProcessor.close();
-    currentProcessor = new FirestoreProcessor({
-      firestore: api.firestore,
-      rootDocumentPath,
-      workerPool: new AxiosWorkerPool({
-        minSize: 1,
-        maxSize: 1,
-      }),
-      shardsToListenTo: getShardsToListenTo(
-        newInfo.currentNodeId,
-        newInfo.clusterSize
-      ),
-    });
-    te.unsafeGetOrThrow(currentProcessor.run());
-  });
-}
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));

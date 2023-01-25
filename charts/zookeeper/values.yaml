@@ -1,0 +1,8 @@
+zookeeper:
+  replicaCount: 1
+  persistence:
+    enabled: false
+  resources:
+    requests:
+      cpu: 250m
+      memory: 250Mi

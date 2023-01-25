@@ -16,6 +16,7 @@ import {
 import { isFirebaseError } from "./isFirebaseError";
 import { SystemClock } from "@/Clock/SystemClock";
 import { shardedFirestoreQuery } from "./shardedFirestoreQuery";
+import { te } from "@/fp-ts";
 
 type FirestoreProcessorProps = {
   firestore: FirebaseFirestore.Firestore;
@@ -44,8 +45,13 @@ export class FirestoreProcessor {
   }
 
   run() {
+    console.log(
+      `Starting processor with rootDocumentPath ${
+        this.rootDocumentPath
+      }, listening to shards ${this.shardsToListenTo?.join(", ")}`
+    );
     this.state = "running";
-    this.takeNextJob()();
+    te.unsafeGetOrThrow(this.takeNextJob());
     return TE.of(this);
   }
 
@@ -60,7 +66,7 @@ export class FirestoreProcessor {
           new Promise<
             FirebaseFirestore.QuerySnapshot<FirebaseFirestore.DocumentData>
           >((resolve, reject) => {
-            this.reject = reject;
+            // this.reject = reject;
             this.unsubscribe = shardedFirestoreQuery(
               this.firestore.collection(
                 `${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`
@@ -78,13 +84,14 @@ export class FirestoreProcessor {
                 }
               }, reject);
           }),
-        (e) => new Error("Could not get next job")
+        (e) => new Error(`Could not get next job to run: ${e}`)
       ),
       // Todo execute only one update at a time ?
       TE.chainW((snapshot) =>
         pipe(
           TE.of(snapshot),
           TE.chainW((snapshot) => {
+            console.log(`Found ${snapshot.size} jobs in the queue`);
             if (snapshot.size === 0) {
               // continue to wait for the next job
               return this.waitForNextJob();
@@ -96,6 +103,7 @@ export class FirestoreProcessor {
     );
   }
 
+  //TODO take next 5 jobs
   takeFirstValidAvailableJob(
     docs: FirebaseFirestore.QueryDocumentSnapshot[],
     index: number
@@ -149,6 +157,7 @@ export class FirestoreProcessor {
   }
 
   processJob(jobDefinition: JobDefinition) {
+    console.log(`processing job ${jobDefinition.id}...`);
     return pipe(
       TE.of({ executionStartDate: this.clock.now(), jobDefinition }),
       TE.bindW("worker", () => this.workerPool.nextWorker()),
@@ -235,6 +244,6 @@ export class FirestoreProcessor {
   close() {
     this.state = "closed";
     this.unsubscribe && this.unsubscribe();
-    this.reject && this.reject();
+    // this.reject && this.reject();
   }
 }

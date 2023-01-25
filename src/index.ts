@@ -4,8 +4,19 @@ import * as TE from "fp-ts/lib/TaskEither.js";
 import { te } from "./fp-ts";
 import { Api } from "./Api";
 import { initializeApp } from "./Firebase/initializeApp";
+import { launchProcessor as launchProcessorAndScheduler } from "./launchProcessor";
+import { FirestoreScheduler } from "./Firebase/FirestoreScheduler";
+import { FirestoreProcessor } from "./Firebase/FirestoreProcessor";
 
-const listenToProcessTermination = (api: Api) =>
+const listenToProcessTermination = ({
+  api,
+  scheduler,
+  processor,
+}: {
+  api: Api;
+  scheduler?: FirestoreScheduler;
+  processor?: FirestoreProcessor;
+}) =>
   pipe(
     TE.tryCatch(
       () =>
@@ -20,21 +31,30 @@ const listenToProcessTermination = (api: Api) =>
         }),
       (e) => void 0 // Never happens (Promise never rejects)
     ),
-    TE.chain(() => api.close())
+    TE.chain(() => api.close()) // TODO: close schedulers and processors too.
   );
+
+const rootDocumentPath = process.env.ROOT_DOCUMENT_PATH || `/local-dev/tasks`;
 
 (async () => {
   await te.unsafeGetOrThrow(
     pipe(
       FirestoreApi.build({
-        numProcessors: 10,
-        runScheduler: true,
-        rootDocumentPath: "/local-dev/tasks",
+        numProcessors: 0,
+        runScheduler: false,
+        rootDocumentPath,
         firestore: initializeApp({
           serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
         }).firestore,
       }),
-      TE.chain((api) => pipe(api, listenToProcessTermination)),
+      TE.chainFirstW((api) =>
+        launchProcessorAndScheduler(
+          api,
+          rootDocumentPath,
+          process.env.ZOOKEEPER_NAMESPACE || "/local-dev"
+        )
+      ),
+      TE.chain((api) => pipe({ api }, listenToProcessTermination)),
       TE.foldW(
         (e) => {
           console.error(e);
