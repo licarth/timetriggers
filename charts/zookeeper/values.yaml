@@ -1,5 +1,5 @@
 zookeeper:
-  replicaCount: 1
+  replicaCount: 2
   persistence:
     enabled: false
   resources:

@@ -1,10 +1,12 @@
 import { te } from "@/fp-ts";
+import { sleep } from "@/sleep";
 import { randomString } from "@/test/randomString";
 import { flow, pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import { ClusterNodeInformation } from "./CoordinationClient";
 import { ZookeeperCoordinationClient } from "./ZookeeperCoordinationClient";
+import fs from "fs";
 
 const namespace = "/" + randomString();
 
@@ -78,5 +80,22 @@ describe("Zookeeper CoordinationClient", () => {
         TE.mapLeft((e) => console.error(e))
       )()
     ).toMatchObject({ _tag: "Right" });
+  });
+
+  it("should reconnect when disconnected", async () => {
+    const zk = await te.unsafeGetOrThrow(
+      ZookeeperCoordinationClient.build({ namespace })
+    );
+
+    await sleep(6 * 1000);
+    te.unsafeGetOrThrow(zk.close());
+  });
+
+  it.only("should react on SIGINT", async () => {
+    process.on("SIGINT", () => {
+      fs.writeFileSync("./test", "SIGINT");
+    });
+
+    sleep(5 * 1000);
   });
 });

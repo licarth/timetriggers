@@ -9,6 +9,7 @@ import {
   ClusterNodeInformation,
   CoordinationClient,
 } from "./CoordinationClient";
+import { te } from "@/fp-ts";
 
 type ZookeeperCoordinationClientBuildProps = {
   namespace?: string;
@@ -23,12 +24,14 @@ const { CreateMode } = ZooKeeper;
 export class ZookeeperCoordinationClient implements CoordinationClient {
   private readonly zk: ZK;
   private subject = new ReplaySubject<ClusterNodeInformation>(1); // Emit the most recent information to new subscribers
+  private readonly path;
   private nodePath?: string;
   private readonly namespace: string;
 
   constructor(props: ZookeeperCoordinationClientProps) {
     this.zk = props.zk;
     this.namespace = props.namespace;
+    this.path = `${this.namespace}/schedulers`;
   }
 
   static build(
@@ -48,22 +51,58 @@ export class ZookeeperCoordinationClient implements CoordinationClient {
 
     return pipe(
       coordinationClient.connect(),
-      TE.chainW(() => coordinationClient.createSchedulerNode()),
-      TE.chainW(() => coordinationClient.announceItself()),
+      TE.chainW(() => coordinationClient.initialize()),
       TE.map(() => coordinationClient)
+    );
+  }
+
+  initialize() {
+    return pipe(
+      this.createSchedulerNode(),
+      TE.chainW(() => this.announceItself())
     );
   }
 
   connect(): TE.TaskEither<Error, void> {
     return TE.tryCatch(
       () => {
-        const newLocal = new Promise<void>((resolve, reject) => {
+        const clientConnectedPromise = new Promise<void>((resolve, reject) => {
           this.zk.once("connected", () => {
             resolve();
+            console.log("Zookeeper connected !");
+
+            this.zk.on("connected", () => {
+              console.log("Zookeeper reconnected !");
+              // check that we still own a node ?
+              te.unsafeGetOrThrow(
+                pipe(
+                  this.isOwnerOfPath(),
+                  TE.map((isOwner) => {
+                    console.log(`Still owner? ${isOwner}`);
+                  })
+                )
+              );
+            });
           });
+          this.zk.on("disconnected", () => {
+            console.log("Zookeeper disconnected !");
+          });
+
+          this.zk.on("authenticationFailed", () => {
+            console.log("Zookeeper authentication failed !");
+          });
+
+          // On SIGKILL, it should disconnect properly
+          process.on(
+            "SIGINT",
+            pipe(() => {
+              console.log("SIGINT received");
+              this.zk.close();
+            })
+          );
         });
         this.zk.connect();
-        return newLocal;
+        return clientConnectedPromise;
       },
       (e) => new Error(`could not connect to zookeeper: ${e}`)
     );
@@ -104,10 +143,8 @@ export class ZookeeperCoordinationClient implements CoordinationClient {
 
   createSchedulerNode(): TE.TaskEither<Error, void> {
     return pipe(
-      this.createNodeIfNotExists(`${this.namespace}/schedulers`),
-      TE.chainW(() =>
-        this.listenToClusterTopology(`${this.namespace}/schedulers`)
-      )
+      this.createNodeIfNotExists(this.path),
+      TE.chainW(() => this.listenToClusterTopology(this.path))
     );
   }
 
@@ -115,9 +152,7 @@ export class ZookeeperCoordinationClient implements CoordinationClient {
     return pipe(
       this.nodeExists(path),
       TE.chainW((exists) =>
-        exists
-          ? TE.right(void 0)
-          : this.createNodeWithPath(`${this.namespace}/schedulers`)
+        exists ? TE.right(void 0) : this.createNodeWithPath(this.path)
       )
     );
   }
@@ -164,8 +199,39 @@ export class ZookeeperCoordinationClient implements CoordinationClient {
       ),
       TE.map((path) => {
         this.nodePath = path;
+        this.zk.getData(this.nodePath, (error, children, stat) => {
+          // console.log(stat.ephemeralOwner);
+        });
         return void 0;
       })
+    );
+  }
+
+  isOwnerOfPath(): TE.TaskEither<Error, boolean> {
+    // Check that we are the owner of our own path
+    console.log(this.zk.getSessionId().toString("hex"));
+    return TE.tryCatch(
+      () =>
+        new Promise<boolean>((resolve, reject) => {
+          const nodePath = this.nodePath;
+          if (!nodePath) {
+            resolve(false);
+          } else {
+            this.zk.getData(nodePath, (error, children, stat) => {
+              if (error) {
+                reject(error);
+              } else {
+                //@ts-ignore
+                const ephemeralOwner = stat.ephemeralOwner.toString("hex");
+                resolve(
+                  ephemeralOwner === this.zk.getSessionId().toString("hex")
+                );
+              }
+            });
+          }
+        }),
+      (e) =>
+        new Error(`could not check if we are the owner of our own path: ${e}`)
     );
   }
 
@@ -198,6 +264,9 @@ export class ZookeeperCoordinationClient implements CoordinationClient {
                   //   sortedChildren
                   // );
 
+                  console.log(
+                    `Got node id ${currentNodeId} out of ${sortedChildren.length} nodes.`
+                  );
                   this.subject.next({
                     currentNodeId,
                     clusterSize: children.length,
@@ -213,7 +282,7 @@ export class ZookeeperCoordinationClient implements CoordinationClient {
   }
 
   getClusterNodeInformation(): Observable<ClusterNodeInformation> {
-    return pipe(this.subject.asObservable(), debounceTime(300));
+    return this.subject.asObservable();
   }
 
   close(): TE.TaskEither<Error, void> {

@@ -12,6 +12,7 @@ import { FirestoreApi } from "./Firebase/FirestoreApi.js";
 import { initializeApp } from "./Firebase/initializeApp.js";
 import { te } from "./fp-ts/te.js";
 import { launchProcessor } from "./launchProcessor";
+import { sleep } from "./sleep";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
 
 jest.setTimeout(20 * 1000);
@@ -129,7 +130,3 @@ const createJobs = async ({
 
   return callbackIds;
 };
-
-async function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
