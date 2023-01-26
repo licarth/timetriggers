@@ -1,0 +1,2 @@
+# Take imageTag from environment variable
+imageRef: europe-west3-docker.pkg.dev/{{ requiredEnv "GOOGLE_PROJECT_ID" }}/do-it-tomorrow/do-it-tomorrow:{{ requiredEnv "IMAGE_TAG" }}

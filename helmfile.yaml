@@ -12,4 +12,8 @@ releases:
     namespace: doi-production
     chart: ./charts/doi
     values:
-      - ./charts/doi/values.yaml
+      - ./charts/doi/values.yaml.gotmpl
+
+helmDefaults:
+  wait: true
+  timeout: 600

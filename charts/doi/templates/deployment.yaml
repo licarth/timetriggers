@@ -19,7 +19,7 @@ spec:
       terminationGracePeriodSeconds: 25
       containers:
         - name: doi
-          image: europe-west3-docker.pkg.dev/doi-production-licarth/do-it-tomorrow/do-it-tomorrow
+          image: "{{ .Values.imageRef }}"
           imagePullPolicy: Always
           ports:
             - containerPort: 80
