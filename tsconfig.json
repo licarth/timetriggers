@@ -20,7 +20,8 @@
       "@domain/*": ["src/domain/*"],
       "@services": ["src/services"],
       "@services/*": ["src/services/*"]
-    }
+    },
+    "sourceMap": true
   },
   "include": ["src/**/*", "newrelic.mjs"],
   "ts-node": {

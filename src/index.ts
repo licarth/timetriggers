@@ -1,12 +1,13 @@
 import { pipe } from "fp-ts/lib/function.js";
-import { FirestoreApi } from "./Firebase/FirestoreApi";
 import * as TE from "fp-ts/lib/TaskEither.js";
-import { te } from "./fp-ts";
+import "source-map-support/register.js";
 import { Api } from "./Api";
-import { initializeApp } from "./Firebase/initializeApp";
-import { launchProcessor as launchProcessorAndScheduler } from "./launchProcessor";
-import { FirestoreScheduler } from "./Firebase/FirestoreScheduler";
+import { FirestoreApi } from "./Firebase/FirestoreApi";
 import { FirestoreProcessor } from "./Firebase/FirestoreProcessor";
+import { FirestoreScheduler } from "./Firebase/FirestoreScheduler";
+import { initializeApp } from "./Firebase/initializeApp";
+import { te } from "./fp-ts";
+import { launchProcessor as launchProcessorAndScheduler } from "./launchProcessor";
 
 const listenToProcessTermination = ({
   api,
