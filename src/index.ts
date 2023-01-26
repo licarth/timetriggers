@@ -9,6 +9,12 @@ import { initializeApp } from "./Firebase/initializeApp";
 import { te } from "./fp-ts";
 import { launchProcessor as launchProcessorAndScheduler } from "./launchProcessor";
 
+if (process.env.NEW_RELIC_KEY) {
+  console.log("✅ New Relic is enabled");
+} else {
+  console.log("⚠️ New Relic is disabled");
+}
+
 const listenToProcessTermination = ({
   api,
   scheduler,
