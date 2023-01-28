@@ -15,6 +15,12 @@ export class JobDefinition {
     this.url = props.url;
   }
 
+  static propsCodec = Codec.struct({
+    id: JobId.codec,
+    scheduledAt: ScheduledAt.codec,
+    url: Codec.string,
+  });
+
   static firestorePropsCodec = Codec.struct({
     id: JobId.codec,
     scheduledAt: ScheduledAt.firestoreCodec,
@@ -23,6 +29,11 @@ export class JobDefinition {
 
   static firestoreCodec = pipe(
     JobDefinition.firestorePropsCodec,
+    Codec.compose(fromClassCodec(JobDefinition))
+  );
+
+  static codec = pipe(
+    JobDefinition.propsCodec,
     Codec.compose(fromClassCodec(JobDefinition))
   );
 }

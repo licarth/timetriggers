@@ -1,0 +1,10 @@
+# flyctl launch added from .gitignore
+**/node_modules
+**/.env
+**/.env*.local
+**/built
+
+**/firebase-debug.log
+**/firestore-debug.log
+**/newrelic_agent.log
+fly.toml

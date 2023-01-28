@@ -2,12 +2,14 @@ import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import "source-map-support/register.js";
 import { Api } from "./Api";
+import { environmentVariable } from "./environmentVariable";
 import { FirestoreApi } from "./Firebase/FirestoreApi";
 import { FirestoreProcessor } from "./Firebase/FirestoreProcessor";
 import { FirestoreScheduler } from "./Firebase/FirestoreScheduler";
 import { initializeApp } from "./Firebase/initializeApp";
 import { te } from "./fp-ts";
 import { launchProcessor as launchProcessorAndScheduler } from "./launchProcessor";
+import { start } from "./start";
 
 if (process.env.NEW_RELIC_KEY) {
   console.log("✅ New Relic is enabled");
@@ -44,6 +46,19 @@ const listenToProcessTermination = ({
 const rootDocumentPath = process.env.ROOT_DOCUMENT_PATH || `/local-dev/tasks`;
 
 (async () => {
+  if (environmentVariable("HTTP_API_ONLY") === "true") {
+    console.log("HTTP_API_ONLY is set, not starting the processor");
+    await te.unsafeGetOrThrow(
+      start({
+        namespace: "doi-production",
+        api: {
+          enabled: true,
+        },
+      })(undefined as never)
+    );
+    return;
+  }
+
   await te.unsafeGetOrThrow(
     pipe(
       FirestoreApi.build({

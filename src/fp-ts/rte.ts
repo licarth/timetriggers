@@ -11,10 +11,10 @@ export namespace rte {
     });
 
   export const unsafeGetOrThrow = <R, T>(
-    taskEither: RTE.ReaderTaskEither<R, unknown, T>
+    readerTaskEither: RTE.ReaderTaskEither<R, unknown, T>
   ) => {
     return pipe(
-      taskEither,
+      readerTaskEither,
       RTE.getOrElse((reason) => {
         throw reason;
       })

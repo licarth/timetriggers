@@ -1,4 +1,5 @@
 import { Clock } from "@/Clock/Clock";
+import { SystemClock } from "@/Clock/SystemClock";
 import { FirebaseJobDocument } from "@/domain/FirebaseJobDocument";
 import { JobDefinition } from "@/domain/JobDefinition";
 import { JobId } from "@/domain/JobId";
@@ -25,7 +26,7 @@ const SCHEDULE_ADVANCE_MS = 10 * 60 * 1000; // 10 minutes
 type State = "starting" | "running" | "stopped";
 
 type FirestoreSchedulerProps = {
-  clock: Clock;
+  clock?: Clock;
   firestore: Firestore;
   rootDocumentPath: string;
   shardsToListenTo?: string[] | null;
@@ -46,7 +47,7 @@ export class FirestoreScheduler {
   shardsToListenTo;
 
   constructor(props: FirestoreSchedulerProps) {
-    this.clock = props.clock;
+    this.clock = props.clock || new SystemClock();
     this.firestore = props.firestore;
     this.rootDocumentPath = props.rootDocumentPath;
     this.shardsToListenTo = props.shardsToListenTo;
