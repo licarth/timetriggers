@@ -31,7 +31,7 @@
     "test": "dotenv -e .env.test -e.env.test.local jest",
     "emulators": "firebase emulators:start --only firestore",
     "docker-compose": "docker-compose --env-file .env up -d",
-    "test-ci": "firebase emulators:exec --only firestore 'npm run test'"
+    "test-ci": "firebase emulators:exec --only firestore 'npm run test -- -- --ci --forceExit'"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.189",

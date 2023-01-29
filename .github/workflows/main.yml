@@ -107,6 +107,8 @@ jobs:
         with:
           path: ~/.cache/firebase/emulators
           key: ${{ runner.os }}-firebase-emulators-${{ hashFiles('~/.cache/firebase/emulators/**') }}
+      - name: docker-compose (Zookeeper)
+        run: docker-compose up -d
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:

@@ -91,7 +91,7 @@ describe("Zookeeper CoordinationClient", () => {
     te.unsafeGetOrThrow(zk.close());
   });
 
-  it.only("should react on SIGINT", async () => {
+  it("should react on SIGINT", async () => {
     process.on("SIGINT", () => {
       fs.writeFileSync("./test", "SIGINT");
     });
