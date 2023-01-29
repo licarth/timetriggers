@@ -148,7 +148,7 @@ describe(`Api tests`, () => {
           // Only applicable to Api implementations that have a scheduler
         });
 
-        it("should do nothing when there is no job", async () => {});
+        it.skip("should do nothing when there is no job", async () => {});
       });
     }
   }

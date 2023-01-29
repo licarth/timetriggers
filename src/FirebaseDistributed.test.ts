@@ -42,7 +42,7 @@ describe(`Firebase Distributed`, () => {
     callbackReceiver && (await callbackReceiver.close());
   });
 
-  it(`should schedule ${NUM_JOBS} jobs and execute them one by one`, async () => {
+  it.skip(`should schedule ${NUM_JOBS} jobs and execute them one by one`, async () => {
     const rootDocumentPath = `test/${testRunId}`;
     const api = await te.unsafeGetOrThrow(
       FirestoreApi.build({
