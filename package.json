@@ -30,7 +30,8 @@
     "build": "tsc && resolve-tspaths",
     "test": "dotenv -e .env.test -e.env.test.local jest",
     "emulators": "firebase emulators:start --only firestore",
-    "docker-compose": "docker-compose --env-file .env up -d"
+    "docker-compose": "docker-compose --env-file .env up -d",
+    "test-ci": "firebase emulators:exec --only firestore 'npm run test'"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.189",
