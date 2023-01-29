@@ -35,7 +35,7 @@ describe(`Firebase Distributed`, () => {
   let callbackReceiver: CallbackReceiver;
 
   beforeEach(async () => {
-    callbackReceiver = await CallbackReceiver.build();
+    callbackReceiver = await CallbackReceiver.factory();
   });
 
   afterEach(async () => {

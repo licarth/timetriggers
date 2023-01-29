@@ -33,7 +33,7 @@ describe(`Firebase Seed jobs`, () => {
   let callbackReceiver: CallbackReceiver;
 
   beforeEach(async () => {
-    callbackReceiver = await CallbackReceiver.build();
+    callbackReceiver = await CallbackReceiver.factory();
   });
 
   afterEach(async () => {

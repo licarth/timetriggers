@@ -77,7 +77,7 @@ export class FirestoreProcessor {
               .limit(5)
               .onSnapshot((snapshot) => {
                 if (snapshot.size !== 0) {
-                  this.unsubscribe && this.unsubscribe(); // Stop listenning if the job can run
+                  this.unsubscribe && this.unsubscribe(); // Stop listening if the job can run
                   resolve(snapshot);
                 } else {
                   // Just wait

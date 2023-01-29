@@ -85,7 +85,7 @@ describe(`Api tests`, () => {
             apiBuilders[apiName](clock, namespace)
           );
           await api.cancelAllJobs()();
-          callbackReceiver = await CallbackReceiver.build();
+          callbackReceiver = await CallbackReceiver.factory();
         });
 
         afterEach(async () => {

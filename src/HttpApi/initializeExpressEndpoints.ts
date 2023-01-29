@@ -1,6 +1,6 @@
 import { Api } from "@/Api";
 import { JobId } from "@/domain/JobId";
-import { JobScheduleHttpArgs } from "@/domain/JobScheduleHttpArgs";
+import { JobScheduleArgs } from "@/domain/JobScheduleHttpArgs";
 import { rte } from "@/fp-ts";
 import { Express } from "express";
 import { pipe } from "fp-ts/lib/function.js";
@@ -19,7 +19,7 @@ export const initializeEndpoints = ({
       RTE.Do,
       RTE.bindW("jobDefinition", () => {
         console.log(req.body);
-        return RTE.fromEither(JobScheduleHttpArgs.codec.decode(req.body));
+        return RTE.fromEither(JobScheduleArgs.codec.decode(req.body));
       }),
       RTE.chainW(
         ({ jobDefinition: scheduleArgs }) =>

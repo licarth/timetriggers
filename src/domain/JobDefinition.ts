@@ -36,6 +36,13 @@ export class JobDefinition {
     JobDefinition.propsCodec,
     Codec.compose(fromClassCodec(JobDefinition))
   );
+
+  static factory = (props: Partial<JobDefinitionProps> = {}) =>
+    new JobDefinition({
+      id: props.id ?? JobId.factory(),
+      scheduledAt: props.scheduledAt ?? ScheduledAt.factory(),
+      url: props.url ?? "",
+    });
 }
 
 export type JobDefinitionProps = Codec.TypeOf<

@@ -91,10 +91,7 @@ export class FirestoreApi extends AbstractApi {
   healthCheck() {
     return pipe(
       TE.tryCatch(
-        () =>
-          this.firestore.listCollections().then((coll) => {
-            console.log(coll.map((c) => c.id));
-          }),
+        () => this.firestore.listCollections().then((coll) => {}),
         (e) => new Error(`Failed to ping Firestore: ${e}`)
       ),
       withTimeout(E.left(new Error("Healthcheck timeout")), 5000)

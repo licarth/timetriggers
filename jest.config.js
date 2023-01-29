@@ -32,4 +32,5 @@ export default {
     ...pathsEntries,
   },
   modulePathIgnorePatterns: ["<rootDir>/built/"],
+  setupFilesAfterEnv: ["jest-extended/all"],
 };
