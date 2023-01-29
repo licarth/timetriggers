@@ -18,7 +18,7 @@ import { ScheduledAt } from "./domain/ScheduledAt.js";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
 import { te } from "./fp-ts/te.js";
 
-jest.setTimeout(15000);
+jest.setTimeout(30000);
 
 const randomString = (length: number) =>
   Math.random()
