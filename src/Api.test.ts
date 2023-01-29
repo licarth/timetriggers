@@ -32,10 +32,10 @@ const clocks = {
 
 const NUM_JOBS = 10;
 
-const realFirestore = initializeApp({
-  appName: "doi_test_real",
-  serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-}).firestore;
+// const realFirestore = initializeApp({
+//   appName: "doi_test_real",
+//   serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+// }).firestore;
 
 const externalEmulatorFirestore = initializeApp({
   appName: "doi_test_external_emulator",
@@ -68,7 +68,7 @@ describe(`Api tests`, () => {
   >;
 
   afterAll(async () => {
-    await realFirestore.terminate();
+    // await realFirestore.terminate();
     await externalEmulatorFirestore.terminate();
   });
 
