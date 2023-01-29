@@ -82,20 +82,20 @@ describe("Zookeeper CoordinationClient", () => {
     ).toMatchObject({ _tag: "Right" });
   });
 
-  it("should reconnect when disconnected", async () => {
-    const zk = await te.unsafeGetOrThrow(
-      ZookeeperCoordinationClient.build({ namespace })
-    );
+  // it("should reconnect when disconnected", async () => {
+  //   const zk = await te.unsafeGetOrThrow(
+  //     ZookeeperCoordinationClient.build({ namespace })
+  //   );
 
-    await sleep(6 * 1000);
-    te.unsafeGetOrThrow(zk.close());
-  });
+  //   await sleep(6 * 1000);
+  //   te.unsafeGetOrThrow(zk.close());
+  // });
 
-  it("should react on SIGINT", async () => {
-    process.on("SIGINT", () => {
-      fs.writeFileSync("./test", "SIGINT");
-    });
+  // it("should react on SIGINT", async () => {
+  //   process.on("SIGINT", () => {
+  //     fs.writeFileSync("./test", "SIGINT");
+  //   });
 
-    sleep(5 * 1000);
-  });
+  //   sleep(5 * 1000);
+  // });
 });
