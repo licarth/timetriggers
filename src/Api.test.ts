@@ -18,7 +18,7 @@ import { ScheduledAt } from "./domain/ScheduledAt.js";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
 import { te } from "./fp-ts/te.js";
 
-jest.setTimeout(30000);
+jest.setTimeout(15000);
 
 const randomString = (length: number) =>
   Math.random()
@@ -69,7 +69,7 @@ describe(`Api tests`, () => {
 
   afterAll(async () => {
     // await realFirestore.terminate();
-    await externalEmulatorFirestore.terminate();
+    // await externalEmulatorFirestore.terminate();
   });
 
   let callbackReceiver: CallbackReceiver;
