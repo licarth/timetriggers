@@ -45,15 +45,15 @@ describe(`Api tests`, () => {
   const testRunId = randomString(4);
   console.log(`testRunId: ${testRunId}`);
   const apiBuilders = {
-    // InMemory: (clock, namespace) => TE.of(new InMemoryApi({ clock })),
-    FirestoreExternalRealApi: (clock, namespace) =>
-      FirestoreApi.build({
-        clock,
-        rootDocumentPath: namespace,
-        numProcessors: 1,
-        runScheduler: true,
-        firestore: realFirestore,
-      }),
+    InMemory: (clock, namespace) => TE.of(new InMemoryApi({ clock })),
+    // FirestoreExternalRealApi: (clock, namespace) =>
+    //   FirestoreApi.build({
+    //     clock,
+    //     rootDocumentPath: namespace,
+    //     numProcessors: 1,
+    //     runScheduler: true,
+    //     firestore: realFirestore,
+    //   }),
     FirestoreInternal: (clock, namespace) =>
       FirestoreApi.build({
         clock,
