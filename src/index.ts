@@ -63,7 +63,7 @@ const rootDocumentPath = process.env.ROOT_DOCUMENT_PATH || `/local-dev/tasks`;
       start({
         namespace: "doi-production",
         api: {
-          enabled: false,
+          enabled: true,
         },
         scheduler: {
           enabled: true,

@@ -55,11 +55,11 @@ export class FirestoreScheduler {
 
   runEveryMs = (ms: number, f: () => void) => {
     f();
-    const id = setInterval(() => {
+    const id = this.clock.setInterval(() => {
       f();
     }, ms);
     this.unsubscribeSchedulingNextPeriod = () => {
-      clearInterval(id);
+      this.clock.clearInterval(id);
     };
   };
 

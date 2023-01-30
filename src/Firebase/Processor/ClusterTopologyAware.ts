@@ -24,7 +24,7 @@ export abstract class ClusterTopologyDatastoreAware {
   coordinationClient;
   coordinationClientSubscription;
   clusterTopologyIsReadyPromise;
-  shardsToListenTo?: ShardsToListenTo | "all";
+  shardsToListenTo?: ShardsToListenTo; // undefined means listen to all shards
 
   protected constructor(props: ClusterTopologyDatastoreAwareProps) {
     this.clock = props.clock || new SystemClock();
@@ -37,8 +37,12 @@ export abstract class ClusterTopologyDatastoreAware {
       this.coordinationClientSubscription = this.coordinationClient
         .getClusterNodeInformation()
         .subscribe(({ currentNodeId, clusterSize }) => {
+          console.log("Cluster topology change", {
+            currentNodeId,
+            clusterSize,
+          });
           this.shardsToListenTo =
-            getShardsToListenToObject(currentNodeId, clusterSize) || "all";
+            getShardsToListenToObject(currentNodeId, clusterSize) || undefined;
           this.onClusterTopologyChange({ currentNodeId, clusterSize });
           resolve();
         });
@@ -55,7 +59,7 @@ export abstract class ClusterTopologyDatastoreAware {
     this.coordinationClient
       ? console.log(
           `Starting, listening to ${
-            this.shardsToListenTo === "all"
+            this.shardsToListenTo === undefined
               ? "all shards"
               : `shards ${this.shardsToListenTo?.nodeIds.join(", ")}`
           }.`
@@ -70,7 +74,8 @@ export abstract class ClusterTopologyDatastoreAware {
     );
   }
 
-  close = () => {
+  close() {
     this.coordinationClientSubscription?.unsubscribe();
-  };
+    return TE.of(undefined);
+  }
 }

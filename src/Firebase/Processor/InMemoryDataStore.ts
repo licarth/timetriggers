@@ -49,6 +49,7 @@ export class InMemoryDataStore implements Datastore {
       toEntries(props.completedJobs)
     );
   }
+
   close(): TE.TaskEither<any, void> {
     return TE.right(undefined);
   }

@@ -46,19 +46,20 @@ describe("Processor (not sharded)", () => {
 
     const clock = new TestClock();
     const jobId = JobId.factory();
-    const processor = Processor.factory({
-      datastore: InMemoryDataStore.factory({
-        clock,
-        queuedJobs: [
-          JobDefinition.factory({
-            id: jobId,
-            url: `http://localhost:${callbackReceiver.port}`,
-            clock,
-          }),
-        ],
-      }),
-    });
-    te.unsafeGetOrThrow(processor.run());
+    const processor = await te.unsafeGetOrThrow(
+      Processor.factory({
+        datastore: InMemoryDataStore.factory({
+          clock,
+          queuedJobs: [
+            JobDefinition.factory({
+              id: jobId,
+              url: `http://localhost:${callbackReceiver.port}`,
+              clock,
+            }),
+          ],
+        }),
+      })
+    );
     await callbackReceiver.waitForCallback(jobId);
     await te.unsafeGetOrThrow(processor.close());
   });
@@ -83,19 +84,20 @@ describe("Processor (not sharded)", () => {
     });
 
     const clock = new TestClock();
-    const processor = new Processor({
-      workerPool: new AxiosWorkerPool({ clock, minSize: 1, maxSize: 1 }),
-      datastore: InMemoryDataStore.factory({
-        clock,
-        queuedJobs: [
-          JobDefinition.factory({
-            url: `http://localhost:${callbackReceiver.port}`,
-            clock,
-          }),
-        ],
-      }),
-    });
-    await te.unsafeGetOrThrow(processor.run());
+    const processor = await te.unsafeGetOrThrow(
+      Processor.factory({
+        workerPool: new AxiosWorkerPool({ clock, minSize: 1, maxSize: 1 }),
+        datastore: InMemoryDataStore.factory({
+          clock,
+          queuedJobs: [
+            JobDefinition.factory({
+              url: `http://localhost:${callbackReceiver.port}`,
+              clock,
+            }),
+          ],
+        }),
+      })
+    );
     let closed = false;
 
     // Wait for job processing to start

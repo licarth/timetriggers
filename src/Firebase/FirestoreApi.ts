@@ -1,5 +1,6 @@
 import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
+import { te } from "@/fp-ts";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as O from "fp-ts/lib/Option.js";
@@ -8,14 +9,13 @@ import * as C from "io-ts/lib/Codec.js";
 import _ from "lodash";
 import { JobDefinition } from "../domain/JobDefinition";
 import { JobId } from "../domain/JobId";
+import { withTimeout } from "../fp-ts/withTimeout";
 import { FirestoreProcessor } from "./FirestoreProcessor";
 import {
   FirestoreScheduler,
   REGISTERED_JOBS_COLL_PATH,
 } from "./FirestoreScheduler";
 import { initializeApp } from "./initializeApp.js";
-import { withTimeout } from "../fp-ts/withTimeout";
-import { firestore } from "firebase-admin";
 
 const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(15);
 

@@ -84,7 +84,7 @@ describe(`Api tests`, () => {
           api = await te.unsafeGetOrThrow(
             apiBuilders[apiName](clock, namespace)
           );
-          await api.cancelAllJobs()();
+          // await api.cancelAllJobs()();
           callbackReceiver = await CallbackReceiver.factory();
         });
 
@@ -108,12 +108,12 @@ describe(`Api tests`, () => {
             throw new Error("Failed to schedule job");
           }
 
-          const eitherNextPlanned = await api.getNextPlanned(10)();
-          if (E.isLeft(eitherNextPlanned)) {
-            if (eitherNextPlanned.left) {
-              console.log(draw(eitherNextPlanned.left));
-            }
-          }
+          // const eitherNextPlanned = await api.getNextPlanned(10)();
+          // if (E.isLeft(eitherNextPlanned)) {
+          //   if (eitherNextPlanned.left) {
+          //     console.log(draw(eitherNextPlanned.left));
+          //   }
+          // }
 
           await callbackReceiver.waitForCallback(callbackId);
         });

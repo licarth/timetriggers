@@ -1,13 +1,9 @@
 import { AxiosWorkerPool } from "@/AxiosWorkerPool";
 import { Clock } from "@/Clock/Clock";
 import { SystemClock } from "@/Clock/SystemClock";
-import {
-  getShardsToListenTo,
-  getShardsToListenToObject,
-} from "@/ConsistentHashing/ConsistentHashing";
+import { getShardsToListenToObject } from "@/ConsistentHashing/ConsistentHashing";
 import { CoordinationClient } from "@/Coordination/CoordinationClient";
 import { JobDefinition } from "@/domain/JobDefinition";
-import { Shard } from "@/domain/Shard";
 import { externallyResolvablePromise } from "@/externallyResolvablePromise";
 import { te } from "@/fp-ts";
 import { HttpCallCompleted } from "@/HttpCallStatusUpdate/HttpCallCompleted";
@@ -40,7 +36,7 @@ export class Processor {
   clusterTopologyIsReadyPromise;
   shardsToListenTo?: ShardsToListenTo | "all"; // "all" means listen to all shards
 
-  constructor(props: ProcessorProps) {
+  private constructor(props: ProcessorProps) {
     this.clock = props.clock || new SystemClock();
     this.workerPool = props.workerPool;
     this.datastore = props.datastore;
@@ -61,6 +57,12 @@ export class Processor {
     }
   }
 
+  static build = (props: ProcessorProps): TE.TaskEither<Error, Processor> =>
+    pipe(
+      TE.of(new Processor(props)),
+      TE.chainFirstW((processor) => processor.run())
+    );
+
   run() {
     this.state = "running";
 
@@ -75,15 +77,13 @@ export class Processor {
       : console.log(`Starting processor, listening... (no shards)`);
 
     // We should wait until shardsToListenTo is set
-    te.unsafeGetOrThrow(
-      pipe(
-        // Run coordination client if it exists
-        () => this.clusterTopologyIsReadyPromise,
-        TE.fromTask,
-        TE.chain(() => this.takeNextJob())
-      )
+    return pipe(
+      // Run coordination client if it exists
+      () => this.clusterTopologyIsReadyPromise,
+      TE.fromTask,
+      te.sideEffect(() => te.unsafeGetOrThrow(this.takeNextJob())),
+      TE.map(() => this)
     );
-    return TE.of(this);
   }
 
   takeNextJob(): TE.TaskEither<Error, void> {
@@ -162,28 +162,29 @@ export class Processor {
     );
   }
 
-  close = () => {
+  close() {
+    let t;
     this.state = "closing";
     this.coordinationClientSubscription?.unsubscribe();
     if (this.isProcessing) {
       // Wait for current job to finish
-      const closeActionTe = TE.tryCatch(
+      t = TE.tryCatch(
         () =>
           new Promise<void>((resolve) => {
             this.closedHook = () => resolve();
           }),
         (e) => new Error("Could not close processor")
       );
-
-      return closeActionTe;
     } else {
       this.state = "closed";
-      return TE.of(undefined);
+      t = TE.of(undefined);
     }
-  };
+
+    return t;
+  }
 
   static factory = (props: Partial<ProcessorProps> = {}) =>
-    new Processor({
+    Processor.build({
       clock: props.clock || new SystemClock(),
       workerPool:
         props.workerPool ||
