@@ -6,7 +6,7 @@ import { JobScheduleArgs } from "@/domain/JobScheduleHttpArgs";
 import { Shard } from "@/domain/Shard";
 import { te } from "@/fp-ts";
 import { HttpCallCompleted, HttpCallErrored } from "@/HttpCallStatusUpdate";
-import { pipe } from "fp-ts/lib/function";
+import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import Multimap from "multimap";

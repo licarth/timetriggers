@@ -57,6 +57,20 @@ const rootDocumentPath = process.env.ROOT_DOCUMENT_PATH || `/local-dev/tasks`;
       })(undefined as never)
     );
     return;
+  } else if (environmentVariable("SCHEDULER_ONLY") === "true") {
+    console.log("SCHEDULER_ONLY is set");
+    await te.unsafeGetOrThrow(
+      start({
+        namespace: "doi-production",
+        api: {
+          enabled: false,
+        },
+        scheduler: {
+          enabled: true,
+        },
+      })(undefined as never)
+    );
+    return;
   }
 
   await te.unsafeGetOrThrow(

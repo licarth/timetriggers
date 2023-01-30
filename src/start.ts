@@ -5,6 +5,8 @@ import { environmentVariable } from "./environmentVariable";
 import { FirestoreApi } from "./Firebase/FirestoreApi";
 import { FirestoreScheduler } from "./Firebase/FirestoreScheduler";
 import { initializeApp } from "./Firebase/initializeApp";
+import { InMemoryDataStore } from "./Firebase/Processor/InMemoryDataStore";
+import { Scheduler } from "./Firebase/Processor/Scheduler";
 import { initializeHttpApi } from "./HttpApi/initializeHttpApi";
 
 type StartProps = {
@@ -34,10 +36,18 @@ export const start = (props: StartProps) =>
         environmentVariable("NAMESPACE") || "local-dev"
       }/tasks`,
     }),
-    RTE.bindW("api", (other) => buildApi({ ...props, ...other })),
-    // RTE.bindW("scheduler", startScheduler), // TODO
+    RTE.bindW("api", (other) =>
+      props.api.enabled ? buildApi({ ...props, ...other }) : RTE.of(undefined)
+    ),
+    RTE.bindW("scheduler", ({ firestore, rootDocumentPath }) =>
+      props.scheduler?.enabled
+        ? startScheduler({ rootDocumentPath, firestore })
+        : RTE.of(undefined)
+    ), // TODO
     // RTE.bindW("processor", () => RTE.Do), // TODO
-    RTE.chainFirstW(({ api }) => initializeHttpApi(api))
+    RTE.chainFirstW(({ api }) =>
+      api ? initializeHttpApi(api) : RTE.of(undefined)
+    )
   );
 
 export const startScheduler = ({
@@ -46,12 +56,10 @@ export const startScheduler = ({
 }: {
   rootDocumentPath: string;
   firestore: FirebaseFirestore.Firestore;
-}) =>
+}): RTE.ReaderTaskEither<never, Error, Scheduler> =>
   pipe(
-    new FirestoreScheduler({
-      firestore,
-      rootDocumentPath,
-    })
+    Scheduler.build({ datastore: InMemoryDataStore.factory() }),
+    RTE.fromTaskEither
   );
 
 const buildApi = ({

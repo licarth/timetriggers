@@ -63,7 +63,7 @@ export class ZookeeperCoordinationClient implements CoordinationClient {
     );
   }
 
-  connect(): TE.TaskEither<Error, void> {
+  private connect(): TE.TaskEither<Error, void> {
     return TE.tryCatch(
       () => {
         const clientConnectedPromise = new Promise<void>((resolve, reject) => {
