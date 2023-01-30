@@ -3,7 +3,7 @@ import {
   consistentHashing,
   consistentHashingFirebaseArray,
   consistentHashingFirebaseArrayPreloaded,
-  getShardsToListenTo,
+  getShardsToListenToString,
 } from "./ConsistentHashing";
 import { randomString } from "../test/randomString";
 
@@ -185,11 +185,11 @@ describe("Firebase Consistent Hashing", () => {
 
 describe("getShardsToListenTo", () => {
   it("should return all shards when there is only 1 server", async () => {
-    const res = getShardsToListenTo(0, 1);
+    const res = getShardsToListenToString(0, 1);
     expect(res).toEqual(null);
   });
   it("should return items for server i=0 (total 2)", async () => {
-    const res = getShardsToListenTo(0, 2);
+    const res = getShardsToListenToString(0, 2)?.map((s) => s.toString());
     expect(res).toEqual([
       "2-0",
       "2-1",
@@ -204,7 +204,7 @@ describe("getShardsToListenTo", () => {
     ]);
   });
   it("should return items for server i=3 (total 7)", async () => {
-    const res = getShardsToListenTo(3, 7);
+    const res = getShardsToListenToString(3, 7);
     expect(res).toEqual([
       "7-30",
       "7-31",
@@ -219,7 +219,7 @@ describe("getShardsToListenTo", () => {
     ]);
   });
   it("should return items for server i=10 (total 11)", async () => {
-    const res = getShardsToListenTo(10, 11);
+    const res = getShardsToListenToString(10, 11);
     expect(res).toEqual([
       "11-100",
       "11-101",
@@ -234,7 +234,7 @@ describe("getShardsToListenTo", () => {
     ]);
   });
   it("should return items for server i=11 (total 12)", async () => {
-    const res = getShardsToListenTo(11, 12);
+    const res = getShardsToListenToString(11, 12);
     expect(res).toEqual([
       "11-29",
       "11-39",
@@ -248,7 +248,7 @@ describe("getShardsToListenTo", () => {
     ]);
   });
   it("should return items for server i=10 (total 12)", async () => {
-    const res = getShardsToListenTo(10, 12);
+    const res = getShardsToListenToString(10, 12);
     expect(res).toEqual([
       "11-100",
       "11-101",
@@ -262,7 +262,7 @@ describe("getShardsToListenTo", () => {
     ]);
   });
   it("should return items for server i=12 (total 13)", async () => {
-    const res = getShardsToListenTo(12, 13);
+    const res = getShardsToListenToString(12, 13);
     expect(res).toEqual([
       "11-9",
       "11-19",
@@ -275,11 +275,11 @@ describe("getShardsToListenTo", () => {
     ]);
   });
   it("should return items for server i=0 (total 110)", async () => {
-    const res = getShardsToListenTo(0, 110);
+    const res = getShardsToListenToString(0, 110);
     expect(res).toEqual(["11-0"]);
   });
   it("should return items for server i=0 (total 110)", async () => {
-    const res = getShardsToListenTo(1, 110);
+    const res = getShardsToListenToString(1, 110);
     expect(res).toEqual(["11-10"]);
   });
 });

@@ -1,7 +1,14 @@
 import { AxiosWorkerPool } from "@/AxiosWorkerPool";
 import { Clock } from "@/Clock/Clock";
 import { SystemClock } from "@/Clock/SystemClock";
+import {
+  getShardsToListenTo,
+  getShardsToListenToObject,
+} from "@/ConsistentHashing/ConsistentHashing";
+import { CoordinationClient } from "@/Coordination/CoordinationClient";
 import { JobDefinition } from "@/domain/JobDefinition";
+import { Shard } from "@/domain/Shard";
+import { externallyResolvablePromise } from "@/externallyResolvablePromise";
 import { te } from "@/fp-ts";
 import { HttpCallCompleted } from "@/HttpCallStatusUpdate/HttpCallCompleted";
 import { HttpCallErrored } from "@/HttpCallStatusUpdate/HttpCallErrored";
@@ -11,12 +18,13 @@ import { WorkerPool } from "@/WorkerPool";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { Datastore } from "./Datastore";
-import { InMemoryDataStore } from "./InMemoryDataStore";
+import { InMemoryDataStore, ShardsToListenTo } from "./InMemoryDataStore";
 
 type ProcessorProps = {
   clock?: Clock;
   workerPool: WorkerPool;
   datastore: Datastore;
+  coordinationClient?: CoordinationClient;
 };
 
 export class Processor {
@@ -27,21 +35,65 @@ export class Processor {
   state: "not_started" | "running" | "closing" | "closed" = "not_started";
   closedHook = () => {};
 
+  coordinationClient;
+  coordinationClientSubscription;
+  clusterTopologyIsReadyPromise;
+  shardsToListenTo?: ShardsToListenTo | "all"; // "all" means listen to all shards
+
   constructor(props: ProcessorProps) {
     this.clock = props.clock || new SystemClock();
     this.workerPool = props.workerPool;
     this.datastore = props.datastore;
+    this.coordinationClient = props.coordinationClient;
+    const { promise: clusterTopologyIsReadyPromise, resolve } =
+      externallyResolvablePromise<void>();
+    this.clusterTopologyIsReadyPromise = clusterTopologyIsReadyPromise;
+    if (this.coordinationClient) {
+      this.coordinationClientSubscription = this.coordinationClient
+        .getClusterNodeInformation()
+        .subscribe(({ currentNodeId, clusterSize }) => {
+          this.shardsToListenTo =
+            getShardsToListenToObject(currentNodeId, clusterSize) || "all";
+          resolve();
+        });
+    } else {
+      resolve();
+    }
   }
 
   run() {
     this.state = "running";
-    te.unsafeGetOrThrow(this.takeNextJob());
+
+    this.coordinationClient
+      ? console.log(
+          `Starting processor, listening to ${
+            this.shardsToListenTo === "all"
+              ? "all shards"
+              : `shards ${this.shardsToListenTo?.nodeIds.join(", ")}`
+          }.`
+        )
+      : console.log(`Starting processor, listening... (no shards)`);
+
+    // We should wait until shardsToListenTo is set
+    te.unsafeGetOrThrow(
+      pipe(
+        // Run coordination client if it exists
+        () => this.clusterTopologyIsReadyPromise,
+        TE.fromTask,
+        TE.chain(() => this.takeNextJob())
+      )
+    );
     return TE.of(this);
   }
 
   takeNextJob(): TE.TaskEither<Error, void> {
+    const shards = this.coordinationClient
+      ? this.shardsToListenTo === "all"
+        ? undefined
+        : this.shardsToListenTo
+      : undefined;
     return pipe(
-      this.datastore.waitForNextJobsInQueue({ limit: 1 }),
+      this.datastore.waitForNextJobsInQueue({ limit: 1 }, shards),
       TE.chain((jobs) => {
         if (this.state === "closing") {
           this.state = "closed";
@@ -53,7 +105,7 @@ export class Processor {
             TE.of(jobs),
             TE.chainFirstTaskK((jobDefinition) =>
               pipe(
-                jobDefinition.map((job) => this.processJob(job)),
+                jobDefinition.map((job) => this.processJob(job)), // We could stop processing if we changed Shards
                 te.executeAllInArray({ parallelism: 1 })
               )
             )
@@ -64,6 +116,7 @@ export class Processor {
         this.isProcessing = false;
         if (this.state === "closing") {
           this.state = "closed";
+
           this.closedHook();
           return TE.of(undefined);
         } else {
@@ -110,12 +163,13 @@ export class Processor {
   }
 
   close = () => {
-    // Wait for state to be closed.
     this.state = "closing";
+    this.coordinationClientSubscription?.unsubscribe();
     if (this.isProcessing) {
+      // Wait for current job to finish
       const closeActionTe = TE.tryCatch(
         () =>
-          new Promise<void>((resolve, reject) => {
+          new Promise<void>((resolve) => {
             this.closedHook = () => resolve();
           }),
         (e) => new Error("Could not close processor")

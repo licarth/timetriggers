@@ -4,9 +4,18 @@ import * as TE from "fp-ts/lib/TaskEither.js";
 import { HttpCallLastStatus } from "@/HttpCallStatusUpdate";
 import { JobScheduleArgs } from "@/domain/JobScheduleHttpArgs";
 import { JobId } from "@/domain/JobId";
+import { Shard } from "@/domain/Shard";
+import { ShardsToListenTo } from "./InMemoryDataStore";
+
+export type ShardingAlgorithm = (job: JobId) => Shard[];
+// For firestore, we'll just pretend that we have more nodes than we actually have.
+// Each processor will take more than one shard.
 
 export interface Datastore {
-  schedule(args: JobScheduleArgs): TE.TaskEither<Error, JobId>;
+  schedule(
+    args: JobScheduleArgs,
+    shardingAlgorithm?: ShardingAlgorithm
+  ): TE.TaskEither<Error, JobId>;
   cancel(jobId: JobId): TE.TaskEither<Error, void>;
 
   /**
@@ -27,19 +36,25 @@ export interface Datastore {
    * The first call must return all jobs that are scheduled within the next millisecondsFromNow.
    *
    */
-  newlyRegisteredJobsBefore(args: {
-    millisecondsFromNow: number;
-  }): Observable<JobDefinition[]>;
+  newlyRegisteredJobsBefore(
+    args: {
+      millisecondsFromNow: number;
+    },
+    shardsToListenTo?: ShardsToListenTo
+  ): Observable<JobDefinition[]>;
 
   /**
    * Returns all jobs scheduled after msFromNow, up to limit items.
    * They must be ordered by scheduledAt.
    *
    */
-  getJobsScheduledAfter(args: {
-    millisecondsFromNow: number;
-    limit: number;
-  }): TE.TaskEither<any, JobDefinition[]>;
+  getJobsScheduledAfter(
+    args: {
+      millisecondsFromNow: number;
+      limit: number;
+    },
+    shardsToListenTo?: ShardsToListenTo
+  ): TE.TaskEither<any, JobDefinition[]>;
 
   // Some datastores support watching for added / modified jobs. For these, we can avoid high-frequency polling.
   // => 1. listen to jobs newly (re-)scheduled within a given time range from now (and in the past).
@@ -60,9 +75,12 @@ export interface Datastore {
    * returns the next job(s) in the queue, up to limit.
    *
    */
-  waitForNextJobsInQueue(args: {
-    limit: number;
-  }): TE.TaskEither<any, JobDefinition[]>;
+  waitForNextJobsInQueue(
+    args: {
+      limit: number;
+    },
+    shardsToListenTo?: ShardsToListenTo
+  ): TE.TaskEither<any, JobDefinition[]>;
 
   /**
    * Moves this job to the queue so that it's immediately picked up by the processor(s).
@@ -88,4 +106,6 @@ export interface Datastore {
     durationMs: number;
     executionStartDate: Date;
   }): TE.TaskEither<any, void>;
+
+  close(): TE.TaskEither<any, void>;
 }

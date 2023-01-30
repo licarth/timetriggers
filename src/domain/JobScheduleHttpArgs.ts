@@ -21,6 +21,13 @@ export class JobScheduleArgs {
     JobScheduleArgs.propsCodec,
     Codec.compose(fromClassCodec(JobScheduleArgs))
   );
+
+  static factory = (props: Partial<JobScheduleHttpArgsProps> = {}) => {
+    return new JobScheduleArgs({
+      scheduledAt: props.scheduledAt || ScheduledAt.factory(),
+      url: props.url || "http://localhost:3000",
+    });
+  };
 }
 
 export type JobScheduleHttpArgsProps = Codec.TypeOf<

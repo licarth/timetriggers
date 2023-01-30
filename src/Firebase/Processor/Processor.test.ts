@@ -2,6 +2,7 @@ import { AxiosWorkerPool } from "@/AxiosWorkerPool";
 import { TestClock } from "@/Clock/TestClock";
 import { JobDefinition } from "@/domain/JobDefinition";
 import { JobId } from "@/domain/JobId";
+import { externallyResolvablePromise } from "@/externallyResolvablePromise";
 import { te } from "@/fp-ts";
 import {
   HttpCallCompleted,
@@ -39,7 +40,7 @@ const fakeWorkerPool: WorkerPool = {
   close: () => TE.of(undefined),
 };
 
-describe("Processor", () => {
+describe("Processor (not sharded)", () => {
   it("should process single job in queue", async () => {
     const callbackReceiver = await CallbackReceiver.factory();
 
@@ -52,6 +53,7 @@ describe("Processor", () => {
           JobDefinition.factory({
             id: jobId,
             url: `http://localhost:${callbackReceiver.port}`,
+            clock,
           }),
         ],
       }),
@@ -62,15 +64,16 @@ describe("Processor", () => {
   });
 
   it("should wait for job to be processed before closing", async () => {
-    let r = (a: () => void) => {};
-    let callbackReceiverPromise = new Promise<() => void>((resolve) => {
-      r = resolve;
-    });
+    let { promise: callbackReceiverPromise, resolve: jobDoneResolve } =
+      externallyResolvablePromise<() => void>();
+    let { promise: jobStartedPromise, resolve: jobStartedResolve } =
+      externallyResolvablePromise<void>();
 
     const callbackReceiver = await CallbackReceiver.factory({
       postHandler: (markAsReceived) => async (req, res) => {
+        jobStartedResolve();
         await new Promise<void>((resolve) => {
-          r(() => {
+          jobDoneResolve(() => {
             resolve();
           });
         });
@@ -87,12 +90,17 @@ describe("Processor", () => {
         queuedJobs: [
           JobDefinition.factory({
             url: `http://localhost:${callbackReceiver.port}`,
+            clock,
           }),
         ],
       }),
     });
     await te.unsafeGetOrThrow(processor.run());
     let closed = false;
+
+    // Wait for job processing to start
+    await jobStartedPromise;
+
     const closingPromise = te.unsafeGetOrThrow(processor.close()).then(() => {
       closed = true;
     });
@@ -108,9 +116,6 @@ describe("Processor", () => {
   });
 });
 
-// Sharded Datastore change of shards :
-// diff => jobs to deschedule
-// processor stops after next job
-// scheduler :
-// 1. stops listening to changes immediately
-// 2. deschedules all jobs
+describe("Processor sharded", () => {
+  it("should process job in its shard", () => {});
+});

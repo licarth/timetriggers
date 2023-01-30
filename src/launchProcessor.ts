@@ -1,6 +1,9 @@
 import { pipe } from "fp-ts/lib/function.js";
 import { AxiosWorkerPool } from "./AxiosWorkerPool.js";
-import { getShardsToListenTo } from "./ConsistentHashing/ConsistentHashing.js";
+import {
+  getShardsToListenTo,
+  getShardsToListenToString,
+} from "./ConsistentHashing/ConsistentHashing.js";
 import { ZookeeperCoordinationClient } from "./Coordination/ZookeeperCoordinationClient.js";
 import { FirestoreApi } from "./Firebase/FirestoreApi.js";
 import { FirestoreProcessor } from "./Firebase/FirestoreProcessor.js";
@@ -29,7 +32,7 @@ export function launchProcessor(
         );
         currentProcessor && currentProcessor.close();
         currentScheduler && te.unsafeGetOrThrow(currentScheduler.close());
-        const shardsToListenTo = getShardsToListenTo(
+        const shardsToListenTo = getShardsToListenToString(
           newInfo.currentNodeId,
           newInfo.clusterSize
         );

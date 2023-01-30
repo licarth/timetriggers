@@ -3,6 +3,7 @@ import * as Codec from "io-ts/lib/Codec.js";
 import { fromClassCodec } from "@iots/index.js";
 import { ScheduledAt } from "./ScheduledAt";
 import { JobId } from "./JobId";
+import { Clock } from "@/Clock/Clock";
 
 export class JobDefinition {
   id;
@@ -37,10 +38,17 @@ export class JobDefinition {
     Codec.compose(fromClassCodec(JobDefinition))
   );
 
-  static factory = (props: Partial<JobDefinitionProps> = {}) =>
+  static factory = (
+    props:
+      | (Partial<Omit<JobDefinitionProps, "scheduledAt">> & { clock: Clock })
+      | (Partial<JobDefinitionProps> & { scheduledAt: ScheduledAt })
+  ) =>
     new JobDefinition({
       id: props.id ?? JobId.factory(),
-      scheduledAt: props.scheduledAt ?? ScheduledAt.factory(),
+      scheduledAt:
+        "scheduledAt" in props
+          ? props.scheduledAt
+          : ScheduledAt.factory({ date: props.clock.now() }),
       url: props.url ?? "",
     });
 }

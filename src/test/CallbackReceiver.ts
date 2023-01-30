@@ -42,6 +42,10 @@ export class CallbackReceiver {
     );
   }
 
+  localUrl() {
+    return `http://localhost:${this.port}`;
+  }
+
   getCallbackIdsReceived() {
     return this.callbackIdsReceived;
   }

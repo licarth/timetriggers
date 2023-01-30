@@ -1,3 +1,6 @@
+import { Shard } from "@/domain/Shard";
+import { ShardsToListenTo } from "@/Firebase/Processor/InMemoryDataStore";
+import { flow } from "fp-ts/lib/function.js";
 import _ from "lodash";
 import { CustomConsistentHashing as ConsistentHash } from "./CustomConsistentHashing";
 
@@ -53,10 +56,9 @@ export const getShardsToListenTo = (
     return null;
   }
   if (serverCount <= 11) {
-    return _.times(
-      maxArrayInQuery,
-      (i) => `${serverCount}-${serverIndex * maxArrayInQuery + i}`
-    );
+    return _.times(maxArrayInQuery, (i) =>
+      Shard.of(serverIndex * maxArrayInQuery + i, serverCount)
+    ) as Shard[];
   }
 
   // Build the whole line for serverCount > 11
@@ -78,8 +80,27 @@ export const getShardsToListenTo = (
     matrix.push(newLine.sort((a, b) => a - b));
   }
 
-  return matrix[serverIndex].map((i) => `11-${i}`);
+  return matrix[serverIndex].map((i) => Shard.of(i, 11));
 };
+
+export const getShardsToListenToObject = (
+  serverIndex: number,
+  serverCount: number
+): ShardsToListenTo | null => {
+  const nodeIds = getShardsToListenTo(serverIndex, serverCount)?.map(
+    (s) => s.nodeId
+  );
+  return nodeIds
+    ? {
+        nodeIds,
+        nodeCount: serverCount,
+      }
+    : null;
+};
+
+export const getShardsToListenToString = flow(getShardsToListenTo, (x) =>
+  x ? x.map((s) => s.toString()) : x
+);
 
 // 3 servers => 3-20 => 3-29
 
