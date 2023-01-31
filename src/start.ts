@@ -11,6 +11,7 @@ import { DatastoreApi } from "./Firebase/DatastoreApi";
 import { FirestoreApi } from "./Firebase/FirestoreApi";
 import { initializeApp } from "./Firebase/initializeApp";
 import { Datastore } from "./Firebase/Processor/Datastore";
+import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore";
 import { InMemoryDataStore } from "./Firebase/Processor/InMemoryDataStore";
 import { Processor } from "./Firebase/Processor/Processor";
 import { Scheduler } from "./Firebase/Processor/Scheduler";
@@ -45,7 +46,12 @@ export const start = (props: StartProps) =>
       }/tasks`,
     }),
     RTE.bind("datastore", ({ firestore, rootDocumentPath }) =>
-      RTE.of(InMemoryDataStore.factory())
+      RTE.of(
+        new FirestoreDatastore({
+          firestore,
+          rootDocumentPath,
+        })
+      )
     ),
     RTE.bindW("api", (other) =>
       props.api.enabled ? buildApi({ ...props, ...other }) : RTE.of(undefined)
@@ -78,7 +84,7 @@ export const start = (props: StartProps) =>
           coordinationClient,
           workerPool: new AxiosWorkerPool({
             minSize: 1,
-            maxSize: 1,
+            maxSize: 5,
           }),
         })
       )

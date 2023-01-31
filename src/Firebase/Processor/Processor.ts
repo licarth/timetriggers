@@ -1,8 +1,12 @@
 import { AxiosWorkerPool } from "@/AxiosWorkerPool";
 import { Clock } from "@/Clock/Clock";
 import { SystemClock } from "@/Clock/SystemClock";
+import { TestClock } from "@/Clock/TestClock";
 import { getShardsToListenToObject } from "@/ConsistentHashing/ConsistentHashing";
-import { CoordinationClient } from "@/Coordination/CoordinationClient";
+import {
+  ClusterNodeInformation,
+  CoordinationClient,
+} from "@/Coordination/CoordinationClient";
 import { JobDefinition } from "@/domain/JobDefinition";
 import { externallyResolvablePromise } from "@/externallyResolvablePromise";
 import { te } from "@/fp-ts";
@@ -13,8 +17,11 @@ import { HttpCallStarted } from "@/HttpCallStatusUpdate/HttpCallStarted";
 import { WorkerPool } from "@/WorkerPool";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
+import * as A from "fp-ts/lib/Array.js";
 import { Datastore } from "./Datastore";
-import { InMemoryDataStore, ShardsToListenTo } from "./InMemoryDataStore";
+import { InMemoryDataStore } from "./InMemoryDataStore";
+import { ShardsToListenTo } from "./ShardsToListenTo";
+import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 
 type ProcessorProps = {
   clock?: Clock;
@@ -23,78 +30,55 @@ type ProcessorProps = {
   coordinationClient?: CoordinationClient;
 };
 
-export class Processor {
-  clock;
+export class Processor extends ClusterTopologyDatastoreAware {
   workerPool;
   datastore;
   isProcessing = false;
   state: "not_started" | "running" | "closing" | "closed" = "not_started";
   closedHook = () => {};
 
-  coordinationClient;
-  coordinationClientSubscription;
-  clusterTopologyIsReadyPromise;
-  shardsToListenTo?: ShardsToListenTo | "all"; // "all" means listen to all shards
+  unsubscribeNextJob: () => void = () => {};
+
+  firstTopologyChange: boolean;
 
   private constructor(props: ProcessorProps) {
-    this.clock = props.clock || new SystemClock();
+    super(props);
     this.workerPool = props.workerPool;
     this.datastore = props.datastore;
-    this.coordinationClient = props.coordinationClient;
-    const { promise: clusterTopologyIsReadyPromise, resolve } =
-      externallyResolvablePromise<void>();
-    this.clusterTopologyIsReadyPromise = clusterTopologyIsReadyPromise;
-    if (this.coordinationClient) {
-      this.coordinationClientSubscription = this.coordinationClient
-        .getClusterNodeInformation()
-        .subscribe(({ currentNodeId, clusterSize }) => {
-          this.shardsToListenTo =
-            getShardsToListenToObject(currentNodeId, clusterSize) || "all";
-          resolve();
-        });
+    this.firstTopologyChange = true;
+  }
+
+  onClusterTopologyChange(clusterTopology: ClusterNodeInformation) {
+    console.log(`[Processor] reconfiguring cluster topology`);
+    if (this.firstTopologyChange) {
+      console.log(`[Processor] first topology change, not unsubscribing...`);
+      this.firstTopologyChange = false;
     } else {
-      resolve();
     }
+    this.unsubscribeNextJob && this.unsubscribeNextJob();
+    te.getOrLog(this.takeNextJob());
   }
 
   static build = (props: ProcessorProps): TE.TaskEither<Error, Processor> =>
     pipe(
       TE.of(new Processor(props)),
-      TE.chainFirstW((processor) => processor.run())
+      TE.map((processor) => {
+        processor.state = "running";
+        return processor;
+      })
     );
-
-  run() {
-    this.state = "running";
-
-    this.coordinationClient
-      ? console.log(
-          `Starting processor, listening to ${
-            this.shardsToListenTo === "all"
-              ? "all shards"
-              : `shards ${this.shardsToListenTo?.nodeIds.join(", ")}`
-          }.`
-        )
-      : console.log(`Starting processor, listening... (no shards)`);
-
-    // We should wait until shardsToListenTo is set
-    return pipe(
-      // Run coordination client if it exists
-      () => this.clusterTopologyIsReadyPromise,
-      TE.fromTask,
-      te.sideEffect(() => te.unsafeGetOrThrow(this.takeNextJob())),
-      TE.map(() => this)
-    );
-  }
 
   takeNextJob(): TE.TaskEither<Error, void> {
-    const shards = this.coordinationClient
-      ? this.shardsToListenTo === "all"
-        ? undefined
-        : this.shardsToListenTo
-      : undefined;
+    console.log(`[Processor] taking next job...`);
+    const { te, unsubscribe } = this.datastore.waitForNextJobsInQueue(
+      { limit: 50 },
+      this.shardsToListenTo
+    );
+    this.unsubscribeNextJob = unsubscribe;
     return pipe(
-      this.datastore.waitForNextJobsInQueue({ limit: 1 }, shards),
+      te,
       TE.chain((jobs) => {
+        console.log(`[Processor] got ${jobs.length} jobs...`);
         if (this.state === "closing") {
           this.state = "closed";
           this.closedHook();
@@ -103,10 +87,19 @@ export class Processor {
           this.isProcessing = true;
           return pipe(
             TE.of(jobs),
-            TE.chainFirstTaskK((jobDefinition) =>
+            TE.chainFirstW((jobDefinition) =>
               pipe(
                 jobDefinition.map((job) => this.processJob(job)), // We could stop processing if we changed Shards
-                te.executeAllInArray({ parallelism: 1 })
+                // What should we do if it fails ?
+                // We should not continue processing, only retry the job. And then fail.
+                // We should rather execute them sequentially and fail at the first one
+                (s) => s,
+                failAtFirst,
+                TE.mapLeft((e) => {
+                  console.log(e);
+                  return e;
+                })
+                // te.executeAllInArray({ parallelism: 1 }),
               )
             )
           );
@@ -127,18 +120,18 @@ export class Processor {
   }
 
   processJob(jobDefinition: JobDefinition) {
-    console.log(`processing job ${jobDefinition.id}...`);
     return pipe(
       TE.of({ executionStartDate: this.clock.now(), jobDefinition }),
       TE.bindW("worker", () => this.workerPool.nextWorker()),
+      TE.chainFirstW(() => this.datastore.markJobAsRunning(jobDefinition)),
       TE.bindW(
         "lastStatusUpdate",
         // send job to worker (local or remote) and listen to result stream.
         ({ worker, jobDefinition }) =>
           TE.tryCatch(
             () =>
-              new Promise<HttpCallLastStatus>((resolve, reject) =>
-                worker.execute(jobDefinition).subscribe((next) => {
+              new Promise<HttpCallLastStatus>(function (resolve, reject) {
+                return worker.execute(jobDefinition).subscribe((next) => {
                   if (next instanceof HttpCallStarted) {
                     // Report Call started
                   } else if (next instanceof HttpCallCompleted) {
@@ -146,8 +139,8 @@ export class Processor {
                   } else if (next instanceof HttpCallErrored) {
                     resolve(next);
                   }
-                })
-              ),
+                });
+              }),
             (e) => new Error("Could not execute job")
           )
       ),
@@ -163,9 +156,11 @@ export class Processor {
   }
 
   close() {
-    let t;
+    let t: TE.TaskEither<Error, void>;
     this.state = "closing";
     this.coordinationClientSubscription?.unsubscribe();
+    this.unsubscribeNextJob();
+
     if (this.isProcessing) {
       // Wait for current job to finish
       t = TE.tryCatch(
@@ -180,19 +175,38 @@ export class Processor {
       t = TE.of(undefined);
     }
 
-    return t;
+    return pipe(
+      super.close(),
+      TE.chainW(() => t)
+    );
   }
 
-  static factory = (props: Partial<ProcessorProps> = {}) =>
-    Processor.build({
-      clock: props.clock || new SystemClock(),
+  static factory = (
+    props: Partial<ProcessorProps> & { clock: TestClock } = {
+      clock: new TestClock(),
+    }
+  ) => {
+    const clock = props.clock;
+    return Processor.build({
+      clock,
       workerPool:
         props.workerPool ||
         new AxiosWorkerPool({
-          clock: props.clock || new SystemClock(),
+          clock,
           minSize: 1,
           maxSize: 2,
         }),
-      datastore: props.datastore || InMemoryDataStore.factory(),
+      datastore: props.datastore || InMemoryDataStore.factory({ clock }),
     });
+  };
 }
+
+const failAtFirst = <T>(s: TE.TaskEither<Error, T>[]) =>
+  s.reduce(
+    (acc, next) =>
+      pipe(
+        acc,
+        TE.chain(() => next)
+      ),
+    TE.of(undefined as T)
+  );

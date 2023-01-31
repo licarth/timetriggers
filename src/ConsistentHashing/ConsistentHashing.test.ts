@@ -186,7 +186,7 @@ describe("Firebase Consistent Hashing", () => {
 describe("getShardsToListenTo", () => {
   it("should return all shards when there is only 1 server", async () => {
     const res = getShardsToListenToString(0, 1);
-    expect(res).toEqual(null);
+    expect(res).toEqual(undefined);
   });
   it("should return items for server i=0 (total 2)", async () => {
     const res = getShardsToListenToString(0, 2)?.map((s) => s.toString());

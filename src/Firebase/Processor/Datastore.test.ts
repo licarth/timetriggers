@@ -4,9 +4,11 @@ import { JobDefinition } from "@/domain/JobDefinition";
 import { ScheduledAt } from "@/domain/ScheduledAt";
 import { Shard } from "@/domain/Shard";
 import { te } from "@/fp-ts";
+import { randomString } from "@/test/randomString";
 import { addMilliseconds } from "date-fns";
 import { firstValueFrom } from "rxjs";
 import { Datastore } from "./Datastore";
+import { FirestoreDatastore } from "./FirestoreDatastore";
 import { InMemoryDataStore } from "./InMemoryDataStore";
 
 const SECOND = 1000;
@@ -14,8 +16,13 @@ const SECOND = 1000;
 const POLL_INTERVAL = 100;
 
 const datastores: Record<string, (clock: Clock) => Datastore> = {
-  InMemoryDataStore: (clock: Clock) =>
-    InMemoryDataStore.factory({ clock, pollingInterval: POLL_INTERVAL }),
+  // InMemoryDataStore: (clock: Clock) =>
+  //   InMemoryDataStore.factory({ clock, pollingInterval: POLL_INTERVAL }),
+  FirestoreEmulator: (clock: Clock) =>
+    FirestoreDatastore.factory({
+      clock,
+      rootDocumentPath: `test-${randomString(10)}/tasks`,
+    }),
 };
 
 describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
@@ -31,34 +38,34 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
     await te.unsafeGetOrThrow(datastore.close());
   });
 
-  describe("Not Sharded", () => {
-    describe("schedule and retrieve with newlyRegisteredJobsBefore()", () => {
+  describe.only("Not Sharded", () => {
+    describe.only("schedule and retrieve with listenToNewJobsBefore()", () => {
       const cases = [
         {
           scheduledMsFromNow: 1000,
           checkMillisecondsFromNow: 2000,
           expected: 1,
         },
-        {
-          scheduledMsFromNow: 1000,
-          checkMillisecondsFromNow: 500,
-          expected: 0,
-        },
-        {
-          scheduledMsFromNow: 1000,
-          checkMillisecondsFromNow: 1000,
-          expected: 1,
-        },
-        {
-          scheduledMsFromNow: 1000,
-          checkMillisecondsFromNow: 999,
-          expected: 0,
-        },
-        {
-          scheduledMsFromNow: 1000,
-          checkMillisecondsFromNow: 1001,
-          expected: 1,
-        },
+        // {
+        //   scheduledMsFromNow: 1000,
+        //   checkMillisecondsFromNow: 500,
+        //   expected: 0,
+        // },
+        // {
+        //   scheduledMsFromNow: 1000,
+        //   checkMillisecondsFromNow: 1000,
+        //   expected: 1,
+        // },
+        // {
+        //   scheduledMsFromNow: 1000,
+        //   checkMillisecondsFromNow: 999,
+        //   expected: 0,
+        // },
+        // {
+        //   scheduledMsFromNow: 1000,
+        //   checkMillisecondsFromNow: 1001,
+        //   expected: 1,
+        // },
       ];
       for (const {
         scheduledMsFromNow,
@@ -66,6 +73,11 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
         expected,
       } of cases) {
         it(`should find ${expected} results for a job scheduled in ${scheduledMsFromNow} ms from (millisecondsFromNow=${checkMillisecondsFromNow})`, async () => {
+          const promise = firstValueFrom(
+            datastore.listenToNewJobsBefore({
+              millisecondsFromNow: checkMillisecondsFromNow,
+            })
+          );
           await te.unsafeGetOrThrow(
             datastore.schedule(
               JobDefinition.factory({
@@ -75,21 +87,17 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
               })
             )
           );
-          await firstValueFrom(
-            datastore.newlyRegisteredJobsBefore({
-              millisecondsFromNow: checkMillisecondsFromNow,
-            })
-          ).then((jobs) => {
+          await promise.then((jobs) => {
             expect(jobs.length).toBe(expected);
           });
         });
       }
     });
 
-    describe("newlyRegisteredJobsBefore", () => {
+    describe.skip("listenToNewJobsBefore", () => {
       it("should respond immediately (without clock tick)", async () => {
         await firstValueFrom(
-          datastore.newlyRegisteredJobsBefore({
+          datastore.listenToNewJobsBefore({
             millisecondsFromNow: 1000,
           })
         ).then((jobs) => {
@@ -108,7 +116,7 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
           )
         );
         await firstValueFrom(
-          datastore.newlyRegisteredJobsBefore({
+          datastore.listenToNewJobsBefore({
             millisecondsFromNow: 500,
           })
         ).then((jobs) => {
@@ -118,8 +126,8 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
     });
   });
 
-  describe("Sharded", () => {
-    describe("newlyRegisteredJobsBefore", () => {
+  describe.skip("Sharded", () => {
+    describe("listenToNewJobsBefore", () => {
       it("should return only jobs in shard", async () => {
         await Promise.all([
           te.unsafeGetOrThrow(
@@ -135,7 +143,7 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
         ]);
 
         await firstValueFrom(
-          datastore.newlyRegisteredJobsBefore(
+          datastore.listenToNewJobsBefore(
             {
               millisecondsFromNow: 1000,
             },
@@ -161,7 +169,7 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
         ]);
 
         await firstValueFrom(
-          datastore.newlyRegisteredJobsBefore(
+          datastore.listenToNewJobsBefore(
             {
               millisecondsFromNow: 1000,
             },

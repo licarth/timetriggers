@@ -9,7 +9,7 @@ import { externallyResolvablePromise } from "@/externallyResolvablePromise";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { Datastore } from "./Datastore";
-import { ShardsToListenTo } from "./InMemoryDataStore";
+import { ShardsToListenTo } from "./ShardsToListenTo";
 
 export type ClusterTopologyDatastoreAwareProps = {
   clock?: Clock;
@@ -44,7 +44,7 @@ export abstract class ClusterTopologyDatastoreAware {
           this.shardsToListenTo =
             getShardsToListenToObject(currentNodeId, clusterSize) || undefined;
           this.onClusterTopologyChange({ currentNodeId, clusterSize });
-          resolve();
+          resolve(); // do only once.
         });
     } else {
       resolve();
@@ -74,7 +74,7 @@ export abstract class ClusterTopologyDatastoreAware {
     );
   }
 
-  close() {
+  close(): TE.TaskEither<Error, void> {
     this.coordinationClientSubscription?.unsubscribe();
     return TE.of(undefined);
   }

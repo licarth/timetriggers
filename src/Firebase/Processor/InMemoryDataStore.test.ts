@@ -29,7 +29,7 @@ describe("InMemoryDataStore", () => {
 
       let jobDefs: JobDefinition[] = [];
       datastore
-        .newlyRegisteredJobsBefore({ millisecondsFromNow: 1000 })
+        .listenToNewJobsBefore({ millisecondsFromNow: 1000 })
         .subscribe((jobs) => {
           jobDefs = jobs;
         });
@@ -38,7 +38,7 @@ describe("InMemoryDataStore", () => {
     });
   });
 
-  describe("newlyRegisteredJobsBefore", () => {
+  describe("listenToNewJobsBefore", () => {
     it("should not return a job that's planned beyond", async () => {
       const clock = new TestClock(new Date("2020-01-01T00:00:00.000Z"));
 
@@ -60,7 +60,7 @@ describe("InMemoryDataStore", () => {
 
       let jobDefs: JobDefinition[] = [];
       datastore
-        .newlyRegisteredJobsBefore({ millisecondsFromNow: 500 })
+        .listenToNewJobsBefore({ millisecondsFromNow: 500 })
         .subscribe((jobs) => {
           jobDefs = jobs;
         });
@@ -71,7 +71,7 @@ describe("InMemoryDataStore", () => {
 });
 
 describe("Sharded InMemoryDatastore", () => {
-  describe("newlyRegisteredJobsBefore", () => {
+  describe("listenToNewJobsBefore", () => {
     it("should return only jobs in shard", async () => {
       const clock = new TestClock(new Date("2020-01-01T00:00:00.000Z"));
       const pollingInterval = 100;
@@ -93,7 +93,7 @@ describe("Sharded InMemoryDatastore", () => {
       ]);
 
       const jobsPromise = firstValueFrom(
-        datastore.newlyRegisteredJobsBefore(
+        datastore.listenToNewJobsBefore(
           {
             millisecondsFromNow: 1000,
           },
@@ -129,7 +129,7 @@ describe("Sharded InMemoryDatastore", () => {
       ]);
 
       const jobsPromise = firstValueFrom(
-        datastore.newlyRegisteredJobsBefore(
+        datastore.listenToNewJobsBefore(
           {
             millisecondsFromNow: 1000,
           },

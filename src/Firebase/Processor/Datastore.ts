@@ -5,11 +5,17 @@ import { HttpCallLastStatus } from "@/HttpCallStatusUpdate";
 import { JobScheduleArgs } from "@/domain/JobScheduleHttpArgs";
 import { JobId } from "@/domain/JobId";
 import { Shard } from "@/domain/Shard";
-import { ShardsToListenTo } from "./InMemoryDataStore";
+import { ShardsToListenTo } from "./ShardsToListenTo";
 
 export type ShardingAlgorithm = (job: JobId) => Shard[];
 // For firestore, we'll just pretend that we have more nodes than we actually have.
 // Each processor will take more than one shard.
+
+export type GetJobsScheduledBeforeArgs = {
+  offset?: number;
+  millisecondsFromNow: number;
+  limit: number;
+};
 
 export interface Datastore {
   schedule(
@@ -20,6 +26,13 @@ export interface Datastore {
 
   /**
    * This is a stream of registered jobs.
+   *
+   * This returns new jobs that are being registered while we are listening.
+   *
+   * The first invocation **may** return some old jobs that we haven't seen yet (like when we restart the processor).
+   * Be careful when calling this, as it may return a lot of jobs (e.g. with Firestore).
+   *
+   * Processors call countJobsBefore(millisecondsFromNow) prior to this to make sure this request doesn't return too many jobs.
    *
    * It's ok to emit the same job multiple times occasionally,
    * as long as performance is not affected too much,
@@ -36,7 +49,7 @@ export interface Datastore {
    * The first call must return all jobs that are scheduled within the next millisecondsFromNow.
    *
    */
-  newlyRegisteredJobsBefore(
+  listenToNewJobsBefore(
     args: {
       millisecondsFromNow: number;
     },
@@ -48,11 +61,8 @@ export interface Datastore {
    * They must be ordered by scheduledAt.
    *
    */
-  getJobsScheduledAfter(
-    args: {
-      millisecondsFromNow: number;
-      limit: number;
-    },
+  getJobsScheduledBefore(
+    args: GetJobsScheduledBeforeArgs,
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<any, JobDefinition[]>;
 
@@ -80,13 +90,13 @@ export interface Datastore {
       limit: number;
     },
     shardsToListenTo?: ShardsToListenTo
-  ): TE.TaskEither<any, JobDefinition[]>;
+  ): { te: TE.TaskEither<any, JobDefinition[]>; unsubscribe: () => void };
 
   /**
    * Moves this job to the queue so that it's immediately picked up by the processor(s).
    * This must fail on the second call with the same jobDefinition.
    */
-  queueJob(jobDefinition: JobDefinition): TE.TaskEither<any, void>;
+  queueJobs(jobDefinition: JobDefinition[]): TE.TaskEither<any, void>;
 
   /**
    * Marks the job as running.

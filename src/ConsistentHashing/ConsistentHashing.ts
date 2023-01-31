@@ -1,5 +1,5 @@
 import { Shard } from "@/domain/Shard";
-import { ShardsToListenTo } from "@/Firebase/Processor/InMemoryDataStore";
+import { ShardsToListenTo } from "@/Firebase/Processor/ShardsToListenTo";
 import { flow } from "fp-ts/lib/function.js";
 import _ from "lodash";
 import { CustomConsistentHashing as ConsistentHash } from "./CustomConsistentHashing";
@@ -53,7 +53,7 @@ export const getShardsToListenTo = (
 ) => {
   // For serverCount between 2 and 11, it's easy.
   if (serverCount === 1) {
-    return null;
+    return undefined;
   }
   if (serverCount <= 11) {
     return _.times(maxArrayInQuery, (i) =>

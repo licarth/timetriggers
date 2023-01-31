@@ -2,7 +2,7 @@ import _ from "lodash";
 import { AbstractClock } from "./AbstractClock";
 
 export class TestClock extends AbstractClock {
-  private _now: Date = new Date();
+  private _now: Date = new Date("2020-01-01T00:00:00.000Z");
   private _timeouts: {
     [key: number]: {
       executeAtTs: number;
@@ -25,6 +25,10 @@ export class TestClock extends AbstractClock {
     }
   }
 
+  static factory() {
+    return new TestClock();
+  }
+
   tickMs(milliseconds: number) {
     const oldTs = this._now.getTime();
     const newTs = oldTs + milliseconds;
@@ -42,7 +46,9 @@ export class TestClock extends AbstractClock {
         if (executeAtTs <= newTs) {
           for (const timeout of this._timeouts[executeAtTs]) {
             if (thingsToExecute[executeAtTs]) {
-              thingsToExecute[executeAtTs].push(timeout.cb);
+              thingsToExecute[executeAtTs].push(() => {
+                timeout.cb();
+              });
             } else {
               thingsToExecute[executeAtTs] = [timeout.cb];
             }

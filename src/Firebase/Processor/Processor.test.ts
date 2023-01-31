@@ -48,6 +48,7 @@ describe("Processor (not sharded)", () => {
     const jobId = JobId.factory();
     const processor = await te.unsafeGetOrThrow(
       Processor.factory({
+        clock,
         datastore: InMemoryDataStore.factory({
           clock,
           queuedJobs: [
@@ -86,6 +87,7 @@ describe("Processor (not sharded)", () => {
     const clock = new TestClock();
     const processor = await te.unsafeGetOrThrow(
       Processor.factory({
+        clock,
         workerPool: new AxiosWorkerPool({ clock, minSize: 1, maxSize: 1 }),
         datastore: InMemoryDataStore.factory({
           clock,

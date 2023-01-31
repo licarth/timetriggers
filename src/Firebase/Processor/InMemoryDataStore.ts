@@ -1,5 +1,6 @@
 import { Clock } from "@/Clock/Clock";
 import { SystemClock } from "@/Clock/SystemClock";
+import { TestClock } from "@/Clock/TestClock";
 import { JobDefinition } from "@/domain/JobDefinition";
 import { JobId } from "@/domain/JobId";
 import { JobScheduleArgs } from "@/domain/JobScheduleHttpArgs";
@@ -11,8 +12,13 @@ import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import Multimap from "multimap";
 import { interval, Observable, Subscriber } from "rxjs";
-import { Datastore, ShardingAlgorithm } from "./Datastore";
+import {
+  Datastore,
+  GetJobsScheduledBeforeArgs,
+  ShardingAlgorithm,
+} from "./Datastore";
 import { distinctArray } from "./distinctArray";
+import { ShardsToListenTo } from "./ShardsToListenTo";
 
 type InMemoryDataStoreProps = {
   clock?: Clock;
@@ -22,18 +28,13 @@ type InMemoryDataStoreProps = {
   completedJobs: JobDefinition[];
 };
 
-export type ShardsToListenTo = {
-  nodeCount: number;
-  nodeIds: number[];
-};
-
 export class InMemoryDataStore implements Datastore {
   private clock;
   private pollingInterval;
-  private registeredJobs;
-  private queuedJobs;
+  registeredJobs;
+  queuedJobs;
   private queuesJobByShardIndex = new Multimap<string, JobId>(); // shardIndex "${nodeCount}-${nodeId}" -> jobId
-  private completedJobs;
+  completedJobs;
   private shardsByJobId = new Map<JobId, Shard[]>();
 
   constructor(props: InMemoryDataStoreProps) {
@@ -54,7 +55,9 @@ export class InMemoryDataStore implements Datastore {
     return TE.right(undefined);
   }
 
-  static factory(props: Partial<InMemoryDataStoreProps> = {}) {
+  static factory(
+    props: Partial<InMemoryDataStoreProps> & { clock: TestClock }
+  ) {
     return new InMemoryDataStore({
       clock: props.clock,
       pollingInterval: props.pollingInterval || 1000,
@@ -68,29 +71,33 @@ export class InMemoryDataStore implements Datastore {
     jobMap: Map<JobId, JobDefinition>,
     shardsToListenTo?: ShardsToListenTo
   ) {
-    return all(jobMap).filter((job) => {
-      if (
-        shardsToListenTo &&
-        shardsToListenTo.nodeCount > 1 &&
-        this.shardsByJobId.has(job.id)
-      ) {
-        const matchingShard = this.shardsByJobId.get(job.id)?.[
-          shardsToListenTo.nodeCount - 2
-        ];
+    return _(
+      all(jobMap).filter((job) => {
         if (
-          matchingShard &&
-          shardsToListenTo.nodeIds.includes(matchingShard.nodeId)
+          shardsToListenTo &&
+          shardsToListenTo.nodeCount > 1 &&
+          this.shardsByJobId.has(job.id)
         ) {
-          return true;
-        } else {
-          return false;
+          const matchingShard = this.shardsByJobId.get(job.id)?.[
+            shardsToListenTo.nodeCount - 2
+          ];
+          if (
+            matchingShard &&
+            shardsToListenTo.nodeIds.includes(matchingShard.nodeId)
+          ) {
+            return true;
+          } else {
+            return false;
+          }
         }
-      }
-      return true;
-    });
+        return true;
+      })
+    )
+      .sortBy((j) => j.id)
+      .valueOf();
   }
 
-  newlyRegisteredJobsBefore(
+  listenToNewJobsBefore(
     args: {
       millisecondsFromNow: number;
     },
@@ -126,9 +133,11 @@ export class InMemoryDataStore implements Datastore {
     );
   }
 
-  queueJob(jobDefinition: JobDefinition): TE.TaskEither<any, void> {
-    this.queuedJobs.set(jobDefinition.id, jobDefinition);
-    this.registeredJobs.delete(jobDefinition.id);
+  queueJobs(jobDefinitions: JobDefinition[]): TE.TaskEither<any, void> {
+    jobDefinitions.forEach((jobDefinition) => {
+      this.queuedJobs.set(jobDefinition.id, jobDefinition);
+      this.registeredJobs.delete(jobDefinition.id);
+    });
     return TE.right(undefined);
   }
 
@@ -196,17 +205,23 @@ export class InMemoryDataStore implements Datastore {
     return TE.of(jobId);
   }
 
-  getJobsScheduledAfter(
-    args: { millisecondsFromNow: number; limit: number },
+  getJobsScheduledBefore(
+    { millisecondsFromNow, limit, offset }: GetJobsScheduledBeforeArgs,
     shardsToListenTo?: ShardsToListenTo
   ) {
     return TE.of(
-      this.jobsMatchingShard(this.registeredJobs, shardsToListenTo).filter(
-        (job) => {
-          const scheduledAt = job.scheduledAt.date.getTime();
-          const now = this.clock.now().getTime();
-          return scheduledAt > now + args.millisecondsFromNow;
-        }
+      _.take(
+        this.jobsMatchingShard(this.registeredJobs, shardsToListenTo)
+          .filter((job) => {
+            const scheduledAt = job.scheduledAt.date.getTime();
+            const now = this.clock.now().getTime();
+            return scheduledAt <= now + millisecondsFromNow;
+          })
+          .map((job) => {
+            return job;
+          })
+          .slice(offset),
+        limit
       )
     );
   }
@@ -216,8 +231,8 @@ export class InMemoryDataStore implements Datastore {
       limit: number;
     },
     shardsToListenTo?: ShardsToListenTo
-  ): TE.TaskEither<any, JobDefinition[]> {
-    return TE.tryCatch(
+  ): { te: TE.TaskEither<any, JobDefinition[]>; unsubscribe: () => void } {
+    const tee = TE.tryCatch<Error, JobDefinition[]>(
       () =>
         new Promise((resolve) => {
           const jobs = _.sortBy(
@@ -229,12 +244,20 @@ export class InMemoryDataStore implements Datastore {
             resolve(jobs);
           } else {
             setTimeout(() => {
-              resolve(te.unsafeGetOrThrow(this.waitForNextJobsInQueue(args)));
+              resolve(
+                te.unsafeGetOrThrow(this.waitForNextJobsInQueue(args).te)
+              );
             }, 100);
           }
         }),
       (e) => new Error("Error waiting for next job in queue: " + e)
     );
+    return {
+      te: tee,
+      unsubscribe: () => {
+        console.log("Unsubscribing has no effect in memory job store");
+      },
+    };
   }
 }
 

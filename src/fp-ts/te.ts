@@ -22,6 +22,18 @@ export namespace te {
     )();
   };
 
+  export const getOrLog = async <T>(
+    taskEither: TE.TaskEither<unknown, T>
+  ): Promise<T | undefined> => {
+    return pipe(
+      taskEither,
+      TE.getOrElseW((error) => {
+        console.error(error);
+        return T.of(undefined);
+      })
+    )();
+  };
+
   export const tryCatchNeverFails = <T>(
     task: Lazy<Promise<T>>,
     sideEffect: (reason: unknown) => void
@@ -43,6 +55,31 @@ export namespace te {
     ({ parallelism = 1 }: { parallelism?: number } = {}) =>
     <E, A>(arrayOfTe: Array<TE.TaskEither<E, A>>) => {
       return pipe(arrayOfTe, batchTasks(parallelism), mergeFn);
+    };
+
+  export const repeatUntil =
+    <T>(
+      predicate: (result: T) => boolean,
+      { maxAttempts }: { maxAttempts: number } = { maxAttempts: 100 }
+    ) =>
+    (taskEither: TE.TaskEither<Error, T>) => {
+      let attempts = 0;
+      const loop = (): TE.TaskEither<Error, T> => {
+        return pipe(
+          taskEither,
+          TE.chain((result) => {
+            if (attempts++ >= maxAttempts) {
+              return TE.left(new Error("Max attempts reached"));
+            }
+            // console.log(`current value is ${result}`);
+            if (predicate(result)) {
+              return TE.right(result);
+            }
+            return loop();
+          })
+        );
+      };
+      return loop();
     };
 }
 
