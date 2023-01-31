@@ -90,7 +90,7 @@ export interface Datastore {
       limit: number;
     },
     shardsToListenTo?: ShardsToListenTo
-  ): { te: TE.TaskEither<any, JobDefinition[]>; unsubscribe: () => void };
+  ): TE.TaskEither<Error, Observable<JobDefinition[]>>;
 
   /**
    * Moves this job to the queue so that it's immediately picked up by the processor(s).

@@ -49,7 +49,7 @@ export class Scheduler extends ClusterTopologyDatastoreAware {
       props.schedulePeriodMs || Math.ceil(this.scheduleAdvanceMs / 2);
   }
 
-  onClusterTopologyChange = (clusterTopology: ClusterNodeInformation) => {
+  onClusterTopologyChange(clusterTopology: ClusterNodeInformation) {
     console.log(
       `New cluster topology ! currentNodeID: ${clusterTopology.currentNodeId},  nodeCount: ${clusterTopology.clusterSize}
 Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
@@ -60,7 +60,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       this.unsubscribeListeningToNewJobs();
       te.getOrLog(this.startListening());
     }
-  };
+  }
 
   close() {
     this.unsubscribeSchedulingNextPeriod &&

@@ -350,23 +350,27 @@ export class FirestoreDatastore implements Datastore {
       limit: number;
     },
     shardsToListenTo?: ShardsToListenTo
-  ): { te: TE.TaskEither<any, JobDefinition[]>; unsubscribe: () => void } {
+  ): TE.TaskEither<Error, Observable<JobDefinition[]>> {
     if (this.state === "stopped") {
-      return {
-        te: TE.left(new Error("Processor is not running")),
-        unsubscribe: () => {},
-      };
+      return TE.left(new Error("Processor is not running"));
     }
-    let unsubscribe: () => void = () => {
-      console.error(
-        `[Datastore] ❌ unsubscribe called but no listener was set`
-      );
-    };
-    const te = pipe(
-      TE.tryCatch<Error, JobDefinition[]>(
+
+    return pipe(
+      TE.tryCatch<Error, Observable<JobDefinition[]>>(
         // Listen to the queue and check if there is a job to run
         () =>
           new Promise((resolve, reject) => {
+            let unsubscribe: () => void = () => {
+              console.error(
+                `[Datastore] ❌ unsubscribe called but no listener was set`
+              );
+            };
+            let next: (value: JobDefinition[] | undefined) => void;
+            const observable = new Observable<JobDefinition[]>((observer) => {
+              next = observer.next.bind(observer); // bind necessary ?
+              return unsubscribe;
+            });
+            resolve(observable);
             console.log(`[Datastore] waiting for next job...`);
             const u = shardedFirestoreQuery(
               this.firestore.collection(
@@ -398,7 +402,10 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
                   );
                   // Check here if jobs are valid. If not, just wait.
                   unsubscribe && unsubscribe(); // Stop listening if the job can run
-                  resolve(successes.map((doc) => doc.jobDefinition));
+                  const jobdefinitions = successes.map(
+                    (doc) => doc.jobDefinition
+                  );
+                  next(jobdefinitions);
                 } else {
                   // Just wait
                 }
@@ -425,7 +432,6 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
       //   )
       // )
     );
-    return { te, unsubscribe };
   }
 }
 

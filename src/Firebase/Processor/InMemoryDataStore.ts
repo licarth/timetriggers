@@ -11,7 +11,7 @@ import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import Multimap from "multimap";
-import { interval, Observable, Subscriber } from "rxjs";
+import { interval, Observable, Observer, Subscriber } from "rxjs";
 import {
   Datastore,
   GetJobsScheduledBeforeArgs,
@@ -231,33 +231,33 @@ export class InMemoryDataStore implements Datastore {
       limit: number;
     },
     shardsToListenTo?: ShardsToListenTo
-  ): { te: TE.TaskEither<any, JobDefinition[]>; unsubscribe: () => void } {
-    const tee = TE.tryCatch<Error, JobDefinition[]>(
-      () =>
-        new Promise((resolve) => {
-          const jobs = _.sortBy(
-            this.jobsMatchingShard(this.queuedJobs, shardsToListenTo),
-            (i) => i.scheduledAt.date.getTime()
-          ).splice(0, args.limit);
-
-          if (jobs.length > 0) {
-            resolve(jobs);
-          } else {
-            setTimeout(() => {
-              resolve(
-                te.unsafeGetOrThrow(this.waitForNextJobsInQueue(args).te)
-              );
-            }, 100);
-          }
-        }),
-      (e) => new Error("Error waiting for next job in queue: " + e)
+  ): TE.TaskEither<Error, Observable<JobDefinition[]>> {
+    return TE.of(
+      new Observable<JobDefinition[]>((observer) => {
+        this._waitForNextJobsInQueue(args, observer, shardsToListenTo);
+      })
     );
-    return {
-      te: tee,
-      unsubscribe: () => {
-        console.log("Unsubscribing has no effect in memory job store");
-      },
-    };
+  }
+
+  private _waitForNextJobsInQueue(
+    args: {
+      limit: number;
+    },
+    observer: Subscriber<JobDefinition[]>,
+    shardsToListenTo?: ShardsToListenTo
+  ) {
+    const jobs = _.sortBy(
+      this.jobsMatchingShard(this.queuedJobs, shardsToListenTo),
+      (i) => i.scheduledAt.date.getTime()
+    ).splice(0, args.limit);
+
+    if (jobs.length > 0) {
+      observer.next(jobs);
+    } else {
+      setTimeout(() => {
+        this._waitForNextJobsInQueue(args, observer, shardsToListenTo);
+      }, 100);
+    }
   }
 }
 

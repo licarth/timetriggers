@@ -1,14 +1,11 @@
 import { AxiosWorkerPool } from "@/AxiosWorkerPool";
 import { Clock } from "@/Clock/Clock";
-import { SystemClock } from "@/Clock/SystemClock";
 import { TestClock } from "@/Clock/TestClock";
-import { getShardsToListenToObject } from "@/ConsistentHashing/ConsistentHashing";
 import {
   ClusterNodeInformation,
   CoordinationClient,
 } from "@/Coordination/CoordinationClient";
 import { JobDefinition } from "@/domain/JobDefinition";
-import { externallyResolvablePromise } from "@/externallyResolvablePromise";
 import { te } from "@/fp-ts";
 import { HttpCallCompleted } from "@/HttpCallStatusUpdate/HttpCallCompleted";
 import { HttpCallErrored } from "@/HttpCallStatusUpdate/HttpCallErrored";
@@ -17,11 +14,9 @@ import { HttpCallStarted } from "@/HttpCallStatusUpdate/HttpCallStarted";
 import { WorkerPool } from "@/WorkerPool";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
-import * as A from "fp-ts/lib/Array.js";
+import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 import { Datastore } from "./Datastore";
 import { InMemoryDataStore } from "./InMemoryDataStore";
-import { ShardsToListenTo } from "./ShardsToListenTo";
-import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 
 type ProcessorProps = {
   clock?: Clock;
@@ -70,13 +65,30 @@ export class Processor extends ClusterTopologyDatastoreAware {
 
   takeNextJob(): TE.TaskEither<Error, void> {
     console.log(`[Processor] taking next job...`);
-    const { te, unsubscribe } = this.datastore.waitForNextJobsInQueue(
-      { limit: 50 },
-      this.shardsToListenTo
-    );
-    this.unsubscribeNextJob = unsubscribe;
+    // this.unsubscribeNextJob = unsubscribe;
+    const self = this;
     return pipe(
-      te,
+      this.datastore.waitForNextJobsInQueue(
+        { limit: 50 },
+        this.shardsToListenTo
+      ),
+      TE.chainW(function (o) {
+        console.log(`[Processor] got observable...`);
+        // this.unsubscribeNextJob = () => o.unsubscribe();
+        return TE.tryCatch(
+          () =>
+            new Promise<JobDefinition[]>((resolve, reject) => {
+              const subscription = o.subscribe(
+                (jobs) => {
+                  resolve(jobs);
+                },
+                (err) => reject(err)
+              );
+              self.unsubscribeNextJob = () => subscription.unsubscribe();
+            }),
+          (e) => new Error("Could not take next job")
+        );
+      }),
       TE.chain((jobs) => {
         console.log(`[Processor] got ${jobs.length} jobs...`);
         if (this.state === "closing") {

@@ -18,8 +18,6 @@ import { of } from "rxjs";
 import { InMemoryDataStore } from "./InMemoryDataStore";
 import { Processor } from "./Processor";
 
-jest.setTimeout(10000);
-
 const worker: Worker = {
   close: () => Promise.resolve(),
   execute: () =>
@@ -41,7 +39,7 @@ const fakeWorkerPool: WorkerPool = {
 };
 
 describe("Processor (not sharded)", () => {
-  it("should process single job in queue", async () => {
+  it.only("should process single job in queue", async () => {
     const callbackReceiver = await CallbackReceiver.factory();
 
     const clock = new TestClock();

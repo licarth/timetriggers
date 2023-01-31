@@ -47,6 +47,7 @@ export abstract class ClusterTopologyDatastoreAware {
           resolve(); // do only once.
         });
     } else {
+      this.onClusterTopologyChange({ currentNodeId: 0, clusterSize: 1 });
       resolve();
     }
   }
