@@ -42,6 +42,16 @@ export class ScheduledAt {
   static fromUTCString(date: string): ScheduledAt {
     return new ScheduledAt({ date: new Date(date) });
   }
+
+  static factory = (props: Partial<ScheduledAtProps> = {}) => {
+    return new ScheduledAt({
+      date: props.date ?? new Date(),
+    });
+  };
+
+  static fromDate(date: Date): ScheduledAt {
+    return new ScheduledAt({ date });
+  }
 }
 
 export type ScheduledAtProps = Codec.TypeOf<typeof ScheduledAt.propsCodec>;

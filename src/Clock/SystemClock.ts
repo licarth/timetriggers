@@ -14,4 +14,12 @@ export class SystemClock extends AbstractClock {
   tickMs(milliseconds: number) {
     // This has no eeffect on the system clock
   }
+
+  setInterval(callback: () => void, milliseconds: number): NodeJS.Timeout {
+    return setInterval(callback, milliseconds);
+  }
+
+  clearInterval(intervalId: NodeJS.Timeout): void {
+    clearInterval(intervalId);
+  }
 }

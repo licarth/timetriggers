@@ -29,7 +29,7 @@ type FirestoreSchedulerProps = {
   clock?: Clock;
   firestore: Firestore;
   rootDocumentPath: string;
-  shardsToListenTo?: string[] | null;
+  shardsToListenTo?: string[];
 };
 
 export class FirestoreScheduler {
@@ -55,25 +55,25 @@ export class FirestoreScheduler {
 
   runEveryMs = (ms: number, f: () => void) => {
     f();
-    const id = setInterval(() => {
+    const id = this.clock.setInterval(() => {
       f();
     }, ms);
     this.unsubscribeSchedulingNextPeriod = () => {
-      clearInterval(id);
+      this.clock.clearInterval(id);
     };
   };
 
   run() {
     this.state = "running";
     this.runEveryMs(Math.floor(SCHEDULE_ADVANCE_MS / 2), () => {
-      te.unsafeGetOrThrow(this.scheduleNext2Hours());
+      te.unsafeGetOrThrow(this.scheduleNextPeriod());
     });
     return pipe(this.startListeningToNewJobs());
 
     // TODO fix
-    // 1. Listen to only newly added jobs with onSnapshot(), and for every 'new document' that has a scheduled date within the next 2 hours, schedule the queuing operation
+    // 1. Listen to only newly added jobs with onSnapshot(), and for every 'new document' that has a scheduled date within the next period, schedule the queuing operation
     // --. Listen to document changes to find rescheduling of existing jobs, and reschedule them  => Won't do for now
-    // 3. Once listening is started, schedule the next 2 hours only by running a query with firestore.get() to find all documents to schedule in the next 2 hours
+    // 3. Once listening is started, schedule the next period only by running a query with firestore.get() to find all documents to schedule in the next period
     // 4. Rerun that query every hour, by making sure that we're not rescheduling jobs that are already scheduled
   }
 
@@ -109,7 +109,7 @@ export class FirestoreScheduler {
             );
         });
       },
-      (reason) => new Error(`Failed to schedule next 2 hours: ${reason}`)
+      (reason) => new Error(`Failed to schedule next period: ${reason}`)
     );
   }
 
@@ -161,7 +161,7 @@ export class FirestoreScheduler {
   /**
    * This method should be called regularily, at least twice per period (if period = 2h, then once an hour)
    * */
-  scheduleNext2Hours() {
+  scheduleNextPeriod() {
     return TE.tryCatch(
       async () => {
         const periodFromNow = addMilliseconds(
@@ -191,7 +191,7 @@ export class FirestoreScheduler {
           )
         );
       },
-      (reason) => new Error(`Failed to schedule next 2 hours: ${reason}`)
+      (reason) => new Error(`Failed to schedule next period: ${reason}`)
     );
   }
 

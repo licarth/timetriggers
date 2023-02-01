@@ -46,7 +46,9 @@ jobs:
   deploy_kubernetes:
     name: Deploy with helmfile
     runs-on: ubuntu-latest
-    needs: build_docker
+    needs:
+      - build_docker
+      - tests
     if: github.ref == 'refs/heads/main'
     env:
       IMAGE_TAG: ${{ github.sha }}
@@ -83,9 +85,36 @@ jobs:
     name: Deploy with fly
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    needs:
+      - tests
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
     steps:
       - uses: actions/checkout@v2
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: npm run deploy
+
+  tests:
+    name: Run tests
+    runs-on: ubuntu-latest
+    env:
+      FORCE_COLOR: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Cache firebase emulators
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/firebase/emulators
+          key: ${{ runner.os }}-firebase-emulators-${{ hashFiles('~/.cache/firebase/emulators/**') }}
+      - name: docker-compose (Zookeeper)
+        run: docker-compose --env-file .env.test up -d
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm run test-ci

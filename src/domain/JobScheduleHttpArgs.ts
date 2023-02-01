@@ -3,7 +3,7 @@ import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
 import { ScheduledAt } from "./ScheduledAt";
 
-export class JobScheduleHttpArgs {
+export class JobScheduleArgs {
   scheduledAt;
   url;
 
@@ -18,11 +18,18 @@ export class JobScheduleHttpArgs {
   });
 
   static codec = pipe(
-    JobScheduleHttpArgs.propsCodec,
-    Codec.compose(fromClassCodec(JobScheduleHttpArgs))
+    JobScheduleArgs.propsCodec,
+    Codec.compose(fromClassCodec(JobScheduleArgs))
   );
+
+  static factory = (props: Partial<JobScheduleHttpArgsProps> = {}) => {
+    return new JobScheduleArgs({
+      scheduledAt: props.scheduledAt || ScheduledAt.factory(),
+      url: props.url || "http://localhost:3000",
+    });
+  };
 }
 
 export type JobScheduleHttpArgsProps = Codec.TypeOf<
-  typeof JobScheduleHttpArgs.propsCodec
+  typeof JobScheduleArgs.propsCodec
 >;

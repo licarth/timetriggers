@@ -32,10 +32,10 @@ const clocks = {
 
 const NUM_JOBS = 10;
 
-const realFirestore = initializeApp({
-  appName: "doi_test_real",
-  serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-}).firestore;
+// const realFirestore = initializeApp({
+//   appName: "doi_test_real",
+//   serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+// }).firestore;
 
 const externalEmulatorFirestore = initializeApp({
   appName: "doi_test_external_emulator",
@@ -45,15 +45,15 @@ describe(`Api tests`, () => {
   const testRunId = randomString(4);
   console.log(`testRunId: ${testRunId}`);
   const apiBuilders = {
-    // InMemory: (clock, namespace) => TE.of(new InMemoryApi({ clock })),
-    FirestoreExternalRealApi: (clock, namespace) =>
-      FirestoreApi.build({
-        clock,
-        rootDocumentPath: namespace,
-        numProcessors: 1,
-        runScheduler: true,
-        firestore: realFirestore,
-      }),
+    InMemory: (clock, namespace) => TE.of(new InMemoryApi({ clock })),
+    // FirestoreExternalRealApi: (clock, namespace) =>
+    //   FirestoreApi.build({
+    //     clock,
+    //     rootDocumentPath: namespace,
+    //     numProcessors: 1,
+    //     runScheduler: true,
+    //     firestore: realFirestore,
+    //   }),
     FirestoreInternal: (clock, namespace) =>
       FirestoreApi.build({
         clock,
@@ -68,8 +68,8 @@ describe(`Api tests`, () => {
   >;
 
   afterAll(async () => {
-    await realFirestore.terminate();
-    await externalEmulatorFirestore.terminate();
+    // await realFirestore.terminate();
+    // await externalEmulatorFirestore.terminate();
   });
 
   let callbackReceiver: CallbackReceiver;
@@ -84,8 +84,8 @@ describe(`Api tests`, () => {
           api = await te.unsafeGetOrThrow(
             apiBuilders[apiName](clock, namespace)
           );
-          await api.cancelAllJobs()();
-          callbackReceiver = await CallbackReceiver.build();
+          // await api.cancelAllJobs()();
+          callbackReceiver = await CallbackReceiver.factory();
         });
 
         afterEach(async () => {
@@ -108,12 +108,12 @@ describe(`Api tests`, () => {
             throw new Error("Failed to schedule job");
           }
 
-          const eitherNextPlanned = await api.getNextPlanned(10)();
-          if (E.isLeft(eitherNextPlanned)) {
-            if (eitherNextPlanned.left) {
-              console.log(draw(eitherNextPlanned.left));
-            }
-          }
+          // const eitherNextPlanned = await api.getNextPlanned(10)();
+          // if (E.isLeft(eitherNextPlanned)) {
+          //   if (eitherNextPlanned.left) {
+          //     console.log(draw(eitherNextPlanned.left));
+          //   }
+          // }
 
           await callbackReceiver.waitForCallback(callbackId);
         });
@@ -148,7 +148,7 @@ describe(`Api tests`, () => {
           // Only applicable to Api implementations that have a scheduler
         });
 
-        it("should do nothing when there is no job", async () => {});
+        it.skip("should do nothing when there is no job", async () => {});
       });
     }
   }

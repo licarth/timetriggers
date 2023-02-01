@@ -38,6 +38,8 @@ spec:
               value: "zookeeper:2181"
             - name: ROOT_DOCUMENT_PATH
               value: "/doi-production/tasks"
+            - name: NEW_SCHEDULER
+              value: "true"
           envFrom:
             - secretRef:
                 name: secrets-envs

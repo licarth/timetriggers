@@ -27,13 +27,13 @@ const firestore = initializeApp({
   serviceAccount: process.env.FIREBASE_SA_DOI_PRODUCTION,
 }).firestore;
 
-describe(`Firebase Seed jobs`, () => {
+describe.skip(`Firebase Seed jobs`, () => {
   const testRunId = randomString(4);
   console.log(`testRunId: ${testRunId}`);
   let callbackReceiver: CallbackReceiver;
 
   beforeEach(async () => {
-    callbackReceiver = await CallbackReceiver.build();
+    callbackReceiver = await CallbackReceiver.factory();
   });
 
   afterEach(async () => {

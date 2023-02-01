@@ -16,8 +16,8 @@ export namespace e {
     );
   };
 
-  export const split = <E, A>(arrayOfTe: Array<E.Either<E, A>>) => {
-    return pipe(arrayOfTe, mergeFn);
+  export const split = <E, A>(arrayOfE: Array<E.Either<E, A>>) => {
+    return pipe(arrayOfE, mergeFn);
   };
 }
 

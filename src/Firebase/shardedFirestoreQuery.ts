@@ -1,6 +1,6 @@
 export const shardedFirestoreQuery = (
   collection: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>,
-  shards?: string[] | null
+  shards?: string[]
 ) => {
   let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> =
     collection;

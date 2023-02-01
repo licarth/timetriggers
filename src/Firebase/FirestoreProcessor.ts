@@ -1,9 +1,11 @@
 import { Clock } from "@/Clock/Clock";
+import { SystemClock } from "@/Clock/SystemClock";
+import { JobDefinition } from "@/domain/JobDefinition";
+import { te } from "@/fp-ts";
 import { HttpCallCompleted } from "@/HttpCallStatusUpdate/HttpCallCompleted";
 import { HttpCallErrored } from "@/HttpCallStatusUpdate/HttpCallErrored";
 import { HttpCallLastStatus } from "@/HttpCallStatusUpdate/HttpCallLastStatus";
 import { HttpCallStarted } from "@/HttpCallStatusUpdate/HttpCallStarted";
-import { JobDefinition } from "@/domain/JobDefinition";
 import { WorkerPool } from "@/WorkerPool";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
@@ -14,16 +16,14 @@ import {
   RUNNING_JOBS_COLL_PATH,
 } from "./FirestoreScheduler";
 import { isFirebaseError } from "./isFirebaseError";
-import { SystemClock } from "@/Clock/SystemClock";
 import { shardedFirestoreQuery } from "./shardedFirestoreQuery";
-import { te } from "@/fp-ts";
 
 type FirestoreProcessorProps = {
   firestore: FirebaseFirestore.Firestore;
   rootDocumentPath: string;
   clock?: Clock;
   workerPool: WorkerPool;
-  shardsToListenTo?: string[] | null; // Null means all shards !
+  shardsToListenTo?: string[]; // Null means all shards !
 };
 
 export class FirestoreProcessor {
@@ -77,7 +77,7 @@ export class FirestoreProcessor {
               .limit(5)
               .onSnapshot((snapshot) => {
                 if (snapshot.size !== 0) {
-                  this.unsubscribe && this.unsubscribe(); // Stop listenning if the job can run
+                  this.unsubscribe && this.unsubscribe(); // Stop listening if the job can run
                   resolve(snapshot);
                 } else {
                   // Just wait

@@ -1,6 +1,15 @@
 import { JobId } from "@/domain/JobId";
 import express from "express";
 import getPort from "get-port";
+import { RequestHandler } from "express";
+
+type PostHandler = (
+  markAsReceived: (callbackId: string) => void
+) => RequestHandler;
+
+type CallbackReceiverProps = {
+  postHandler?: PostHandler;
+};
 
 /**
  * In tests, this is used to act as a client we want to send callbacks to.
@@ -9,48 +18,33 @@ export class CallbackReceiver {
   private app;
   private server;
   port;
+  postHandler;
 
   private callbackIdsReceived: string[] = [];
 
-  private constructor({
-    app,
-    server,
-    port,
-  }: {
+  private constructor(props: {
     app: express.Application;
     server: ReturnType<express.Application["listen"]>;
     port: number;
+    postHandler: PostHandler;
   }) {
-    this.app = app;
-    this.server = server;
-    this.port = port;
+    this.app = props.app;
+    this.server = props.server;
+    this.port = props.port;
 
-    app.post("/", async (req, res) => {
-      this.callbackIdsReceived.push(req.body.callbackId);
-      // await sleepRandom(0, 100);
-      // just hung up
-      this.randomlyChoseBetween(
-        () => res.sendStatus(this.randomStatus()),
-        () => res.destroy()
-      );
-    });
+    this.postHandler = props.postHandler;
 
-    // setInterval(() => {
-    //   console.log(
-    //     `CallbackReceiver: ${this.callbackIdsReceived.length} callbacks received`
-    //   );
-    // }, 1000);
+    this.app.post(
+      "/",
+      this.postHandler((callbackId) => {
+        this.callbackIdsReceived.push(callbackId);
+      })
+    );
   }
 
-  randomlyChoseBetween = (...fns: (() => void)[]) => {
-    const fn = fns[Math.floor(Math.random() * fns.length)];
-    fn();
-  };
-
-  randomStatus = () => {
-    const statuses = [200, 200, 200, 200, 401, 500];
-    return statuses[Math.floor(Math.random() * statuses.length)];
-  };
+  localUrl() {
+    return `http://localhost:${this.port}`;
+  }
 
   getCallbackIdsReceived() {
     return this.callbackIdsReceived;
@@ -88,7 +82,18 @@ export class CallbackReceiver {
     }
   }
 
-  static async build() {
+  static async factory(props: CallbackReceiverProps = {}) {
+    const postHandler =
+      props.postHandler ||
+      ((markAsReceived) => async (req, res) => {
+        markAsReceived(req.body.callbackId);
+        // just hung up
+        randomlyChoseBetween(
+          () => res.sendStatus(randomStatus()),
+          () => res.destroy()
+        );
+      });
+
     const app = express();
 
     app.use(express.json());
@@ -97,13 +102,12 @@ export class CallbackReceiver {
 
     const server = app.listen(port, () => {});
 
-    return new this({ app, server, port });
+    return new this({ app, server, port, postHandler });
   }
 
   async close() {
     await new Promise<void>((resolve) =>
       this.server.close(() => {
-        console.log("CallbackReceiver closed");
         resolve();
       })
     );
@@ -114,4 +118,14 @@ const sleepRandom = (min: number, max: number) => {
   return new Promise((resolve) => {
     setTimeout(resolve, Math.random() * (max - min) + min);
   });
+};
+
+const randomlyChoseBetween = (...fns: (() => void)[]) => {
+  const fn = fns[Math.floor(Math.random() * fns.length)];
+  fn();
+};
+
+const randomStatus = () => {
+  const statuses = [200, 200, 200, 200, 401, 500];
+  return statuses[Math.floor(Math.random() * statuses.length)];
 };

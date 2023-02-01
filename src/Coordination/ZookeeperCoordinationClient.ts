@@ -63,7 +63,7 @@ export class ZookeeperCoordinationClient implements CoordinationClient {
     );
   }
 
-  connect(): TE.TaskEither<Error, void> {
+  private connect(): TE.TaskEither<Error, void> {
     return TE.tryCatch(
       () => {
         const clientConnectedPromise = new Promise<void>((resolve, reject) => {
@@ -285,36 +285,44 @@ export class ZookeeperCoordinationClient implements CoordinationClient {
     return this.subject.asObservable();
   }
 
+  tryToRemoveEphemeralNode() {
+    return TE.tryCatch(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          this.nodePath
+            ? this.zk.remove(this.nodePath, (error) => {
+                if (error) {
+                  console.error(
+                    `did not manage to remove node ${error}, ignoring...`
+                  );
+                  resolve();
+                } else {
+                  resolve();
+                }
+              })
+            : resolve();
+        }),
+      (e) => new Error(`could not close zookeeper client: ${e}`)
+    );
+  }
+
+  disconnectClient() {
+    return TE.tryCatch(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          this.zk.once("disconnected", () => {
+            resolve();
+          });
+          this.zk.close();
+        }),
+      (e) => new Error(`could not close zookeeper client: ${e}`)
+    );
+  }
+
   close(): TE.TaskEither<Error, void> {
     return pipe(
-      TE.tryCatch(
-        () =>
-          new Promise<void>((resolve, reject) => {
-            this.nodePath
-              ? this.zk.remove(this.nodePath, (error) => {
-                  if (error) {
-                    console.error(error);
-                    reject(error);
-                  } else {
-                    resolve();
-                  }
-                })
-              : resolve();
-          }),
-        (e) => new Error(`could not close zookeeper client: ${e}`)
-      ),
-      TE.chainW(
-        TE.tryCatchK(
-          () =>
-            new Promise<void>((resolve, reject) => {
-              this.zk.once("disconnected", () => {
-                resolve();
-              });
-              this.zk.close();
-            }),
-          (e) => new Error(`could not close zookeeper client: ${e}`)
-        )
-      )
+      this.tryToRemoveEphemeralNode(),
+      TE.chainW(() => this.disconnectClient())
     );
   }
 }

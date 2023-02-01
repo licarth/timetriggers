@@ -11,7 +11,7 @@ export class HttpCallCompleted {
   completedAt;
   response;
 
-  constructor(props: HttpCallStartedProps) {
+  constructor(props: HttpCallCompletedProps) {
     this._props = props;
     this.startedAt = props.startedAt;
     this.completedAt = props.completedAt;
@@ -32,6 +32,6 @@ export class HttpCallCompleted {
     );
 }
 
-export type HttpCallStartedProps = Codec.TypeOf<
+export type HttpCallCompletedProps = Codec.TypeOf<
   typeof HttpCallCompleted.propsCodec
 >;
