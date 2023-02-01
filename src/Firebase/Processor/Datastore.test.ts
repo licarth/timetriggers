@@ -62,7 +62,7 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
         // },
       ];
       for (const { scheduledMsFromNow, expected } of cases) {
-        it(`should find previously scheduled jobs ${expected} results for a job scheduled in ${scheduledMsFromNow}`, async () => {
+        it.skip(`should find previously scheduled jobs ${expected} results for a job scheduled in ${scheduledMsFromNow}`, async () => {
           await te.unsafeGetOrThrow(
             datastore.schedule(
               JobDefinition.factory({

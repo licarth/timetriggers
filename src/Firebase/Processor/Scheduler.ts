@@ -157,9 +157,13 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       ),
       TE.map((observable) => {
         const subscription = observable.subscribe((jobs) => {
-          this._scheduleNewJobs(jobs);
           // Trigger a check for new jobs
-          te.getOrLog(this.scheduleNextPeriod());
+          te.getOrLog(
+            pipe(
+              this._scheduleNewJobs(jobs), // Wait for the jobs to be scheduled, then schedule the next period
+              TE.chain(() => this.scheduleNextPeriod())
+            )
+          );
         });
 
         this.listeningToNewJobUnsubscribeHooks.push(() =>
@@ -189,7 +193,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       TE.map((jobs) => {
         // Optimization: all jobs that are scheduled in the past should be scheduled immediately
         // in a single transaction
-        this._scheduleNewJobs(jobs);
+        te.getOrLog(this._scheduleNewJobs(jobs));
         // jobs that are to schedule before a certain date & with an offset ?
         return { resultCount: jobs.length };
       })
@@ -207,10 +211,6 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       (job) => job.scheduledAt.date < this.clock.now()
     );
 
-    if (jobsInThePast.length > 0) {
-      te.getOrLog(this.datastore.queueJobs(jobsInThePast));
-    }
-
     console.log(
       `[Scheduler] 🔸 Scheduling ${jobsWithinTimeRange.length} jobs.`
     );
@@ -220,6 +220,12 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     jobsIntheFuture.forEach((job) => {
       this.scheduleSetTimeout(job);
     });
+
+    if (jobsInThePast.length > 0) {
+      return this.datastore.queueJobs(jobsInThePast);
+    } else {
+      return TE.right(undefined);
+    }
   }
 
   /**

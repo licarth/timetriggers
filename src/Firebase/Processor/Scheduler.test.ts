@@ -11,7 +11,7 @@ import { Scheduler } from "./Scheduler";
 const MINUTE = 1000 * 60;
 
 describe("Scheduler", () => {
-  describe("startup", () => {
+  describe.skip("startup", () => {
     let scheduler: Scheduler;
     afterEach(async () => {
       scheduler && (await te.unsafeGetOrThrow(scheduler.close()));

@@ -16,6 +16,8 @@ const pathsEntries = pathsToModuleNameMapper(compilerOptions.paths, {
   prefix: "<rootDir>/",
 });
 
+const esModules = ["get-port", "chalk"].join("|");
+
 export default {
   preset: "ts-jest",
   testEnvironment: "node",
@@ -24,7 +26,7 @@ export default {
   transform: {
     "\\.[jt]sx?$": ["ts-jest", { useESM: true }],
   },
-  transformIgnorePatterns: ["node_modules/(?!get-port/.*)"],
+  transformIgnorePatterns: [`node_modules/(?!${esModules}/.*)`],
   extensionsToTreatAsEsm: [".ts"],
 
   roots: ["<rootDir>"],
