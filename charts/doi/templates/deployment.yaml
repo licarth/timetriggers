@@ -32,14 +32,12 @@ spec:
                   optional:
                     false # same as default; "mysecret" must exist
                     # and include a key named "password"
-            - name: ZOOKEEPER_NAMESPACE
-              value: "/doi-production"
             - name: ZOOKEEPER_CONNECTION_STRING
               value: "zookeeper:2181"
-            - name: ROOT_DOCUMENT_PATH
-              value: "/doi-production/tasks"
             - name: NEW_SCHEDULER
               value: "true"
+            - name: NAMESPACE
+              value: "doi-production"
           envFrom:
             - secretRef:
                 name: secrets-envs
