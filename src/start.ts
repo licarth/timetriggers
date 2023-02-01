@@ -6,24 +6,22 @@ import { Api } from "./Api";
 import { AxiosWorkerPool } from "./AxiosWorkerPool";
 import { CoordinationClient } from "./Coordination/CoordinationClient";
 import { ZookeeperCoordinationClient } from "./Coordination/ZookeeperCoordinationClient";
-import { environmentVariable } from "./environmentVariable";
 import { DatastoreApi } from "./Firebase/DatastoreApi";
-import { FirestoreApi } from "./Firebase/FirestoreApi";
 import { initializeApp } from "./Firebase/initializeApp";
 import { Datastore } from "./Firebase/Processor/Datastore";
 import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore";
-import { InMemoryDataStore } from "./Firebase/Processor/InMemoryDataStore";
 import { Processor } from "./Firebase/Processor/Processor";
 import { Scheduler } from "./Firebase/Processor/Scheduler";
 import { te } from "./fp-ts";
 import { HttpApi, initializeHttpApi } from "./HttpApi/initializeHttpApi";
 
 type StartProps = {
-  namespace: string; // e.g. doi-production
+  namespace: string;
   api: {
     enabled: boolean;
   };
   httpApi?: {
+    enabled: boolean;
     port: number;
   };
   scheduler?: {
@@ -41,9 +39,7 @@ export const start = (props: StartProps) =>
         serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT,
       }).firestore,
       namespace: props.namespace,
-      rootDocumentPath: `/${
-        environmentVariable("NAMESPACE") || "local-dev"
-      }/tasks`,
+      rootDocumentPath: `/${props.namespace}/tasks`,
     }),
     RTE.bind("datastore", ({ firestore, rootDocumentPath }) =>
       RTE.of(
@@ -78,21 +74,23 @@ export const start = (props: StartProps) =>
           : RTE.of(undefined)
     ),
     RTE.bindW("processor", ({ coordinationClient, datastore }) =>
-      RTE.fromTaskEither(
-        Processor.build({
-          datastore,
-          coordinationClient,
-          workerPool: new AxiosWorkerPool({
-            minSize: 1,
-            maxSize: 5,
-          }),
-        })
-      )
+      props.scheduler?.enabled
+        ? RTE.fromTaskEither(
+            Processor.build({
+              datastore,
+              coordinationClient,
+              workerPool: new AxiosWorkerPool({
+                minSize: 1,
+                maxSize: 5,
+              }),
+            })
+          )
+        : RTE.of(undefined)
     ),
     RTE.bindW("httpApi", ({ api }) =>
-      api
+      api && props.httpApi?.enabled
         ? pipe(
-            initializeHttpApi(api),
+            initializeHttpApi(api, props.httpApi?.port),
             RTE.map((x) => x.httpApi)
           )
         : RTE.of(undefined)

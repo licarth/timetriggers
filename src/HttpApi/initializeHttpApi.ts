@@ -5,10 +5,10 @@ import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import { createExpressApp } from "./createExpressApp";
 import { initializeEndpoints } from "./initializeExpressEndpoints";
 
-export const initializeHttpApi = (api: Api) =>
+export const initializeHttpApi = (api: Api, port: number) =>
   pipe(
     RTE.of(api),
-    RTE.bindW("expressApp", () => createExpressApp()),
+    RTE.bindW("expressApp", () => createExpressApp(port)),
     RTE.chainFirstW(({ expressApp: { app } }) =>
       initializeEndpoints({ app, api })
     ),

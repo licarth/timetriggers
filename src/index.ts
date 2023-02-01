@@ -46,22 +46,33 @@ const listenToProcessTermination = ({
 const rootDocumentPath = process.env.ROOT_DOCUMENT_PATH || `/local-dev/tasks`;
 
 (async () => {
+  const namespace = environmentVariable("NAMESPACE") || "local-dev";
   if (environmentVariable("HTTP_API_ONLY") === "true") {
     console.log("HTTP_API_ONLY is set, not starting the processor");
     await te.unsafeGetOrThrow(
       start({
-        namespace: "doi-production",
+        namespace,
         api: {
           enabled: true,
+        },
+        scheduler: {
+          enabled: false,
+        },
+        processor: {
+          enabled: false,
+        },
+        httpApi: {
+          enabled: true,
+          port: Number(environmentVariable("HTTP_API_PORT")) || 3000,
         },
       })(undefined as never)
     );
     return;
-  } else if (environmentVariable("SCHEDULER_ONLY") === "true") {
-    console.log("SCHEDULER_ONLY is set");
+  } else if (environmentVariable("NEW_SCHEDULER") === "true") {
+    console.log("NEW_SCHEDULER is set");
     await te.unsafeGetOrThrow(
       start({
-        namespace: "doi-production",
+        namespace,
         api: {
           enabled: true,
         },
