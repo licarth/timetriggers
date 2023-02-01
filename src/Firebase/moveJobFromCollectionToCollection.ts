@@ -1,4 +1,4 @@
-import { FirebaseJobDocument } from "@/domain/FirebaseJobDocument";
+import { FirestoreJobDocument } from "@/domain/FirebaseJobDocument";
 import { JobDefinition } from "@/domain/JobDefinition";
 
 export const moveJobDefinition = ({
@@ -31,7 +31,7 @@ export const moveJobDocument = ({
   toCollectionPath,
 }: {
   firestore: FirebaseFirestore.Firestore;
-  jobDocument: FirebaseJobDocument;
+  jobDocument: FirestoreJobDocument;
   fromCollectionPath: string;
   toCollectionPath: string;
 }) => {
@@ -44,7 +44,7 @@ export const moveJobDocument = ({
     );
     transaction.set(
       firestore.collection(toCollectionPath).doc(jobDocument.jobDefinition.id),
-      FirebaseJobDocument.codec.encode(jobDocument)
+      FirestoreJobDocument.codec.encode(jobDocument)
     );
   });
 };

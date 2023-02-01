@@ -7,6 +7,7 @@ import { JobDefinition } from "@/domain/JobDefinition";
 import { JobId } from "@/domain/JobId";
 import { te } from "@/fp-ts";
 import { withTimeout } from "@/fp-ts/withTimeout";
+import chalk from "chalk";
 import { addMilliseconds } from "date-fns";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
@@ -14,6 +15,7 @@ import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 import { Datastore } from "./Datastore";
+import { humanReadibleMs } from "./humanReadibleMs";
 
 const MINUTE = 1000 * 60 * 60;
 const HOUR = 1000 * 60 * 60;
@@ -30,10 +32,12 @@ type SchedulerProps = {
   schedulePeriodMs?: number;
 };
 
+type UnsubsribeHook = () => void;
+
 export class Scheduler extends ClusterTopologyDatastoreAware {
   plannedTimeouts = new Map<JobId, NodeJS.Timeout>();
-  unsubscribeListeningToNewJobs?: () => void;
-  unsubscribeSchedulingNextPeriod?: () => void;
+  listeningToNewJobUnsubscribeHooks: UnsubsribeHook[] = [];
+  schedulingNextPeriodUnsubscribeHooks: UnsubsribeHook[] = [];
 
   scheduleAdvanceMs: number;
   scheduleBatch: number;
@@ -57,10 +61,27 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     te.getOrLog(this.restart());
   }
 
+  unsubscribeNewJobsListening() {
+    this.listeningToNewJobUnsubscribeHooks.forEach((u) => u());
+    this.listeningToNewJobUnsubscribeHooks = [];
+  }
+
+  unsubscribeSchedulingNextPeriod() {
+    this.schedulingNextPeriodUnsubscribeHooks.forEach((u) => u());
+    this.schedulingNextPeriodUnsubscribeHooks = [];
+  }
+
+  clearAllPlannedTimeouts() {
+    this.plannedTimeouts.forEach((timeout) => {
+      this.clock.clearTimeout(timeout);
+    });
+    this.plannedTimeouts.clear();
+  }
+
   close() {
-    this.unsubscribeSchedulingNextPeriod &&
-      this.unsubscribeSchedulingNextPeriod();
-    this.unsubscribeListeningToNewJobs && this.unsubscribeListeningToNewJobs();
+    this.clearAllPlannedTimeouts();
+    this.unsubscribeSchedulingNextPeriod();
+    this.unsubscribeNewJobsListening();
     return super.close();
   }
 
@@ -75,7 +96,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         E.left(new Error("Cluster topology is not ready in 10 seconds")),
         10000
       ),
-      TE.chainFirstW(() => self.startListening()),
+      // TE.chainFirstW(() => self.startListening()),
       TE.mapLeft((e) => new Error("message" in e ? e.message : e))
     );
   }
@@ -83,17 +104,12 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
   restart() {
     return pipe(
       async () => {
-        this.unsubscribeSchedulingNextPeriod &&
-          this.unsubscribeSchedulingNextPeriod();
+        this.unsubscribeSchedulingNextPeriod();
       },
       TE.fromTask,
       TE.chainFirstW(() => {
-        if (this.unsubscribeListeningToNewJobs) {
-          this.unsubscribeListeningToNewJobs();
-          return this.startListening();
-        } else {
-          return TE.right(undefined); // We were not listening to new jobs, so we don't need to restart
-        }
+        this.unsubscribeNewJobsListening();
+        return this.startListening();
       })
     );
   }
@@ -106,9 +122,9 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
           const timeoutId = this.clock.setTimeout(() => {
             te.getOrLog(this.scheduleNextPeriod());
           }, this.schedulePeriodMs);
-          this.unsubscribeSchedulingNextPeriod = () => {
+          this.schedulingNextPeriodUnsubscribeHooks.push(() => {
             this.clock.clearTimeout(timeoutId);
-          };
+          });
         })
       ),
       TE.chainFirstW(() =>
@@ -141,12 +157,14 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       ),
       TE.map((observable) => {
         const subscription = observable.subscribe((jobs) => {
-          jobs.forEach((job) => {
-            this.scheduleSetTimeout(job);
-          });
+          this._scheduleNewJobs(jobs);
+          // Trigger a check for new jobs
+          te.getOrLog(this.scheduleNextPeriod());
         });
 
-        this.unsubscribeListeningToNewJobs = () => subscription.unsubscribe();
+        this.listeningToNewJobUnsubscribeHooks.push(() =>
+          subscription.unsubscribe()
+        );
         return undefined;
       })
     );
@@ -157,9 +175,6 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
   }: {
     offset: number;
   }): TE.TaskEither<Error, { resultCount: number }> {
-    console.log(
-      `Looking at next period with offset ${offset} and limit ${this.scheduleBatch} in next ${this.scheduleAdvanceMs}ms`
-    );
     // Here we should get into a loop until
     // we have a result that returns no jobs
     return pipe(
@@ -172,26 +187,39 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         this.shardsToListenTo
       ),
       TE.map((jobs) => {
-        console.debug(`Found ${jobs.length} jobs to schedule`);
         // Optimization: all jobs that are scheduled in the past should be scheduled immediately
         // in a single transaction
-        const [jobsInThePast, jobsIntheFuture] = _.partition(
-          jobs,
-          (job) => job.scheduledAt.date < this.clock.now()
-        );
-
-        te.getOrLog(this.datastore.queueJobs(jobsInThePast));
-
-        // Possible optimization: all jobs that are scheduled at the same time
-        // should be scheduled in a single transaction, but this requires changes
-        // in the way we track setTimeouts
-        jobsIntheFuture.forEach((job) => {
-          this.scheduleSetTimeout(job);
-        });
+        this._scheduleNewJobs(jobs);
         // jobs that are to schedule before a certain date & with an offset ?
         return { resultCount: jobs.length };
       })
     );
+  }
+
+  private _scheduleNewJobs(jobs: JobDefinition[]) {
+    const jobsWithinTimeRange = jobs.filter(
+      (job) =>
+        job.scheduledAt.date <
+        addMilliseconds(this.clock.now(), this.scheduleAdvanceMs)
+    );
+    const [jobsInThePast, jobsIntheFuture] = _.partition(
+      jobsWithinTimeRange,
+      (job) => job.scheduledAt.date < this.clock.now()
+    );
+
+    if (jobsInThePast.length > 0) {
+      te.getOrLog(this.datastore.queueJobs(jobsInThePast));
+    }
+
+    console.log(
+      `[Scheduler] 🔸 Scheduling ${jobsWithinTimeRange.length} jobs.`
+    );
+    // Possible optimization: all jobs that are scheduled at the same time
+    // should be scheduled in a single transaction, but this requires changes
+    // in the way we track setTimeouts
+    jobsIntheFuture.forEach((job) => {
+      this.scheduleSetTimeout(job);
+    });
   }
 
   /**
@@ -205,9 +233,12 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
 
     this.isScheduling = true;
     console.log(
-      `Scheduling jobs for period: [now, now + ${this.scheduleAdvanceMs} ms]`
+      `[Scheduler] 🕞 Scheduling jobs for period between now and ${chalk.green(
+        humanReadibleMs(this.scheduleAdvanceMs)
+      )} from now.`
     );
     let offset = 0;
+    let totalJobs = 0;
     return pipe(
       async () => offset,
       TE.fromTask,
@@ -216,6 +247,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         ({ resultCount }) => {
           const isOver = offset === 0 && resultCount < this.scheduleBatch;
           if (!isOver) {
+            totalJobs += resultCount;
             if (resultCount < this.scheduleBatch) {
               offset = 0;
             } else {
@@ -229,6 +261,11 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         }
       ),
       TE.map(() => {
+        if (totalJobs === 0) {
+          console.log(`[Scheduler] - No jobs to schedule.`);
+        } else {
+          console.log(`[Scheduler] ✅ Scheduled ${totalJobs} jobs`);
+        }
         this.isScheduling = false;
         return void 0;
       })
@@ -244,9 +281,12 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       return;
     }
     console.log(
-      `Scheduling job ${jobDefinition.id} for ${
-        jobDefinition.scheduledAt.date
-      } (now: ${this.clock.now()}`
+      `[Scheduler] Scheduling job ${
+        jobDefinition.id
+      } for in ${humanReadibleDifferenceWithDateFns(
+        jobDefinition.scheduledAt.date,
+        this.clock.now()
+      )}`
     );
     const timeoutId = this.clock.setTimeout(() => {
       te.getOrLog(this.datastore.queueJobs([jobDefinition]));
@@ -257,3 +297,8 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
 
   //TODO: cancel jobs
 }
+
+const humanReadibleDifferenceWithDateFns = (date1: Date, date2: Date) => {
+  const diff = Math.abs(date1.getTime() - date2.getTime());
+  return humanReadibleMs(diff);
+};

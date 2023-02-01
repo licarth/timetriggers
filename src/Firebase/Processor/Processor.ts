@@ -64,7 +64,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
     );
 
   takeNextJob(): TE.TaskEither<Error, void> {
-    console.log(`[Processor] taking next job...`);
+    console.log(`[Processor] waiting for next job in queue...`);
     // this.unsubscribeNextJob = unsubscribe;
     const self = this;
     return pipe(
@@ -73,8 +73,6 @@ export class Processor extends ClusterTopologyDatastoreAware {
         this.shardsToListenTo
       ),
       TE.chainW(function (o) {
-        console.log(`[Processor] got observable...`);
-        // this.unsubscribeNextJob = () => o.unsubscribe();
         return TE.tryCatch(
           () =>
             new Promise<JobDefinition[]>((resolve, reject) => {

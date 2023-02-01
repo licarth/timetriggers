@@ -37,10 +37,10 @@ export abstract class ClusterTopologyDatastoreAware {
       this.coordinationClientSubscription = this.coordinationClient
         .getClusterNodeInformation()
         .subscribe(({ currentNodeId, clusterSize }) => {
-          console.log("Cluster topology change", {
-            currentNodeId,
-            clusterSize,
-          });
+          // console.log("Cluster topology change", {
+          //   currentNodeId,
+          //   clusterSize,
+          // });
           this.shardsToListenTo =
             getShardsToListenToObject(currentNodeId, clusterSize) || undefined;
           this.onClusterTopologyChange({ currentNodeId, clusterSize });

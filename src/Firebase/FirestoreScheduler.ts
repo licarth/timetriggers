@@ -1,6 +1,6 @@
 import { Clock } from "@/Clock/Clock";
 import { SystemClock } from "@/Clock/SystemClock";
-import { FirebaseJobDocument } from "@/domain/FirebaseJobDocument";
+import { FirestoreJobDocument } from "@/domain/FirebaseJobDocument";
 import { JobDefinition } from "@/domain/JobDefinition";
 import { JobId } from "@/domain/JobId";
 import { te } from "@/fp-ts";
@@ -98,7 +98,7 @@ export class FirestoreScheduler {
             .forEach((change) =>
               pipe(
                 change.doc.data(),
-                FirebaseJobDocument.codec.decode,
+                FirestoreJobDocument.codec.decode,
                 E.foldW(
                   () => {},
                   (jobDocument) => {
@@ -117,7 +117,7 @@ export class FirestoreScheduler {
     return `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}/${jobDefinition.id}`;
   }
 
-  async queueJob(jobDocument: FirebaseJobDocument) {
+  async queueJob(jobDocument: FirestoreJobDocument) {
     try {
       // Check that we're still running
       if (this.state !== "running") {
@@ -151,7 +151,7 @@ export class FirestoreScheduler {
     }
   }
 
-  scheduleJobLocally(jobDocument: FirebaseJobDocument) {
+  scheduleJobLocally(jobDocument: FirestoreJobDocument) {
     const timeoutId = this.clock.setTimeout(() => {
       this.queueJob(jobDocument);
     }, Math.max(0, jobDocument.jobDefinition.scheduledAt.date.getTime() - this.clock.now().getTime()));
@@ -181,7 +181,7 @@ export class FirestoreScheduler {
         snapshot.docs.forEach((doc) =>
           pipe(
             doc.data(),
-            FirebaseJobDocument.codec.decode,
+            FirestoreJobDocument.codec.decode,
             E.foldW(
               () => {},
               (jobDocument) => {

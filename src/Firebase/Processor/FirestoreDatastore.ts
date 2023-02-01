@@ -1,10 +1,11 @@
 import { Clock } from "@/Clock/Clock";
 import { SystemClock } from "@/Clock/SystemClock";
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
-import { FirebaseJobDocument } from "@/domain/FirebaseJobDocument";
+import { FirestoreJobDocument } from "@/domain/FirebaseJobDocument";
 import { JobDefinition } from "@/domain/JobDefinition";
 import { JobId } from "@/domain/JobId";
 import { JobScheduleArgs } from "@/domain/JobScheduleHttpArgs";
+import { RegisteredAt } from "@/domain/RegisteredAt";
 import { e } from "@/fp-ts";
 import {
   HttpCallCompleted,
@@ -67,15 +68,18 @@ export class FirestoreDatastore implements Datastore {
       async () => {
         const id = JobId.factory();
         const jobDefinition = new JobDefinition({ ...args, id });
-        const jobDefinitionRef = this.firestore
+        const jobDocumentRef = this.firestore
           .collection(`${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`)
           .doc(id);
-        await jobDefinitionRef.set({
-          jobDefinition: JobDefinition.firestoreCodec.encode(jobDefinition),
-          shards: shardingAlgorithm
-            ? shardingAlgorithm(id).map((s) => s.toString())
-            : [],
-        });
+        await jobDocumentRef.set(
+          FirestoreJobDocument.codec.encode({
+            jobDefinition,
+            shards: shardingAlgorithm
+              ? shardingAlgorithm(id).map((s) => s.toString())
+              : [],
+            registeredAt: RegisteredAt.fromDate(this.clock.now()),
+          })
+        );
         return id;
       },
       (reason) => new Error(`Failed to schedule job: ${reason}`)
@@ -100,12 +104,11 @@ export class FirestoreDatastore implements Datastore {
   ) {
     return TE.tryCatch(
       async () => {
-        console.log("Getting jobs scheduled before: " + millisecondsFromNow);
         const periodFromNow = addMilliseconds(
           this.clock.now(),
           millisecondsFromNow
         );
-        console.log("Scheduling jobs for period: " + periodFromNow);
+        console.log("[Datastore] Fetching jobs until " + periodFromNow);
         let query = shardedFirestoreQuery(
           this.firestore.collection(
             `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`
@@ -121,12 +124,11 @@ export class FirestoreDatastore implements Datastore {
 
         const snapshot = await query.get();
 
-        console.log("Found jobs to schedule jobs: " + snapshot.size);
         return pipe(
           snapshot.docs.map((doc) =>
             pipe(
               doc.data(),
-              FirebaseJobDocument.codec.decode,
+              FirestoreJobDocument.codec.decode,
               E.map((x) => x.jobDefinition)
             )
           ),
@@ -139,51 +141,59 @@ export class FirestoreDatastore implements Datastore {
   }
 
   listenToNewlyRegisteredJobs(
-    {}: // millisecondsFromNow,
-    {
-      // millisecondsFromNow: number;
-    },
+    {}: {},
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<"too many previous jobs", Observable<JobDefinition[]>> {
     return TE.tryCatch(
       async () => {
         return new Observable((subscriber) => {
           console.log(
-            `Listening to jobs for shards ${toShards(shardsToListenTo)}`
+            `[Datastore] Listening to jobs for shards ${toShards(
+              shardsToListenTo
+            )}`
           );
+
           const unsubscribe = shardedFirestoreQuery(
             this.firestore.collection(
               `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`
             ),
             toShards(shardsToListenTo)
-          ).onSnapshot((snapshot) => {
-            const changes = snapshot
-              .docChanges()
-              .filter(({ type }, i) => type === "added"); // New jobs only
-            console.log(
-              `Received ${snapshot.size} new jobs with ${changes.length} changes!`
-            );
-            pipe(
-              changes.map((change) =>
-                pipe(
-                  change.doc.data(),
-                  FirebaseJobDocument.codec.decode,
-                  E.map((x) => x.jobDefinition)
-                )
-              ),
-              e.split,
-              ({ successes, errors }) => {
-                if (errors.length > 0) {
-                  console.log(
-                    `❌ Could not decode ${errors.length} documents !`
-                  );
-                }
-                return successes;
-              },
-              (jobs) => subscriber.next(jobs)
-            );
-          });
-          return unsubscribe;
+          )
+            .where("registeredAt", ">", this.clock.now())
+            .limitToLast(1)
+            .orderBy("registeredAt", "asc")
+            .onSnapshot((snapshot) => {
+              const changes = snapshot
+                .docChanges()
+                .filter(({ type }, i) => type === "added"); // New jobs only
+              console.log(
+                `[Datastore] Received ${snapshot.size} new jobs with ${changes.length} changes!`
+              );
+              pipe(
+                changes.map((change) =>
+                  pipe(
+                    change.doc.data(),
+                    FirestoreJobDocument.codec.decode,
+                    E.map((x) => x.jobDefinition)
+                  )
+                ),
+                e.split,
+                ({ successes, errors }) => {
+                  if (errors.length > 0) {
+                    console.log(
+                      `❌ Could not decode ${errors.length} documents !`
+                    );
+                  }
+                  return successes;
+                },
+                (jobs) => subscriber.next(jobs)
+              );
+            });
+          return () => {
+            console.log("Unsubscribing from new jobs");
+            subscriber.complete();
+            unsubscribe();
+          };
         });
       },
       (reason) => "too many previous jobs" as const
@@ -191,6 +201,11 @@ export class FirestoreDatastore implements Datastore {
   }
 
   queueJobs(jobDefinitions: JobDefinition[]): TE.TaskEither<any, void> {
+    console.log(
+      `[Datastore] Queueing job(s) ${jobDefinitions
+        .map((s) => s.id)
+        .join(", ")}...`
+    );
     if (jobDefinitions.length === 0) {
       return TE.right(undefined);
     }
@@ -383,7 +398,6 @@ export class FirestoreDatastore implements Datastore {
               return unsubscribe;
             });
             resolve(observable);
-            console.log(`[Datastore] waiting for next job...`);
             const u = shardedFirestoreQuery(
               this.firestore.collection(
                 `${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`
@@ -393,10 +407,10 @@ export class FirestoreDatastore implements Datastore {
               .orderBy("jobDefinition.scheduledAt", "asc")
               .limit(limit)
               .onSnapshot((snapshot) => {
-                console.log(`[Datastore] wait found ${snapshot.size} docs...`);
+                // console.log(`[Datastore] found ${snapshot.size} docs...`);
                 const { errors, successes } = pipe(
                   snapshot.docs.map((doc) =>
-                    FirebaseJobDocument.codec.decode(doc.data())
+                    FirestoreJobDocument.codec.decode(doc.data())
                   ),
                   e.split
                 );

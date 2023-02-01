@@ -79,40 +79,12 @@ const rootDocumentPath = process.env.ROOT_DOCUMENT_PATH || `/local-dev/tasks`;
         scheduler: {
           enabled: true,
         },
+        httpApi: {
+          enabled: true,
+          port: Number(environmentVariable("HTTP_API_PORT")) || 3000,
+        },
       })(undefined as never)
     );
     return;
   }
-
-  await te.unsafeGetOrThrow(
-    pipe(
-      FirestoreApi.build({
-        numProcessors: 0,
-        runScheduler: false,
-        rootDocumentPath,
-        firestore: initializeApp({
-          serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-        }).firestore,
-      }),
-      TE.chainFirstW((api) =>
-        launchProcessorAndScheduler(
-          api,
-          rootDocumentPath,
-          process.env.ZOOKEEPER_NAMESPACE || "/local-dev"
-        )
-      ),
-      TE.chain((api) => pipe({ api }, listenToProcessTermination)),
-      TE.foldW(
-        (e) => {
-          console.error(e);
-          return TE.of(undefined);
-        },
-        (api) => {
-          return TE.of(api);
-          // Do nothing
-        }
-      )
-    )
-  );
-  //  Keep running until the user presses Ctrl+C
 })();
