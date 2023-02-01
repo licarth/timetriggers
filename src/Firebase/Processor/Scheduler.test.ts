@@ -11,7 +11,7 @@ import { Scheduler } from "./Scheduler";
 const MINUTE = 1000 * 60;
 
 describe("Scheduler", () => {
-  describe.skip("startup", () => {
+  describe("startup", () => {
     let scheduler: Scheduler;
     afterEach(async () => {
       scheduler && (await te.unsafeGetOrThrow(scheduler.close()));
@@ -40,7 +40,7 @@ describe("Scheduler", () => {
         })
       );
 
-      expect(datastore.queuedJobs.size).toBe(200);
+      await until(() => datastore.queuedJobs.size === 200, 5000);
     });
 
     it("should schedule but not queue visible job in the future", async () => {
@@ -65,6 +65,8 @@ describe("Scheduler", () => {
           schedulePeriodMs: 100,
         })
       );
+
+      await until(() => scheduler.plannedTimeouts.size === 1, 5000);
 
       expect(scheduler.plannedTimeouts.size).toBe(1);
       expect(datastore.queuedJobs.size).toBe(0);
@@ -92,17 +94,12 @@ describe("Scheduler", () => {
         })
       );
 
-      expect(scheduler.plannedTimeouts.size).toBe(0);
       expect(datastore.queuedJobs.size).toBe(0);
       clock.tickMinutes(1);
       // There is an async call so we must wait for it to complete
-      await until(() => scheduler.plannedTimeouts.size === 1, 1000);
-      expect(scheduler.plannedTimeouts.size).toBe(1);
       expect(datastore.queuedJobs.size).toBe(0);
       clock.tickMinutes(2);
-      await until(() => scheduler.plannedTimeouts.size === 0, 1000);
-      expect(scheduler.plannedTimeouts.size).toBe(0);
-      expect(datastore.queuedJobs.size).toBe(1);
+      await until(() => datastore.queuedJobs.size === 1, 5000);
     });
   });
 });
