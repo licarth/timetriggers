@@ -54,12 +54,7 @@ export class Scheduler extends ClusterTopologyDatastoreAware {
       `New cluster topology ! currentNodeID: ${clusterTopology.currentNodeId},  nodeCount: ${clusterTopology.clusterSize}
 Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     );
-    this.unsubscribeSchedulingNextPeriod &&
-      this.unsubscribeSchedulingNextPeriod();
-    if (this.unsubscribeListeningToNewJobs) {
-      this.unsubscribeListeningToNewJobs();
-      te.getOrLog(this.startListening());
-    }
+    te.getOrLog(this.restart());
   }
 
   close() {
@@ -80,7 +75,26 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         E.left(new Error("Cluster topology is not ready in 10 seconds")),
         10000
       ),
-      TE.chainFirstW(() => self.startListening())
+      TE.chainFirstW(() => self.startListening()),
+      TE.mapLeft((e) => new Error("message" in e ? e.message : e))
+    );
+  }
+
+  restart() {
+    return pipe(
+      async () => {
+        this.unsubscribeSchedulingNextPeriod &&
+          this.unsubscribeSchedulingNextPeriod();
+      },
+      TE.fromTask,
+      TE.chainFirstW(() => {
+        if (this.unsubscribeListeningToNewJobs) {
+          this.unsubscribeListeningToNewJobs();
+          return this.startListening();
+        } else {
+          return TE.right(undefined); // We were not listening to new jobs, so we don't need to restart
+        }
+      })
     );
   }
 
@@ -97,36 +111,45 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
           };
         })
       ),
-      TE.chainW(() => this.startListeningToNewJobs()) // Not required for now...
+      TE.chainFirstW(() =>
+        pipe(
+          this.startListeningToNewJobs(),
+          TE.orElse((reason) => {
+            if (reason === "not implemented") {
+              console.log(
+                "[Scheduler] 🔸 Not listening to new jobs, not implemented."
+              );
+            } else if (reason === "too many previous jobs") {
+              console.log(
+                "[Scheduler] ❗️ Not listening to new jobs, too many previous jobs."
+              );
+            }
+            return TE.right(undefined);
+          })
+        )
+      )
     );
   }
 
-  // runEveryMs = (ms: number, f: () => void) => {
-  //   f();
-  //   const id = this.clock.setInterval(() => {
-  //     f();
-  //   }, ms);
-  //   this.unsubscribeSchedulingNextPeriod = () => {
-  //     this.clock.clearInterval(id);
-  //   };
-  // };
-
   startListeningToNewJobs() {
-    const subscription = this.datastore
-      .listenToNewJobsBefore(
+    return pipe(
+      this.datastore.listenToNewlyRegisteredJobs(
         {
           millisecondsFromNow: this.scheduleAdvanceMs,
         },
         this.shardsToListenTo
-      )
-      .subscribe((jobs) => {
-        jobs.forEach((job) => {
-          this.scheduleSetTimeout(job);
+      ),
+      TE.map((observable) => {
+        const subscription = observable.subscribe((jobs) => {
+          jobs.forEach((job) => {
+            this.scheduleSetTimeout(job);
+          });
         });
-      });
 
-    this.unsubscribeListeningToNewJobs = () => subscription.unsubscribe();
-    return TE.right(undefined);
+        this.unsubscribeListeningToNewJobs = () => subscription.unsubscribe();
+        return undefined;
+      })
+    );
   }
 
   private _scheduleNextPeriod({

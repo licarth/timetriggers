@@ -1,4 +1,3 @@
-import { Clock } from "@/Clock/Clock";
 import { TestClock } from "@/Clock/TestClock";
 import { JobDefinition } from "@/domain/JobDefinition";
 import { ScheduledAt } from "@/domain/ScheduledAt";
@@ -6,19 +5,19 @@ import { Shard } from "@/domain/Shard";
 import { te } from "@/fp-ts";
 import { randomString } from "@/test/randomString";
 import { addMilliseconds } from "date-fns";
-import { firstValueFrom } from "rxjs";
+import * as TE from "fp-ts/TaskEither";
+import { firstValueFrom, Observable } from "rxjs";
 import { Datastore } from "./Datastore";
 import { FirestoreDatastore } from "./FirestoreDatastore";
-import { InMemoryDataStore } from "./InMemoryDataStore";
 
 const SECOND = 1000;
 
 const POLL_INTERVAL = 100;
 
-const datastores: Record<string, (clock: Clock) => Datastore> = {
-  // InMemoryDataStore: (clock: Clock) =>
+const datastores: Record<string, (clock: TestClock) => Datastore> = {
+  // InMemoryDataStore: (clock: TestClock) =>
   //   InMemoryDataStore.factory({ clock, pollingInterval: POLL_INTERVAL }),
-  FirestoreEmulator: (clock: Clock) =>
+  FirestoreEmulator: (clock: TestClock) =>
     FirestoreDatastore.factory({
       clock,
       rootDocumentPath: `test-${randomString(10)}/tasks`,
@@ -43,41 +42,27 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
       const cases = [
         {
           scheduledMsFromNow: 1000,
-          checkMillisecondsFromNow: 2000,
           expected: 1,
         },
         // {
         //   scheduledMsFromNow: 1000,
-        //   checkMillisecondsFromNow: 500,
         //   expected: 0,
         // },
         // {
         //   scheduledMsFromNow: 1000,
-        //   checkMillisecondsFromNow: 1000,
-        //   expected: 1,
+        //   expected: 1, ,
         // },
         // {
         //   scheduledMsFromNow: 1000,
-        //   checkMillisecondsFromNow: 999,
         //   expected: 0,
         // },
         // {
         //   scheduledMsFromNow: 1000,
-        //   checkMillisecondsFromNow: 1001,
         //   expected: 1,
         // },
       ];
-      for (const {
-        scheduledMsFromNow,
-        checkMillisecondsFromNow,
-        expected,
-      } of cases) {
-        it(`should find ${expected} results for a job scheduled in ${scheduledMsFromNow} ms from (millisecondsFromNow=${checkMillisecondsFromNow})`, async () => {
-          const promise = firstValueFrom(
-            datastore.listenToNewJobsBefore({
-              millisecondsFromNow: checkMillisecondsFromNow,
-            })
-          );
+      for (const { scheduledMsFromNow, expected } of cases) {
+        it(`should find previously scheduled jobs ${expected} results for a job scheduled in ${scheduledMsFromNow}`, async () => {
           await te.unsafeGetOrThrow(
             datastore.schedule(
               JobDefinition.factory({
@@ -87,22 +72,32 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
               })
             )
           );
-          await promise.then((jobs) => {
-            expect(jobs.length).toBe(expected);
-          });
+
+          await checkThatFirstValue(
+            datastore.listenToNewlyRegisteredJobs({}),
+            (jobs) => {
+              expect(jobs.length).toBe(1);
+            }
+          );
+
+          await checkThatFirstValue(
+            datastore.listenToNewlyRegisteredJobs({}),
+            (jobs) => {
+              expect(jobs.length).toBe(expected);
+            }
+          );
         });
       }
     });
 
     describe.skip("listenToNewJobsBefore", () => {
       it("should respond immediately (without clock tick)", async () => {
-        await firstValueFrom(
-          datastore.listenToNewJobsBefore({
-            millisecondsFromNow: 1000,
-          })
-        ).then((jobs) => {
-          expect(jobs.length).toBe(0);
-        });
+        await checkThatFirstValue(
+          datastore.listenToNewlyRegisteredJobs({}),
+          (jobs) => {
+            expect(jobs.length).toBe(0);
+          }
+        );
       });
 
       it("should not return a job that's planned beyond", async () => {
@@ -115,13 +110,13 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
             })
           )
         );
-        await firstValueFrom(
-          datastore.listenToNewJobsBefore({
-            millisecondsFromNow: 500,
-          })
-        ).then((jobs) => {
-          expect(jobs.length).toBe(0);
-        });
+
+        await checkThatFirstValue(
+          datastore.listenToNewlyRegisteredJobs(),
+          (jobs) => {
+            expect(jobs.length).toBe(0);
+          }
+        );
       });
     });
   });
@@ -142,16 +137,15 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
           ),
         ]);
 
-        await firstValueFrom(
-          datastore.listenToNewJobsBefore(
-            {
-              millisecondsFromNow: 1000,
-            },
+        await checkThatFirstValue(
+          datastore.listenToNewlyRegisteredJobs(
+            {},
             { nodeCount: 2, nodeIds: [1] }
-          )
-        ).then((jobs) => {
-          expect(jobs.length).toBe(1);
-        });
+          ),
+          (jobs) => {
+            expect(jobs.length).toBe(1);
+          }
+        );
       });
 
       it("should all jobs if nodeCount is 1", async () => {
@@ -168,17 +162,25 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
           ),
         ]);
 
-        await firstValueFrom(
-          datastore.listenToNewJobsBefore(
-            {
-              millisecondsFromNow: 1000,
-            },
+        await checkThatFirstValue(
+          datastore.listenToNewlyRegisteredJobs(
+            {},
             { nodeCount: 1, nodeIds: [] }
-          )
-        ).then((jobs) => {
-          expect(jobs.length).toBe(2);
-        });
+          ),
+          (jobs) => {
+            expect(jobs.length).toBe(2);
+          }
+        );
       });
     });
   });
 });
+
+const checkThatFirstValue = async <E, T>(
+  t: TE.TaskEither<E, Observable<T>>,
+  expectation: (jobs: T) => void
+) => {
+  await firstValueFrom(await te.unsafeGetOrThrow(t)).then((jobs) => {
+    expectation(jobs);
+  });
+};

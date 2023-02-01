@@ -97,38 +97,38 @@ export class InMemoryDataStore implements Datastore {
       .valueOf();
   }
 
-  listenToNewJobsBefore(
-    args: {
-      millisecondsFromNow: number;
-    },
+  listenToNewlyRegisteredJobs(
+    args: {} = {},
     shardsToListenTo?: ShardsToListenTo
-  ): Observable<JobDefinition[]> {
-    return pipe(
-      new Observable((subscriber: Subscriber<JobDefinition[]>) => {
-        const doCheck = () => {
-          const jobs = this.jobsMatchingShard(
-            this.registeredJobs,
-            shardsToListenTo
-          ).filter((job) => {
-            const scheduledAt = job.scheduledAt.date.getTime();
-            const now = this.clock.now().getTime();
-            return scheduledAt <= now + args.millisecondsFromNow;
-          });
+  ): TE.TaskEither<never, Observable<JobDefinition[]>> {
+    return TE.of(
+      pipe(
+        new Observable((subscriber: Subscriber<JobDefinition[]>) => {
+          const doCheck = () => {
+            const jobs = this.jobsMatchingShard(
+              this.registeredJobs,
+              shardsToListenTo
+            ).filter((job) => {
+              const scheduledAt = job.scheduledAt.date.getTime();
+              const now = this.clock.now().getTime();
+              // return scheduledAt <= now + args.millisecondsFromNow;
+            });
 
-          subscriber.next(jobs);
-        };
+            subscriber.next(jobs);
+          };
 
-        const intervalId = this.clock.setInterval(
-          doCheck,
-          this.pollingInterval
-        );
+          const intervalId = this.clock.setInterval(
+            doCheck,
+            this.pollingInterval
+          );
 
-        doCheck(); // Check once immediately
-        return () => this.clock.clearInterval(intervalId);
-      }),
-      distinctArray(
-        (JobDefinition) => JobDefinition.id,
-        interval(10 * 60 * 1000) // 10 minutes
+          doCheck(); // Check once immediately
+          return () => this.clock.clearInterval(intervalId);
+        }),
+        distinctArray(
+          (JobDefinition) => JobDefinition.id,
+          interval(10 * 60 * 1000) // 10 minutes
+        )
       )
     );
   }

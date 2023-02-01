@@ -138,44 +138,56 @@ export class FirestoreDatastore implements Datastore {
     );
   }
 
-  listenToNewJobsBefore(
+  listenToNewlyRegisteredJobs(
     {}: // millisecondsFromNow,
     {
       // millisecondsFromNow: number;
     },
     shardsToListenTo?: ShardsToListenTo
-  ): Observable<JobDefinition[]> {
-    return new Observable((subscriber) => {
-      console.log(`Listening to jobs for shards ${toShards(shardsToListenTo)}`);
-      const unsubscribe = shardedFirestoreQuery(
-        this.firestore.collection(
-          `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`
-        ),
-        toShards(shardsToListenTo)
-      ).onSnapshot((snapshot) => {
-        const changes = snapshot
-          .docChanges()
-          .filter(({ type }, i) => type === "added"); // New jobs only
-        pipe(
-          changes.map((change) =>
+  ): TE.TaskEither<"too many previous jobs", Observable<JobDefinition[]>> {
+    return TE.tryCatch(
+      async () => {
+        return new Observable((subscriber) => {
+          console.log(
+            `Listening to jobs for shards ${toShards(shardsToListenTo)}`
+          );
+          const unsubscribe = shardedFirestoreQuery(
+            this.firestore.collection(
+              `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`
+            ),
+            toShards(shardsToListenTo)
+          ).onSnapshot((snapshot) => {
+            const changes = snapshot
+              .docChanges()
+              .filter(({ type }, i) => type === "added"); // New jobs only
+            console.log(
+              `Received ${snapshot.size} new jobs with ${changes.length} changes!`
+            );
             pipe(
-              change.doc.data(),
-              FirebaseJobDocument.codec.decode,
-              E.map((x) => x.jobDefinition)
-            )
-          ),
-          e.split,
-          ({ successes, errors }) => {
-            if (errors.length > 0) {
-              console.log(`❌ Could not decode ${errors.length} documents !`);
-            }
-            return successes;
-          },
-          (jobs) => subscriber.next(jobs)
-        );
-      });
-      return unsubscribe;
-    });
+              changes.map((change) =>
+                pipe(
+                  change.doc.data(),
+                  FirebaseJobDocument.codec.decode,
+                  E.map((x) => x.jobDefinition)
+                )
+              ),
+              e.split,
+              ({ successes, errors }) => {
+                if (errors.length > 0) {
+                  console.log(
+                    `❌ Could not decode ${errors.length} documents !`
+                  );
+                }
+                return successes;
+              },
+              (jobs) => subscriber.next(jobs)
+            );
+          });
+          return unsubscribe;
+        });
+      },
+      (reason) => "too many previous jobs" as const
+    );
   }
 
   queueJobs(jobDefinitions: JobDefinition[]): TE.TaskEither<any, void> {

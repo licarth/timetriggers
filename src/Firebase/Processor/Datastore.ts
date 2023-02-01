@@ -48,13 +48,21 @@ export interface Datastore {
    *
    * The first call must return all jobs that are scheduled within the next millisecondsFromNow.
    *
+   * This is an optional method, and is only used if the datastore supports watching for added / modified jobs.
+   *
+   * Whenever it emits a new value (even an empty JobDefinition[]), it tells the scheduler to immediately check for new jobs
+   * to schedule.
+   *
+   * If you don't want to implement this, you can just return TE.left("not implemented").
+   *
    */
-  listenToNewJobsBefore(
-    args: {
-      millisecondsFromNow: number;
-    },
+  listenToNewlyRegisteredJobs(
+    args?: {},
     shardsToListenTo?: ShardsToListenTo
-  ): Observable<JobDefinition[]>;
+  ): TE.TaskEither<
+    "too many previous jobs" | "not implemented",
+    Observable<JobDefinition[]>
+  >;
 
   /**
    * Returns all jobs scheduled after msFromNow, up to limit items.
