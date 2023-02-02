@@ -4,29 +4,43 @@ import { fromClassCodec } from "@iots/index.js";
 import { ScheduledAt } from "./ScheduledAt";
 import { JobId } from "./JobId";
 import { Clock } from "@/Clock/Clock";
+import { Http } from "./Http";
+import { JobScheduleArgs } from "./JobScheduleArgs";
 
 export class JobDefinition {
   id;
   scheduledAt;
   url;
+  http;
 
   constructor(props: JobDefinitionProps) {
     this.id = props.id;
     this.scheduledAt = props.scheduledAt;
     this.url = props.url;
+    this.http = props.http;
   }
 
-  static propsCodec = Codec.struct({
-    id: JobId.codec,
-    scheduledAt: ScheduledAt.codec,
-    url: Codec.string,
-  });
+  static propsCodec = pipe(
+    JobScheduleArgs.propsCodec,
+    Codec.intersect(
+      Codec.struct({
+        id: JobId.codec,
+      })
+    )
+  );
 
-  static firestorePropsCodec = Codec.struct({
-    id: JobId.codec,
-    scheduledAt: ScheduledAt.firestoreCodec,
-    url: Codec.string,
-  });
+  static firestorePropsCodec = pipe(
+    Codec.struct({
+      id: JobId.codec,
+      scheduledAt: ScheduledAt.firestoreCodec,
+    }),
+    Codec.intersect(
+      Codec.partial({
+        url: Codec.string,
+        http: Http.codec,
+      })
+    )
+  );
 
   static firestoreCodec = pipe(
     JobDefinition.firestorePropsCodec,
@@ -49,7 +63,7 @@ export class JobDefinition {
         "scheduledAt" in props
           ? props.scheduledAt
           : ScheduledAt.factory({ date: props.clock.now() }),
-      url: props.url ?? "",
+      http: props.http ?? Http.factory(),
     });
 }
 

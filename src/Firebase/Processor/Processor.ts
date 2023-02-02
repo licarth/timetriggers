@@ -11,12 +11,14 @@ import { HttpCallCompleted } from "@/HttpCallStatusUpdate/HttpCallCompleted";
 import { HttpCallErrored } from "@/HttpCallStatusUpdate/HttpCallErrored";
 import { HttpCallLastStatus } from "@/HttpCallStatusUpdate/HttpCallLastStatus";
 import { HttpCallStarted } from "@/HttpCallStatusUpdate/HttpCallStarted";
+import { getOrReportToSentry } from "@/Sentry/getOrReportToSentry";
 import { WorkerPool } from "@/WorkerPool";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 import { Datastore } from "./Datastore";
 import { InMemoryDataStore } from "./InMemoryDataStore";
+import * as Sentry from "@sentry/node";
 
 type ProcessorProps = {
   clock?: Clock;
@@ -51,7 +53,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
     } else {
     }
     this.unsubscribeNextJob && this.unsubscribeNextJob();
-    te.getOrLog(this.takeNextJob());
+    getOrReportToSentry(this.takeNextJob());
   }
 
   static build = (props: ProcessorProps): TE.TaskEither<Error, Processor> =>
@@ -131,7 +133,18 @@ export class Processor extends ClusterTopologyDatastoreAware {
 
   processJob(jobDefinition: JobDefinition) {
     return pipe(
-      TE.of({ executionStartDate: this.clock.now(), jobDefinition }),
+      TE.of({
+        executionStartDate: this.clock.now(),
+        jobDefinition,
+        transaction: Sentry.startTransaction({
+          op: "processJob",
+          name: "Process Job",
+          data: {
+            jobId: jobDefinition.id,
+            url: jobDefinition.http?.url,
+          },
+        }),
+      }),
       TE.bindW("worker", () => this.workerPool.nextWorker()),
       TE.chainFirstW(() => this.datastore.markJobAsRunning(jobDefinition)),
       TE.bindW(
@@ -154,14 +167,17 @@ export class Processor extends ClusterTopologyDatastoreAware {
             (e) => new Error("Could not execute job")
           )
       ),
-      TE.map(({ lastStatusUpdate, executionStartDate }) => ({
+      TE.map(({ lastStatusUpdate, executionStartDate, transaction }) => ({
+        transaction,
         lastStatusUpdate,
         durationMs: this.clock.now().getTime() - executionStartDate.getTime(),
         executionStartDate,
       })),
-      TE.chainW((args) =>
-        this.datastore.markJobAsComplete({ jobDefinition, ...args })
-      )
+      TE.chainW((args) => {
+        args.transaction.setMeasurement("durationMs", 10, "millisecond");
+        args.transaction.finish();
+        return this.datastore.markJobAsComplete({ jobDefinition, ...args });
+      })
     );
   }
 

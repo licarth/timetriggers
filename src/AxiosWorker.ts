@@ -43,8 +43,17 @@ export class AxiosWorker implements Worker {
     const startedAt = this.clock.now();
     try {
       subscriber?.next(new HttpCallStarted({ startedAt }));
-      const axiosResponse = await axios.post(jobDefinition.url, {
-        callbackId: jobDefinition.id,
+      const url = jobDefinition.url || jobDefinition.http?.url;
+      if (!url) {
+        throw new Error("No url or http.resource provided");
+      }
+      const userHeaders =
+        jobDefinition.http?.options?.headers?.toObject() || {};
+      const axiosResponse = await axios.request({
+        url,
+        method: jobDefinition.http?.options?.method || "GET",
+        headers: { ...userHeaders, "x-callback-id": jobDefinition.id },
+        data: jobDefinition.http?.options?.body?.toData(),
       });
       subscriber.next(
         new HttpCallCompleted({

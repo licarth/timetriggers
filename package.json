@@ -2,6 +2,8 @@
   "name": "do-it-tomorrow",
   "type": "module",
   "dependencies": {
+    "@sentry/node": "^7.35.0",
+    "@sentry/tracing": "^7.35.0",
     "@types/jest": "^29.2.4",
     "axios": "^1.2.2",
     "chalk": "^5.2.0",

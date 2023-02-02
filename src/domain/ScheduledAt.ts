@@ -35,7 +35,6 @@ export class ScheduledAt {
       )
     ),
     Codec.compose(ScheduledAt.propsCodec),
-    // mapProps((a) => ({ date: a })),
     Codec.compose(fromClassCodec(ScheduledAt))
   );
 

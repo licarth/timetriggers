@@ -3,7 +3,7 @@ import { SystemClock } from "@/Clock/SystemClock";
 import { TestClock } from "@/Clock/TestClock";
 import { JobDefinition } from "@/domain/JobDefinition";
 import { JobId } from "@/domain/JobId";
-import { JobScheduleArgs } from "@/domain/JobScheduleHttpArgs";
+import { JobScheduleArgs } from "@/domain/JobScheduleArgs";
 import { Shard } from "@/domain/Shard";
 import { te } from "@/fp-ts";
 import { HttpCallCompleted, HttpCallErrored } from "@/HttpCallStatusUpdate";

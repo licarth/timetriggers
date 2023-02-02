@@ -2,7 +2,7 @@ import { JobDefinition } from "@/domain/JobDefinition";
 import { Observable } from "rxjs";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { HttpCallLastStatus } from "@/HttpCallStatusUpdate";
-import { JobScheduleArgs } from "@/domain/JobScheduleHttpArgs";
+import { JobScheduleArgs } from "@/domain/JobScheduleArgs";
 import { JobId } from "@/domain/JobId";
 import { Shard } from "@/domain/Shard";
 import { ShardsToListenTo } from "./ShardsToListenTo";

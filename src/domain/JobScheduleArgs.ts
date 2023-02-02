@@ -1,21 +1,31 @@
 import { fromClassCodec } from "@iots/index.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
+import { Http } from "./Http";
 import { ScheduledAt } from "./ScheduledAt";
 
 export class JobScheduleArgs {
   scheduledAt;
   url;
+  http;
 
   constructor(props: JobScheduleHttpArgsProps) {
     this.scheduledAt = props.scheduledAt;
     this.url = props.url;
+    this.http = props.http;
   }
 
-  static propsCodec = Codec.struct({
-    scheduledAt: ScheduledAt.codec,
-    url: Codec.string,
-  });
+  static propsCodec = pipe(
+    Codec.struct({
+      scheduledAt: ScheduledAt.codec,
+    }),
+    Codec.intersect(
+      Codec.partial({
+        url: Codec.string,
+        http: Http.codec,
+      })
+    )
+  );
 
   static codec = pipe(
     JobScheduleArgs.propsCodec,

@@ -1,6 +1,6 @@
 import { Api } from "@/Api";
 import { JobId } from "@/domain/JobId";
-import { JobScheduleArgs } from "@/domain/JobScheduleHttpArgs";
+import { JobScheduleArgs } from "@/domain/JobScheduleArgs";
 import { rte } from "@/fp-ts";
 import { Express } from "express";
 import { pipe } from "fp-ts/lib/function.js";
@@ -17,14 +17,14 @@ export const initializeEndpoints = ({
   app.post("/schedule", async (req, res) => {
     await pipe(
       RTE.Do,
-      RTE.bindW("jobDefinition", () => {
+      RTE.bindW("jobScheduleArgs", () => {
         console.log(req.body);
         return RTE.fromEither(JobScheduleArgs.codec.decode(req.body));
       }),
       RTE.chainW(
-        ({ jobDefinition: scheduleArgs }) =>
+        ({ jobScheduleArgs }) =>
           pipe(
-            api.schedule(scheduleArgs),
+            api.schedule(jobScheduleArgs),
             RTE.fromTaskEither,
             rte.sideEffect((jobId) => res.send({ success: true, jobId }))
           )

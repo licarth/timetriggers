@@ -17,6 +17,8 @@ import { JobId } from "./domain/JobId.js";
 import { ScheduledAt } from "./domain/ScheduledAt.js";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
 import { te } from "./fp-ts/te.js";
+import { Http } from "./domain/Http.js";
+import { JobScheduleArgs } from "./domain/JobScheduleArgs.js";
 
 jest.setTimeout(15000);
 
@@ -97,10 +99,14 @@ describe(`Api tests`, () => {
           const jobDateUtcString = addSeconds(clock.now(), 0).toISOString();
 
           const callbackId = await pipe(
-            api.schedule({
-              scheduledAt: ScheduledAt.fromUTCString(jobDateUtcString),
-              url: `http://localhost:${callbackReceiver.port}`,
-            }),
+            api.schedule(
+              JobScheduleArgs.factory({
+                scheduledAt: ScheduledAt.fromUTCString(jobDateUtcString),
+                http: Http.factory({
+                  url: `http://localhost:${callbackReceiver.port}`,
+                }),
+              })
+            ),
             TE.getOrElseW(() => T.of(undefined))
           )();
 
@@ -120,12 +126,14 @@ describe(`Api tests`, () => {
 
         it(`should schedule ${NUM_JOBS} jobs and execute them one by one`, async () => {
           const arrayOfTe = _.times(NUM_JOBS, (i) =>
-            api.schedule({
-              scheduledAt: ScheduledAt.fromUTCString(
-                addMilliseconds(clock.now(), 1).toISOString()
-              ),
-              url: `http://localhost:${callbackReceiver.port}`,
-            })
+            api.schedule(
+              JobScheduleArgs.factory({
+                scheduledAt: ScheduledAt.fromUTCString(
+                  addMilliseconds(clock.now(), 1).toISOString()
+                ),
+                url: `http://localhost:${callbackReceiver.port}`,
+              })
+            )
           );
           const callbackIds = await pipe(
             arrayOfTe,

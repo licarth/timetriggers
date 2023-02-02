@@ -7,6 +7,7 @@ import { JobDefinition } from "@/domain/JobDefinition";
 import { JobId } from "@/domain/JobId";
 import { te } from "@/fp-ts";
 import { withTimeout } from "@/fp-ts/withTimeout";
+import { getOrReportToSentry } from "@/Sentry/getOrReportToSentry";
 import chalk from "chalk";
 import { addMilliseconds } from "date-fns";
 import * as E from "fp-ts/lib/Either.js";
@@ -58,7 +59,7 @@ export class Scheduler extends ClusterTopologyDatastoreAware {
       `New cluster topology ! currentNodeID: ${clusterTopology.currentNodeId},  nodeCount: ${clusterTopology.clusterSize}
 Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     );
-    te.getOrLog(this.restart());
+    getOrReportToSentry(this.restart());
   }
 
   unsubscribeNewJobsListening() {
@@ -96,7 +97,6 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         E.left(new Error("Cluster topology is not ready in 10 seconds")),
         10000
       ),
-      // TE.chainFirstW(() => self.startListening()),
       TE.mapLeft((e) => new Error("message" in e ? e.message : e))
     );
   }
@@ -120,7 +120,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         this.scheduleNextPeriod(),
         te.sideEffect(() => {
           const timeoutId = this.clock.setTimeout(() => {
-            te.getOrLog(this.scheduleNextPeriod());
+            getOrReportToSentry(this.scheduleNextPeriod());
           }, this.schedulePeriodMs);
           this.schedulingNextPeriodUnsubscribeHooks.push(() => {
             this.clock.clearTimeout(timeoutId);
@@ -158,10 +158,10 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       TE.map((observable) => {
         const subscription = observable.subscribe((jobs) => {
           // Trigger a check for new jobs
-          te.getOrLog(
+          getOrReportToSentry(
             pipe(
-              this._scheduleNewJobs(jobs), // Wait for the jobs to be scheduled, then schedule the next period
-              TE.chain(() => this.scheduleNextPeriod())
+              this._scheduleNewJobs(jobs) // Wait for the jobs to be scheduled, then schedule the next period
+              // TE.chain(() => this.scheduleNextPeriod()) // Not needed with firestore...
             )
           );
         });
@@ -193,7 +193,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       TE.map((jobs) => {
         // Optimization: all jobs that are scheduled in the past should be scheduled immediately
         // in a single transaction
-        te.getOrLog(this._scheduleNewJobs(jobs));
+        getOrReportToSentry(this._scheduleNewJobs(jobs));
         // jobs that are to schedule before a certain date & with an offset ?
         return { resultCount: jobs.length };
       })
@@ -295,7 +295,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       )}`
     );
     const timeoutId = this.clock.setTimeout(() => {
-      te.getOrLog(this.datastore.queueJobs([jobDefinition]));
+      getOrReportToSentry(this.datastore.queueJobs([jobDefinition]));
       this.plannedTimeouts.delete(jobDefinition.id);
     }, Math.max(0, jobDefinition.scheduledAt.date.getTime() - this.clock.now().getTime()));
     this.plannedTimeouts.set(jobDefinition.id, timeoutId);

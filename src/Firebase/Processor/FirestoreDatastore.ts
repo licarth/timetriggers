@@ -4,7 +4,7 @@ import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/Con
 import { FirestoreJobDocument } from "@/domain/FirebaseJobDocument";
 import { JobDefinition } from "@/domain/JobDefinition";
 import { JobId } from "@/domain/JobId";
-import { JobScheduleArgs } from "@/domain/JobScheduleHttpArgs";
+import { JobScheduleArgs } from "@/domain/JobScheduleArgs";
 import { RegisteredAt } from "@/domain/RegisteredAt";
 import { e } from "@/fp-ts";
 import {
@@ -116,6 +116,7 @@ export class FirestoreDatastore implements Datastore {
           toShards(shardsToListenTo)
         )
           .where("jobDefinition.scheduledAt", "<=", periodFromNow)
+          // .where("registeredAt", ">",  ) // After last known registeredAt
           .limit(limit);
 
         if (offset) {

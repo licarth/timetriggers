@@ -6,7 +6,9 @@ import _ from "lodash";
 import { Api } from "./Api.js";
 import { Clock } from "./Clock/Clock.js";
 import { SystemClock } from "./Clock/SystemClock.js";
+import { Http } from "./domain/Http.js";
 import { JobId } from "./domain/JobId.js";
+import { JobScheduleArgs } from "./domain/JobScheduleArgs.js";
 import { ScheduledAt } from "./domain/ScheduledAt.js";
 import { FirestoreApi } from "./Firebase/FirestoreApi.js";
 import { initializeApp } from "./Firebase/initializeApp.js";
@@ -81,12 +83,16 @@ const createJobs = async ({
   callbackReceiverPort: number;
 }) => {
   const arrayOfTe = _.times(numJobs, (i) =>
-    api.schedule({
-      scheduledAt: ScheduledAt.fromUTCString(
-        addSeconds(clock.now(), 10).toISOString()
-      ),
-      url: `http://localhost:${callbackReceiverPort}`,
-    })
+    api.schedule(
+      JobScheduleArgs.factory({
+        scheduledAt: ScheduledAt.fromUTCString(
+          addSeconds(clock.now(), 10).toISOString()
+        ),
+        http: Http.factory({
+          url: `http://localhost:${callbackReceiverPort}`,
+        }),
+      })
+    )
   );
   const callbackIds = await pipe(
     arrayOfTe,
