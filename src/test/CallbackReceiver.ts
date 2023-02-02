@@ -34,6 +34,12 @@ export class CallbackReceiver {
 
     this.postHandler = props.postHandler;
 
+    this.app.get(
+      "/",
+      this.postHandler((callbackId) => {
+        this.callbackIdsReceived.push(callbackId);
+      })
+    );
     this.app.post(
       "/",
       this.postHandler((callbackId) => {
@@ -86,7 +92,7 @@ export class CallbackReceiver {
     const postHandler =
       props.postHandler ||
       ((markAsReceived) => async (req, res) => {
-        markAsReceived(req.body.callbackId);
+        markAsReceived(req.headers["x-callback-id"] as string);
         // just hung up
         randomlyChoseBetween(
           () => res.sendStatus(randomStatus()),

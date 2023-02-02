@@ -6,12 +6,10 @@ import { ScheduledAt } from "./ScheduledAt";
 
 export class JobScheduleArgs {
   scheduledAt;
-  url;
   http;
 
   constructor(props: JobScheduleHttpArgsProps) {
     this.scheduledAt = props.scheduledAt;
-    this.url = props.url;
     this.http = props.http;
   }
 
@@ -21,7 +19,6 @@ export class JobScheduleArgs {
     }),
     Codec.intersect(
       Codec.partial({
-        url: Codec.string,
         http: Http.codec,
       })
     )
@@ -35,7 +32,11 @@ export class JobScheduleArgs {
   static factory = (props: Partial<JobScheduleHttpArgsProps> = {}) => {
     return new JobScheduleArgs({
       scheduledAt: props.scheduledAt || ScheduledAt.factory(),
-      url: props.url || "http://localhost:3000",
+      http:
+        props.http ||
+        Http.factory({
+          url: "http://localhost:3000",
+        }),
     });
   };
 }

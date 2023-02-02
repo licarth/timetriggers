@@ -114,13 +114,6 @@ describe(`Api tests`, () => {
             throw new Error("Failed to schedule job");
           }
 
-          // const eitherNextPlanned = await api.getNextPlanned(10)();
-          // if (E.isLeft(eitherNextPlanned)) {
-          //   if (eitherNextPlanned.left) {
-          //     console.log(draw(eitherNextPlanned.left));
-          //   }
-          // }
-
           await callbackReceiver.waitForCallback(callbackId);
         });
 
@@ -131,7 +124,9 @@ describe(`Api tests`, () => {
                 scheduledAt: ScheduledAt.fromUTCString(
                   addMilliseconds(clock.now(), 1).toISOString()
                 ),
-                url: `http://localhost:${callbackReceiver.port}`,
+                http: Http.factory({
+                  url: `http://localhost:${callbackReceiver.port}`,
+                }),
               })
             )
           );

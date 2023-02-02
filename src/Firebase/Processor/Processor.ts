@@ -19,6 +19,7 @@ import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 import { Datastore } from "./Datastore";
 import { InMemoryDataStore } from "./InMemoryDataStore";
 import * as Sentry from "@sentry/node";
+import "@sentry/tracing";
 
 type ProcessorProps = {
   clock?: Clock;

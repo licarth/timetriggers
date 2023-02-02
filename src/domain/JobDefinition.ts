@@ -63,7 +63,11 @@ export class JobDefinition {
         "scheduledAt" in props
           ? props.scheduledAt
           : ScheduledAt.factory({ date: props.clock.now() }),
-      http: props.http ?? Http.factory(),
+      http:
+        props.http ??
+        Http.factory({
+          url: props.url ?? "http://localhost:3000",
+        }),
     });
 }
 
