@@ -209,7 +209,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
   }
 
   static factory = (
-    props: Partial<ProcessorProps> & { clock: TestClock } = {
+    props: Partial<ProcessorProps> & { clock: Clock } = {
       clock: new TestClock(),
     }
   ) => {

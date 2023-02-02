@@ -10,8 +10,9 @@ import { Http } from "./domain/Http.js";
 import { JobId } from "./domain/JobId.js";
 import { JobScheduleArgs } from "./domain/JobScheduleArgs.js";
 import { ScheduledAt } from "./domain/ScheduledAt.js";
-import { FirestoreApi } from "./Firebase/FirestoreApi.js";
+import { DatastoreApi } from "./Firebase/DatastoreApi.js";
 import { initializeApp } from "./Firebase/initializeApp.js";
+import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore.js";
 import { te } from "./fp-ts/te.js";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
 
@@ -43,14 +44,9 @@ describe.skip(`Firebase Seed jobs`, () => {
   });
 
   it(`should schedule ${NUM_JOBS} jobs and execute them one by one`, async () => {
-    const api = await te.unsafeGetOrThrow(
-      FirestoreApi.build({
-        rootDocumentPath: `/doi-production/tasks`,
-        numProcessors: 0,
-        runScheduler: false,
-        firestore,
-      })
-    );
+    const api = new DatastoreApi({
+      datastore: FirestoreDatastore.factory(),
+    });
 
     console.log(`scheduling ${NUM_JOBS} jobs...`);
     const now = new Date();
@@ -65,9 +61,6 @@ describe.skip(`Firebase Seed jobs`, () => {
         new Date().getTime() - now.getTime()
       }ms`
     );
-
-    // await callbackReceiver.waitForAllCallbacks([...callbackIds]);
-    // console.log(`All ${NUM_JOBS} callbacks received`);
   });
 });
 

@@ -10,11 +10,11 @@ import { Http } from "./domain/Http.js";
 import { JobId } from "./domain/JobId.js";
 import { JobScheduleArgs } from "./domain/JobScheduleArgs.js";
 import { ScheduledAt } from "./domain/ScheduledAt.js";
-import { FirestoreApi } from "./Firebase/FirestoreApi.js";
-import { initializeApp } from "./Firebase/initializeApp.js";
+import { DatastoreApi } from "./Firebase/DatastoreApi.js";
+import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore.js";
+import { Processor } from "./Firebase/Processor/Processor.js";
+import { Scheduler } from "./Firebase/Processor/Scheduler.js";
 import { te } from "./fp-ts/te.js";
-import { launchProcessor } from "./launchProcessor";
-import { sleep } from "./sleep";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
 
 jest.setTimeout(20 * 1000);
@@ -24,12 +24,7 @@ const randomString = (length: number) =>
     .toString(36)
     .substring(2, 2 + length);
 
-const NUM_JOBS = 30;
-
-const realFirestore = initializeApp({
-  appName: "doi_test_real",
-  serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-}).firestore;
+const NUM_JOBS = 10;
 
 describe(`Firebase Distributed`, () => {
   const testRunId = randomString(4);
@@ -44,53 +39,31 @@ describe(`Firebase Distributed`, () => {
     callbackReceiver && (await callbackReceiver.close());
   });
 
-  it.skip(`should schedule ${NUM_JOBS} jobs and execute them one by one`, async () => {
+  it(`should schedule ${NUM_JOBS} jobs and execute them one by one`, async () => {
     const rootDocumentPath = `test/${testRunId}`;
-    const api = await te.unsafeGetOrThrow(
-      FirestoreApi.build({
-        rootDocumentPath,
-        numProcessors: 0,
-        runScheduler: true,
-      })
-    );
+    const clock = new SystemClock();
+    const datastore = FirestoreDatastore.factory({ clock, rootDocumentPath });
+    const api = new DatastoreApi({
+      clock,
+      datastore,
+    });
 
-    te.unsafeGetOrThrow(
-      launchProcessor(api, rootDocumentPath, "/" + testRunId)
-    );
-    te.unsafeGetOrThrow(
-      launchProcessor(api, rootDocumentPath, "/" + testRunId)
-    );
-    te.unsafeGetOrThrow(
-      launchProcessor(api, rootDocumentPath, "/" + testRunId)
-    );
-    te.unsafeGetOrThrow(
-      launchProcessor(api, rootDocumentPath, "/" + testRunId)
-    );
-    te.unsafeGetOrThrow(
-      launchProcessor(api, rootDocumentPath, "/" + testRunId)
-    );
-    te.unsafeGetOrThrow(
-      launchProcessor(api, rootDocumentPath, "/" + testRunId)
-    );
-    te.unsafeGetOrThrow(
-      launchProcessor(api, rootDocumentPath, "/" + testRunId)
-    );
     await te.unsafeGetOrThrow(
-      launchProcessor(api, rootDocumentPath, "/" + testRunId)
+      Scheduler.build({ datastore, clock, schedulePeriodMs: 500 })
     );
+    await te.unsafeGetOrThrow(Processor.factory({ datastore, clock }));
 
-    await sleep(2000);
     console.log(`scheduling ${NUM_JOBS} jobs...`);
     const now = new Date();
     await createJobs({
       api,
-      clock: new SystemClock(),
+      clock,
       numJobs: 1,
       callbackReceiverPort: callbackReceiver.port,
     });
     const callbackIds = await createJobs({
       api,
-      clock: new SystemClock(),
+      clock,
       numJobs: NUM_JOBS,
       callbackReceiverPort: callbackReceiver.port,
     });
@@ -120,7 +93,7 @@ const createJobs = async ({
     api.schedule(
       JobScheduleArgs.factory({
         scheduledAt: ScheduledAt.fromUTCString(
-          addSeconds(clock.now(), 5).toISOString()
+          addSeconds(clock.now(), 0).toISOString()
         ),
         http: Http.factory({
           url: `http://localhost:${callbackReceiverPort}`,
