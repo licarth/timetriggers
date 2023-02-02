@@ -1,24 +1,24 @@
-import { addMilliseconds, addSeconds } from "date-fns";
-import { sequenceS } from "fp-ts/lib/Apply.js";
-import * as E from "fp-ts/lib/Either.js";
+import { addHours, addMilliseconds } from "date-fns";
 import { pipe } from "fp-ts/lib/function.js";
 import * as T from "fp-ts/lib/Task.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
-import { draw } from "io-ts/lib/Decoder.js";
 import _ from "lodash";
 import { Api } from "./Api.js";
 import { Clock } from "./Clock/Clock.js";
 import { SystemClock } from "./Clock/SystemClock.js";
 import { TestClock } from "./Clock/TestClock.js";
-import { FirestoreApi } from "./Firebase/FirestoreApi.js";
-import { initializeApp } from "./Firebase/initializeApp.js";
-import { InMemoryApi } from "./InMemory/InMemoryApi.js";
-import { JobId } from "./domain/JobId.js";
-import { ScheduledAt } from "./domain/ScheduledAt.js";
-import { CallbackReceiver } from "./test/CallbackReceiver.js";
-import { te } from "./fp-ts/te.js";
 import { Http } from "./domain/Http.js";
+import { JobId } from "./domain/JobId.js";
 import { JobScheduleArgs } from "./domain/JobScheduleArgs.js";
+import { ScheduledAt } from "./domain/ScheduledAt.js";
+import { DatastoreApi } from "./Firebase/DatastoreApi.js";
+import { Datastore } from "./Firebase/Processor/Datastore.js";
+import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore.js";
+import { InMemoryDataStore } from "./Firebase/Processor/InMemoryDataStore.js";
+import { Processor } from "./Firebase/Processor/Processor.js";
+import { Scheduler } from "./Firebase/Processor/Scheduler.js";
+import { te } from "./fp-ts/te.js";
+import { CallbackReceiver } from "./test/CallbackReceiver.js";
 
 jest.setTimeout(15000);
 
@@ -34,71 +34,57 @@ const clocks = {
 
 const NUM_JOBS = 10;
 
-// const realFirestore = initializeApp({
-//   appName: "doi_test_real",
-//   serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-// }).firestore;
-
-const externalEmulatorFirestore = initializeApp({
-  appName: "doi_test_external_emulator",
-}).firestore;
-
 describe(`Api tests`, () => {
   const testRunId = randomString(4);
   console.log(`testRunId: ${testRunId}`);
-  const apiBuilders = {
-    InMemory: (clock, namespace) => TE.of(new InMemoryApi({ clock })),
-    // FirestoreExternalRealApi: (clock, namespace) =>
-    //   FirestoreApi.build({
-    //     clock,
-    //     rootDocumentPath: namespace,
-    //     numProcessors: 1,
-    //     runScheduler: true,
-    //     firestore: realFirestore,
-    //   }),
-    FirestoreInternal: (clock, namespace) =>
-      FirestoreApi.build({
+  const datastoreBuilders = {
+    InMemoryDatastore: (clock, namespace) =>
+      InMemoryDataStore.factory({ clock }),
+    FirestoreEmulator: (clock, namespace) =>
+      FirestoreDatastore.factory({
         clock,
-        rootDocumentPath: namespace,
-        numProcessors: 1,
-        runScheduler: true,
-        firestore: externalEmulatorFirestore,
+        rootDocumentPath: rootDocumentPathFromNs(namespace),
       }),
-  } as Record<
-    string,
-    (clock: Clock, namespace: string) => TE.TaskEither<any, Api>
-  >;
-
-  afterAll(async () => {
-    // await realFirestore.terminate();
-    // await externalEmulatorFirestore.terminate();
-  });
+  } as Record<string, (clock: Clock, namespace: string) => Datastore>;
 
   let callbackReceiver: CallbackReceiver;
 
-  for (const [apiName] of Object.entries(apiBuilders)) {
+  for (const [apiName] of Object.entries(datastoreBuilders)) {
     for (const [clockName, clock] of Object.entries(clocks)) {
       let api: Api;
+      let scheduler: Scheduler;
+      let processor: Processor;
       // @ts-ignore
       describe(`${apiName} (${clockName} clock)`, () => {
         beforeEach(async () => {
           const namespace = `test-${testRunId}/${apiName}-${clockName}`;
-          api = await te.unsafeGetOrThrow(
-            apiBuilders[apiName](clock, namespace)
+          const datastore = datastoreBuilders[apiName](clock, namespace);
+          api = new DatastoreApi({
+            clock,
+            datastore,
+          });
+
+          scheduler = await te.unsafeGetOrThrow(
+            Scheduler.build({ datastore, clock, schedulePeriodMs: 500 })
           );
-          // await api.cancelAllJobs()();
+          processor = await te.unsafeGetOrThrow(
+            Processor.factory({ datastore, clock })
+          );
           callbackReceiver = await CallbackReceiver.factory();
         });
 
         afterEach(async () => {
           callbackReceiver && (await callbackReceiver.close());
-          api && (await te.unsafeGetOrThrow(api.close()));
+          api && (await te.getOrLog(api.close()));
+          scheduler && (await te.getOrLog(scheduler.close()));
+          processor && (await te.getOrLog(processor.close()));
         });
 
         it("should schedule a job and execute it", async () => {
-          const jobDateUtcString = addSeconds(clock.now(), 0).toISOString();
+          const jobDateUtcString = addHours(clock.now(), -10).toISOString();
+          console.log(`jobDateUtcString: ${jobDateUtcString}`);
 
-          const callbackId = await pipe(
+          const callbackId = await te.getOrLog(
             api.schedule(
               JobScheduleArgs.factory({
                 scheduledAt: ScheduledAt.fromUTCString(jobDateUtcString),
@@ -106,14 +92,13 @@ describe(`Api tests`, () => {
                   url: `http://localhost:${callbackReceiver.port}`,
                 }),
               })
-            ),
-            TE.getOrElseW(() => T.of(undefined))
-          )();
+            )
+          );
 
           if (!callbackId) {
             throw new Error("Failed to schedule job");
           }
-
+          clock.tickSeconds(1);
           await callbackReceiver.waitForCallback(callbackId);
         });
 
@@ -140,7 +125,7 @@ describe(`Api tests`, () => {
             throw new Error("Failed to schedule jobs");
           }
 
-          clock.tickSeconds(20);
+          clock.tickSeconds(1);
 
           for (const callbackId of callbackIds) {
             await callbackReceiver.waitForCallback(callbackId);
@@ -156,3 +141,5 @@ describe(`Api tests`, () => {
     }
   }
 });
+
+const rootDocumentPathFromNs = (namespace: string) => `${namespace}`;

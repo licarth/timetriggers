@@ -147,7 +147,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     );
   }
 
-  startListeningToNewJobs() {
+  private startListeningToNewJobs() {
     return pipe(
       this.datastore.listenToNewlyRegisteredJobs(
         {

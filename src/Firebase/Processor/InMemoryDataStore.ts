@@ -55,9 +55,7 @@ export class InMemoryDataStore implements Datastore {
     return TE.right(undefined);
   }
 
-  static factory(
-    props: Partial<InMemoryDataStoreProps> & { clock: TestClock }
-  ) {
+  static factory(props: Partial<InMemoryDataStoreProps> & { clock: Clock }) {
     return new InMemoryDataStore({
       clock: props.clock,
       pollingInterval: props.pollingInterval || 1000,
