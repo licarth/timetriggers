@@ -379,10 +379,6 @@ export class FirestoreDatastore implements Datastore {
     },
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<Error, Observable<JobDefinition[]>> {
-    if (this.state === "stopped") {
-      return TE.left(new Error("Processor is not running"));
-    }
-
     return pipe(
       TE.tryCatch<Error, Observable<JobDefinition[]>>(
         // Listen to the queue and check if there is a job to run
