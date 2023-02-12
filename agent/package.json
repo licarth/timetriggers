@@ -30,7 +30,7 @@
   "scripts": {
     "start": "dotenv -e .env node --experimental-loader=newrelic/esm-loader.mjs ./built",
     "deploy": "flyctl deploy --remote-only",
-    "dev": "ts-node -r tsconfig-paths/register ./src/index.ts",
+    "dev": "nodemon --watch src -e ts,tsx --exec 'npm run build && npm run start'",
     "build": "tsc && resolve-tspaths",
     "test": "dotenv -e .env.test -e.env.test.local jest",
     "emulators": "firebase emulators:start --only firestore",

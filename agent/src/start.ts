@@ -99,8 +99,6 @@ export const start = (props: StartProps) =>
   );
 
 export const startScheduler = ({
-  firestore,
-  rootDocumentPath,
   coordinationClient,
   datastore,
 }: {
@@ -118,22 +116,12 @@ export const startScheduler = ({
   );
 
 const buildApi = ({
-  // firestore,
-  // rootDocumentPath,
   datastore,
 }: StartProps & {
-  // firestore: FirebaseFirestore.Firestore;
-  // rootDocumentPath: string;
   datastore: Datastore;
 }): RTE.ReaderTaskEither<never, Error, Api> =>
   pipe(
     RTE.of(
-      // FirestoreApi.build({
-      //   numProcessors: 0,
-      //   runScheduler: false,
-      //   rootDocumentPath,
-      //   firestore,
-      // })
       new DatastoreApi({
         datastore,
       })
