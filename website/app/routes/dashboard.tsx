@@ -1,5 +1,5 @@
+import type { As } from "@chakra-ui/react";
 import {
-  As,
   Flex,
   Icon,
   IconButton,
@@ -11,7 +11,8 @@ import {
   useColorModeValue,
 } from "@chakra-ui/react";
 import { Outlet, useNavigate } from "@remix-run/react";
-import { LoaderFunction, redirect } from "@remix-run/server-runtime";
+import type { LoaderFunction } from "@remix-run/server-runtime";
+import { redirect } from "@remix-run/server-runtime";
 import { useState } from "react";
 import {
   BsBook,
@@ -160,11 +161,7 @@ export default Root;
 
 export const loader: LoaderFunction = async ({ request }) => {
   const user = await requireUserId(request);
-  if (
-    user !== null &&
-    (user.email === "thlukrid@gmail.com" ||
-      environmentVariable("PUBLIC_USE_EMULATORS") === "true")
-  ) {
+  if (user !== null || environmentVariable("PUBLIC_USE_EMULATORS") === "true") {
     return {};
   } else {
     return redirect("/login");

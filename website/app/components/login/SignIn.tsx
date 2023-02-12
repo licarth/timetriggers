@@ -38,7 +38,7 @@ export const SignIn = () => {
   } = useForm<Inputs>();
 
   const navigate = useNavigate();
-  const { emailPasswordSignIn, sendPasswordResetEmail } = useFirebaseAuth();
+  const { emailPasswordSignIn } = useFirebaseAuth();
 
   const onSubmit: SubmitHandler<Inputs> = async ({ email, password }) => {
     try {

@@ -18,4 +18,7 @@ module.exports = {
       version: 28,
     },
   },
+  rules: {
+    "react-hooks/exhaustive-deps": "off",
+  },
 };

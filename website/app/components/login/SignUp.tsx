@@ -1,7 +1,6 @@
 import {
   Box,
   Button,
-  Checkbox,
   Container,
   Divider,
   FormControl,
@@ -12,17 +11,16 @@ import {
   Input,
   Stack,
   Text,
-  useColorMode,
 } from "@chakra-ui/react";
 import { Logo } from "../Logo";
 import { OAuthButtonGroup } from "./OAuthButtonGroup";
-import { PasswordField } from "./PasswordField";
 
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
-import { FirebaseError, getApp } from "@firebase/app";
-import { initializeFirebaseWeb } from "~/initializeFirebaseWeb";
-import { SubmitHandler, useForm } from "react-hook-form";
+import { FirebaseError } from "@firebase/app";
+import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
+import type { SubmitHandler } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
+import { initializeFirebaseWeb } from "~/initializeFirebaseWeb";
 import { NewPasswordField } from "./NewPasswordField";
 
 type Inputs = {
@@ -32,8 +30,6 @@ type Inputs = {
 };
 
 export const SignUp = () => {
-  const { colorMode, toggleColorMode } = useColorMode();
-
   const auth = getAuth(initializeFirebaseWeb().app);
   const {
     register,

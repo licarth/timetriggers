@@ -1,32 +1,15 @@
-import {
-  Box,
-  Button,
-  Checkbox,
-  Container,
-  Divider,
-  FormControl,
-  FormErrorMessage,
-  FormLabel,
-  Heading,
-  HStack,
-  Input,
-  Stack,
-  Text,
-} from "@chakra-ui/react";
+import { Box, Button, Container, Heading, Stack } from "@chakra-ui/react";
 import { Logo } from "../Logo";
-import { OAuthButtonGroup } from "./OAuthButtonGroup";
-import { PasswordField } from "./PasswordField";
 
 import styled from "@emotion/styled";
 import { FirebaseError } from "@firebase/app";
+import { useSearchParams } from "@remix-run/react";
+import { confirmPasswordReset } from "firebase/auth";
 import type { SubmitHandler } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
-import { useFirebaseAuth } from "~/contexts/FirebaseAuthContext";
-import { NewPasswordField } from "./NewPasswordField";
 import { initializeFirebaseWeb } from "~/initializeFirebaseWeb";
-import { confirmPasswordReset } from "firebase/auth";
-import { useSearchParams } from "@remix-run/react";
+import { NewPasswordField } from "./NewPasswordField";
 
 type Inputs = {
   password: string;

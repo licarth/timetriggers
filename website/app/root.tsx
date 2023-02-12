@@ -14,7 +14,8 @@ import {
   localStorageManager,
 } from "@chakra-ui/react";
 import { withEmotionCache } from "@emotion/react";
-import { json, LinksFunction, LoaderArgs, MetaFunction } from "@remix-run/node"; // Depends on the runtime you choose
+import type { LinksFunction, LoaderArgs, MetaFunction } from "@remix-run/node";
+import { json } from "@remix-run/node"; // Depends on the runtime you choose
 import React, { useContext, useEffect } from "react";
 
 import { extendTheme } from "@chakra-ui/react";

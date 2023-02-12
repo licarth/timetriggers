@@ -121,6 +121,9 @@ jobs:
 
   tests:
     name: Run tests
+    defaults:
+      run:
+        working-directory: agent
     runs-on: ubuntu-latest
     env:
       FORCE_COLOR: true
@@ -139,6 +142,7 @@ jobs:
         with:
           node-version: 18
           cache: "npm"
+          cache-dependency-path: ./agent/package-lock.json
       - name: Install dependencies
         run: npm ci
       - name: Run tests
