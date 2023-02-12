@@ -14,14 +14,15 @@ import {
   localStorageManager,
 } from "@chakra-ui/react";
 import { withEmotionCache } from "@emotion/react";
-import type { LinksFunction, LoaderArgs, MetaFunction } from "@remix-run/node"; // Depends on the runtime you choose
+import { json, LinksFunction, LoaderArgs, MetaFunction } from "@remix-run/node"; // Depends on the runtime you choose
 import React, { useContext, useEffect } from "react";
 
 import { extendTheme } from "@chakra-ui/react";
+import _ from "lodash";
 import { ClientStyleContext, ServerStyleContext } from "./context";
-import { initializeFirebaseWeb } from "./initializeFirebaseWeb";
 import { FirebaseAuthProvider } from "./contexts/FirebaseAuthContext";
 import { environmentVariable } from "./environmentVariable";
+import { initializeFirebaseWeb } from "./initializeFirebaseWeb";
 
 export let links: LinksFunction = () => {
   return [
@@ -45,13 +46,19 @@ export const meta: MetaFunction = () => ({
 });
 
 export async function loader({ request }: LoaderArgs) {
-  return { cookies: request.headers.get("cookie") ?? "" };
+  return json({
+    cookies: request.headers.get("cookie") ?? "",
+    ENV: {
+      ..._.pickBy(process.env, (value, key) => key.startsWith("PUBLIC_")),
+    },
+  });
 }
 
 const Document = withEmotionCache(
   ({ children }: DocumentProps, emotionCache) => {
     const serverStyleData = useContext(ServerStyleContext);
     const clientStyleData = useContext(ClientStyleContext);
+    const data = useLoaderData();
 
     // Only executed on client
     useEffect(() => {
@@ -93,6 +100,11 @@ const Document = withEmotionCache(
           <Scripts />
           <LiveReload />
         </body>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.ENV = ${JSON.stringify(data.ENV)}`,
+          }}
+        />
       </html>
     );
   }

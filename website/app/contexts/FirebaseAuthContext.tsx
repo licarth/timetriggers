@@ -5,6 +5,7 @@ import {
   signInWithPopup,
   signInWithEmailAndPassword,
   signOut,
+  sendPasswordResetEmail as sendPasswordResetEmailFirebase,
 } from "@firebase/auth";
 import * as React from "react";
 // import { FullStoryAPI } from "react-fullstory";
@@ -59,6 +60,8 @@ const sendIdTokenToServer = async ({ user }: { user: User }) => {
   });
 };
 
+type SendPasswordResetEmail = (args: { email: string }) => Promise<void>;
+
 type UseFirebaseAuth = {
   user: User | null;
   googleSignIn: () => void;
@@ -67,6 +70,7 @@ type UseFirebaseAuth = {
     email: string;
     password: string;
   }) => Promise<void>;
+  sendPasswordResetEmail: SendPasswordResetEmail;
   signOut: () => Promise<void>;
   loading: boolean;
 };
@@ -89,6 +93,10 @@ function useFirebaseAuth(): UseFirebaseAuth {
     signInWithEmailAndPassword(auth, email, password)
       .then(sendIdTokenToServer)
       .then(() => {});
+
+  const sendPasswordResetEmail: SendPasswordResetEmail = ({ email }) =>
+    sendPasswordResetEmailFirebase(auth, email);
+
   const anonymousSignIn = () =>
     signInAnonymously(auth)
       .then(sendIdTokenToServer)
@@ -119,6 +127,7 @@ function useFirebaseAuth(): UseFirebaseAuth {
     anonymousSignIn,
     googleSignIn,
     emailPasswordSignIn,
+    sendPasswordResetEmail,
     signOut: () =>
       signOut(auth)
         .then(async () => await fetch("/logout"))
