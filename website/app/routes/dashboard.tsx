@@ -10,7 +10,8 @@ import {
   useColorMode,
   useColorModeValue,
 } from "@chakra-ui/react";
-import { Outlet } from "@remix-run/react";
+import { Outlet, useNavigate } from "@remix-run/react";
+import { LoaderFunction, redirect } from "@remix-run/server-runtime";
 import { useState } from "react";
 import {
   BsBook,
@@ -18,9 +19,12 @@ import {
   BsGearFill,
   BsKey,
 } from "react-icons/bs";
-import { FiMenu, FiMoon, FiSun } from "react-icons/fi";
+import { FiLogOut, FiMenu, FiMoon, FiSun } from "react-icons/fi";
 import { Footer } from "~/components/footer/Footer";
 import { Logo } from "~/components/Logo";
+import { useFirebaseAuth } from "~/contexts/FirebaseAuthContext";
+import { environmentVariable } from "~/environmentVariable";
+import { requireUserId } from "~/session.server";
 
 const Root = () => {
   return (
@@ -134,6 +138,8 @@ const NavItem = ({ navSize, icon, title, active, disabled }: NavItemProps) => {
 
 const SidebarBottom = () => {
   const { colorMode, toggleColorMode } = useColorMode();
+  const { signOut } = useFirebaseAuth();
+  const navigate = useNavigate();
   return (
     <Flex flexDir="column">
       <IconButton
@@ -141,8 +147,26 @@ const SidebarBottom = () => {
         aria-label="Toggle dark mode"
         onClick={toggleColorMode}
       />
+      <IconButton
+        icon={<FiLogOut />}
+        aria-label="Logout"
+        onClick={() => signOut().then(() => navigate("/"))}
+      />
     </Flex>
   );
 };
 
 export default Root;
+
+export const loader: LoaderFunction = async ({ request }) => {
+  const user = await requireUserId(request);
+  if (
+    user !== null &&
+    (user.email === "thlukrid@gmail.com" ||
+      environmentVariable("PUBLIC_USE_EMULATORS") === "true")
+  ) {
+    return {};
+  } else {
+    return redirect("/login");
+  }
+};

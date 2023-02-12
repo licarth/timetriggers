@@ -14,7 +14,6 @@ export function initializeFirebaseWeb({
 }> = {}) {
   try {
     const existingApp = getApp();
-    console.log("✅ Reusing Firebase App");
     return {
       auth: getAuth(existingApp),
       app: existingApp,

@@ -20,8 +20,7 @@ import React, { useContext, useEffect } from "react";
 import { extendTheme } from "@chakra-ui/react";
 import { ClientStyleContext, ServerStyleContext } from "./context";
 import { initializeFirebaseWeb } from "./initializeFirebaseWeb";
-
-initializeFirebaseWeb({ useEmulators: true });
+import { FirebaseAuthProvider } from "./contexts/FirebaseAuthContext";
 
 export let links: LinksFunction = () => {
   return [
@@ -66,6 +65,11 @@ const Document = withEmotionCache(
       // reset cache to reapply global styles
       clientStyleData?.reset();
     }, []);
+
+    if (typeof document !== "undefined") {
+      // Execute only on client
+      initializeFirebaseWeb({ useEmulators: true });
+    }
 
     return (
       <html lang="en" className="h-full">
@@ -126,8 +130,10 @@ export default function App() {
             : localStorageManager
         }
       >
-        <Outlet />
-        {/* <Footer /> */}
+        <FirebaseAuthProvider>
+          <Outlet />
+          {/* <Footer /> */}
+        </FirebaseAuthProvider>
       </ChakraProvider>
     </Document>
   );

@@ -12,18 +12,17 @@ import {
   Input,
   Stack,
   Text,
-  useColorMode,
 } from "@chakra-ui/react";
 import { Logo } from "../Logo";
 import { OAuthButtonGroup } from "./OAuthButtonGroup";
 import { PasswordField } from "./PasswordField";
 
-import { FirebaseError } from "@firebase/app";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { SubmitHandler, useForm } from "react-hook-form";
-import { useNavigate } from "react-router";
-import { initializeFirebaseWeb } from "~/initializeFirebaseWeb";
 import styled from "@emotion/styled";
+import { FirebaseError } from "@firebase/app";
+import type { SubmitHandler } from "react-hook-form";
+import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router";
+import { useFirebaseAuth } from "~/contexts/FirebaseAuthContext";
 
 type Inputs = {
   email: string;
@@ -31,9 +30,6 @@ type Inputs = {
 };
 
 export const SignIn = () => {
-  const { colorMode, toggleColorMode } = useColorMode();
-
-  const auth = getAuth(initializeFirebaseWeb().app);
   const {
     register,
     handleSubmit,
@@ -42,16 +38,13 @@ export const SignIn = () => {
   } = useForm<Inputs>();
 
   const navigate = useNavigate();
+  const { emailPasswordSignIn } = useFirebaseAuth();
 
-  const onSubmit: SubmitHandler<Inputs> = async (data) => {
-    console.log(data);
+  const onSubmit: SubmitHandler<Inputs> = async ({ email, password }) => {
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        data.email,
-        data.password
-      );
-      navigate("/dashboard");
+      await emailPasswordSignIn({ email, password });
+      console.log("signed in");
+      navigate("/dashboard/tokens");
     } catch (error) {
       if (error instanceof FirebaseError) {
         if (

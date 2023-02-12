@@ -1,8 +1,12 @@
-import { Button } from "@chakra-ui/button";
+import type { LoaderFunction } from "@remix-run/server-runtime";
+import { redirect } from "@remix-run/server-runtime";
+import { requireUserId } from "~/session.server";
 
-import { useOptionalUser } from "~/utils";
-
-export default function Index() {
-  const user = useOptionalUser();
-  return <Button colorScheme="blue">Button</Button>;
-}
+export const loader: LoaderFunction = async ({ request }) => {
+  const user = await requireUserId(request);
+  if (user) {
+    return redirect("/dashboard/tokens");
+  } else {
+    return redirect("/login");
+  }
+};

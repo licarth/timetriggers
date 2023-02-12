@@ -4,7 +4,7 @@ project: do-it-tomorrow
 env:
   HELM_DEPLOYMENT_NAME: do-it-tomorrow
   HELM_NAMESPACE: doi-production
-  DOCKER_IMAGE: europe-west3-docker.pkg.dev/doi-production-licarth/do-it-tomorrow/do-it-tomorrow
+  DOCKER_IMAGE: europe-west3-docker.pkg.dev/doi-production/do-it-tomorrow-licarth/do-it-tomorrow
 
 tasks:
   docker-auth:
