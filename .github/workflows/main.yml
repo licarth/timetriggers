@@ -35,7 +35,8 @@ jobs:
       - name: Build Docker image
         uses: docker/build-push-action@v3
         with:
-          context: .
+          context: ./agent
+          file: ./agent/Dockerfile
           builder: ${{ steps.buildx.outputs.name }}
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: ${{ format('{0}:{1}', env.IMAGE_NAME, github.sha) }},${{ format('{0}:{1}', env.IMAGE_NAME, 'latest') }}
