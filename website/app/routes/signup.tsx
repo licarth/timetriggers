@@ -1,6 +1,6 @@
 import type { LoaderArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { SignIn } from "~/components/login/SignIn";
+import { SignUp } from "~/components/login/SignUp";
 
 export async function loader({ request }: LoaderArgs) {
   // const userId = await getUserId(request);
@@ -10,10 +10,10 @@ export async function loader({ request }: LoaderArgs) {
 
 export const meta: MetaFunction = () => {
   return {
-    title: "Login",
+    title: "Sign Up",
   };
 };
 
-export default function LoginPage() {
-  return <SignIn />;
+export default function SignUpPage() {
+  return <SignUp />;
 }

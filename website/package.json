@@ -24,7 +24,8 @@
     "pretest:e2e:run": "npm run build",
     "test:e2e:run": "cross-env PORT=8811 start-server-and-test start:mocks http://localhost:8811 \"npx cypress run\"",
     "typecheck": "tsc && tsc -p cypress",
-    "validate": "run-p \"test -- --run\" lint typecheck test:e2e:run"
+    "validate": "run-p \"test -- --run\" lint typecheck test:e2e:run",
+    "emulators": "firebase emulators:start --only firestore,auth"
   },
   "prettier": {},
   "eslintIgnore": [
@@ -48,12 +49,15 @@
     "compression": "^1.7.4",
     "cross-env": "^7.0.3",
     "express": "^4.18.2",
+    "firebase": "^9.17.1",
     "framer-motion": "^6.5.1",
     "isbot": "^3.6.5",
     "morgan": "^1.10.0",
     "prom-client": "^14.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-hook-form": "^7.43.1",
+    "react-icons": "^4.7.1",
     "tiny-invariant": "^1.3.1"
   },
   "devDependencies": {
