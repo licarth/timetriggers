@@ -21,6 +21,7 @@ import { extendTheme } from "@chakra-ui/react";
 import { ClientStyleContext, ServerStyleContext } from "./context";
 import { initializeFirebaseWeb } from "./initializeFirebaseWeb";
 import { FirebaseAuthProvider } from "./contexts/FirebaseAuthContext";
+import { environmentVariable } from "./environmentVariable";
 
 export let links: LinksFunction = () => {
   return [
@@ -68,7 +69,9 @@ const Document = withEmotionCache(
 
     if (typeof document !== "undefined") {
       // Execute only on client
-      initializeFirebaseWeb({ useEmulators: true });
+      initializeFirebaseWeb({
+        useEmulators: environmentVariable("PUBLIC_USE_EMULATORS") === "true",
+      });
     }
 
     return (

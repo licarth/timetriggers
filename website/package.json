@@ -16,7 +16,6 @@
     "format": "prettier --write .",
     "generate:css": "tailwindcss -o ./app/styles/tailwind.css",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
-    "setup": "prisma generate && prisma migrate deploy && prisma db seed",
     "start": "cross-env NODE_ENV=production node ./build/server.js",
     "start:mocks": "cross-env NODE_ENV=production node --require ./mocks --require dotenv/config ./build/server.js",
     "test": "vitest",
@@ -52,6 +51,7 @@
     "firebase": "^9.17.1",
     "firebase-admin": "^11.5.0",
     "framer-motion": "^6.5.1",
+    "dotenv": "^16.0.3",
     "isbot": "^3.6.5",
     "morgan": "^1.10.0",
     "prom-client": "^14.1.1",
@@ -84,7 +84,6 @@
     "c8": "^7.12.0",
     "cookie": "^0.5.0",
     "cypress": "^10.11.0",
-    "dotenv": "^16.0.3",
     "esbuild": "^0.17.2",
     "eslint": "^8.32.0",
     "eslint-config-prettier": "^8.6.0",
@@ -107,8 +106,5 @@
   },
   "engines": {
     "node": ">=14"
-  },
-  "prisma": {
-    "seed": "ts-node --require tsconfig-paths/register prisma/seed.ts"
   }
 }
