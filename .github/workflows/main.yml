@@ -106,7 +106,7 @@ jobs:
 
   deploy_website_fly:
     name: Deploy website with fly
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/frontend'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
       run:

@@ -41,11 +41,8 @@ export async function requireUserId(request: Request) {
   const session = await getUserSession(request);
   const sessionCookie = session.get("session_cookie") as string;
   try {
-    return auth
-      .verifySessionCookie(sessionCookie, true)
-      .then((decodedClaims) => {
-        return decodedClaims;
-      });
+    const decodedClaims = await auth.verifySessionCookie(sessionCookie, true);
+    return decodedClaims;
   } catch (e) {
     return null;
   }
