@@ -155,10 +155,6 @@ jobs:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
     steps:
       - uses: actions/checkout@v2
-      - name: gcloud auth
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}"
       - name: install firebase cli
         run: npm install -g firebase-tools gomplate
       - name: install myke
@@ -168,4 +164,5 @@ jobs:
           myke --version
       - run: myke timetriggers/apply_rules
         env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
           NAMESPACE: doi-production
