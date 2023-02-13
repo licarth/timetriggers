@@ -3,6 +3,9 @@ project: timetriggers
 env_files:
   - .env
 
+discover:
+  - agent
+
 tasks:
   apply_rules:
     cmd: |
