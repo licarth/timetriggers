@@ -7,3 +7,4 @@ tasks:
   apply_rules:
     cmd: |
       cat firestore.rules.gotmpl | gomplate > firestore.rules
+      firebase deploy --only firestore:rules
