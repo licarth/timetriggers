@@ -1,0 +1,9 @@
+project: timetriggers
+
+env_files:
+  - .env
+
+tasks:
+  apply_rules:
+    cmd: |
+      cat firestore.rules.gotmpl | gomplate > firestore.rules

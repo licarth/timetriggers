@@ -8,5 +8,9 @@
       "port": "8081",
       "host": "0.0.0.0"
     }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   }
 }
