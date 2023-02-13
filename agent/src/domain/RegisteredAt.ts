@@ -1,7 +1,7 @@
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
 import { fromClassCodec } from "@iots/index.js";
-import { UtcDate } from "./UtcDate";
+import { UtcDate } from "@timetriggers/domain";
 import * as D from "io-ts/lib/Decoder.js";
 
 export class RegisteredAt {

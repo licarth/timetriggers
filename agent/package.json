@@ -25,12 +25,13 @@
     "node-zookeeper-client": "^1.1.3",
     "rxjs": "^7.8.0",
     "source-map-support": "^0.5.21",
-    "tsconfig-paths": "^4.1.1"
+    "tsconfig-paths": "^4.1.1",
+    "@timetriggers/domain": "file:../domain"
   },
   "scripts": {
     "start": "dotenv -e .env node --experimental-loader=newrelic/esm-loader.mjs ./built",
-    "deploy": "flyctl deploy --remote-only",
-    "dev": "nodemon --watch src -e ts,tsx --exec 'npm run build && npm run start'",
+    "deploy": "cp -r ../domain ./copy-of-domain && flyctl deploy --remote-only",
+    "dev": "nodemon --delay 0.5 --watch src --watch ../domain/built -e js,ts,tsx --exec 'npm run build && npm run start'",
     "build": "tsc && resolve-tspaths",
     "test": "dotenv -e .env.test -e.env.test.local jest",
     "emulators": "firebase emulators:start --only firestore",

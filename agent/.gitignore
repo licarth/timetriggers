@@ -7,3 +7,5 @@ firebase-debug.log
 firestore-debug.log
 newrelic_agent.log
 ui-debug.log
+
+copy-of-domain/

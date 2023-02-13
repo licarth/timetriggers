@@ -21,7 +21,7 @@ export class GraphQLBody {
 
   static codec = taggedUnionClassCodec(
     this.propsCodec,
-    "HttpCallCompleted",
+    "GraphQLBody",
     GraphQLBody
   );
 }

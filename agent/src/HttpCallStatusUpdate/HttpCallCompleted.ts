@@ -1,4 +1,4 @@
-import { UtcDate } from "@/domain/UtcDate";
+import { UtcDate } from "@timetriggers/domain";
 import { taggedUnionClassCodec } from "@/iots";
 import * as Codec from "io-ts/lib/Codec.js";
 import { HttpCallResponse } from "./HttpCallResponse";
