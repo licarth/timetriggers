@@ -152,7 +152,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
     steps:
       - uses: actions/checkout@v2
       - name: install firebase cli
@@ -166,4 +166,3 @@ jobs:
       - run: myke timetriggers/apply_rules
         env:
           NAMESPACE: doi-production
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
