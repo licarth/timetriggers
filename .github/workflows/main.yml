@@ -11,14 +11,13 @@ jobs:
     env:
       IMAGE_NAME: europe-west3-docker.pkg.dev/${{ secrets.GOOGLE_PROJECT_ID }}/do-it-tomorrow/do-it-tomorrow
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
       - name: install myke
         run: |
           wget -qO /usr/local/bin/myke https://github.com/omio-labs/myke/releases/download/v1.0.2/myke_linux_amd64
           chmod +x /usr/local/bin/myke
           myke --version
-        working-directory: ./
-      - name: Checkout
-        uses: actions/checkout@v2
       # we first need to install & build the domain
       - run: npm i && npm run build
         working-directory: domain
