@@ -152,7 +152,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
-      GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_DEPLOYMENT_SERVICE_ACCOUNT_KEY }}
     steps:
       - uses: actions/checkout@v2
       - name: install firebase cli
@@ -160,7 +160,7 @@ jobs:
       - name: gcloud auth
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          credentials_json: ${{ secrets.FIREBASE_DEPLOYMENT_SERVICE_ACCOUNT_KEY }}
       - run: firebase use doi-production
       - name: install myke
         run: |
