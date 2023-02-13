@@ -13,6 +13,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      # we first need to install & build the domain
+      - run: npm i && npm run build
+        working-directory: domain
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
@@ -132,6 +135,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      # we first need to install & build the domain
+      - run: npm i && npm run build
+        working-directory: domain
       - name: Cache firebase emulators
         uses: actions/cache@v2
         with:
