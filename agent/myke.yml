@@ -1,5 +1,5 @@
 ---
-project: do-it-tomorrow
+project: agent
 
 env:
   HELM_DEPLOYMENT_NAME: do-it-tomorrow
@@ -52,3 +52,7 @@ tasks:
   logs:
     cmd: |-
       kubectl -n {{ .HELM_NAMESPACE }} logs -f $(kubectl -n {{ .HELM_NAMESPACE }} get pods -l app={{ .HELM_DEPLOYMENT_NAME }} -o name | cut -c5-)
+
+  copy-domain:
+    cmd: |
+      cp -r ../domain ./copy-of-domain

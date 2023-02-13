@@ -11,6 +11,11 @@ jobs:
     env:
       IMAGE_NAME: europe-west3-docker.pkg.dev/${{ secrets.GOOGLE_PROJECT_ID }}/do-it-tomorrow/do-it-tomorrow
     steps:
+      - name: install myke
+        run: |
+          wget -qO /usr/local/bin/myke https://github.com/omio-labs/myke/releases/download/v1.0.2/myke_linux_amd64
+          chmod +x /usr/local/bin/myke
+          myke --version
       - name: Checkout
         uses: actions/checkout@v2
       # we first need to install & build the domain
@@ -35,6 +40,8 @@ jobs:
       - name: setup docker cli for gcloud
         run: |
           gcloud auth configure-docker europe-west3-docker.pkg.dev
+      - run: myke copy-domain
+        working-directory: ./
       - name: Build Docker image
         uses: docker/build-push-action@v3
         with:
@@ -163,6 +170,11 @@ jobs:
     env:
       GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_DEPLOYMENT_SERVICE_ACCOUNT_KEY }}
     steps:
+      - name: install myke
+        run: |
+          wget -qO /usr/local/bin/myke https://github.com/omio-labs/myke/releases/download/v1.0.2/myke_linux_amd64
+          chmod +x /usr/local/bin/myke
+          myke --version
       - uses: actions/checkout@v2
       - name: install firebase cli
         run: npm install -g firebase-tools gomplate
@@ -171,11 +183,7 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_DEPLOYMENT_SERVICE_ACCOUNT_KEY }}
       - run: firebase use doi-production
-      - name: install myke
-        run: |
-          wget -qO /usr/local/bin/myke https://github.com/omio-labs/myke/releases/download/v1.0.2/myke_linux_amd64
-          chmod +x /usr/local/bin/myke
-          myke --version
+
       - run: myke timetriggers/apply_rules
         env:
           NAMESPACE: doi-production
