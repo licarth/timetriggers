@@ -45,7 +45,7 @@ export const SignUp = () => {
     console.log(data);
     try {
       await createUserWithEmailAndPassword(auth, data.email, data.password);
-      navigate("/dashboard");
+      navigate("/projects");
     } catch (error) {
       if (error instanceof FirebaseError) {
         if (error.code === "auth/email-already-in-use") {

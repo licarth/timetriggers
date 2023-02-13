@@ -8,10 +8,12 @@ FROM base as deps
 RUN mkdir /app
 WORKDIR /app
 
+####### 
 ADD package.json package-lock.json ./
 ADD copy-of-domain ./copy-of-domain
 # replace package @timetriggers/domain with local link
 RUN json -I -f package.json -e "this.dependencies[\"@timetriggers/domain\"]=\"file:./copy-of-domain\""
+#######
 
 RUN npm install --production=false
 
@@ -23,9 +25,12 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules /app/node_modules
 
-ADD copy-of-domain ./copy-of-domain
+####### 
 ADD package.json package-lock.json ./
+ADD copy-of-domain ./copy-of-domain
+# replace package @timetriggers/domain with local link
 RUN json -I -f package.json -e "this.dependencies[\"@timetriggers/domain\"]=\"file:./copy-of-domain\""
+#######
 
 RUN npm prune --production
 

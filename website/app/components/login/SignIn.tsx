@@ -43,7 +43,7 @@ export const SignIn = () => {
   const onSubmit: SubmitHandler<Inputs> = async ({ email, password }) => {
     try {
       await emailPasswordSignIn({ email, password });
-      navigate("/dashboard/tokens");
+      navigate("/projects");
     } catch (error) {
       if (error instanceof FirebaseError) {
         if (

@@ -1,5 +1,6 @@
 # base node image
 FROM node:16-bullseye-slim as base
+RUN npm install -g json
 
 # set for base and all layer that inherit from it
 ENV NODE_ENV production
@@ -12,7 +13,13 @@ FROM base as deps
 
 WORKDIR /myapp
 
+#######
 ADD package.json package-lock.json .npmrc ./
+ADD copy-of-domain ./copy-of-domain
+# replace package @timetriggers/domain with local link
+RUN json -I -f package.json -e "this.dependencies[\"@timetriggers/domain\"]=\"file:./copy-of-domain\""
+#######
+
 RUN npm install --production=false
 
 # Setup production node_modules
@@ -21,7 +28,14 @@ FROM base as production-deps
 WORKDIR /myapp
 
 COPY --from=deps /myapp/node_modules /myapp/node_modules
+
+####### 
 ADD package.json package-lock.json .npmrc ./
+ADD copy-of-domain ./copy-of-domain
+# replace package @timetriggers/domain with local link
+RUN json -I -f package.json -e "this.dependencies[\"@timetriggers/domain\"]=\"file:./copy-of-domain\""
+#######
+
 RUN npm prune --production
 
 # Build the app

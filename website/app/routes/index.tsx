@@ -5,7 +5,7 @@ import { requireUserId } from "~/session.server";
 export const loader: LoaderFunction = async ({ request }) => {
   const user = await requireUserId(request);
   if (user) {
-    return redirect("/dashboard/tokens");
+    return redirect("/projects");
   } else {
     return redirect("/login");
   }
