@@ -42,7 +42,6 @@ export const SignUp = () => {
   const navigate = useNavigate();
 
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
-    console.log(data);
     try {
       await createUserWithEmailAndPassword(auth, data.email, data.password);
       navigate("/projects");

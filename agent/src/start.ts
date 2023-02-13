@@ -39,7 +39,7 @@ export const start = (props: StartProps) =>
         serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT,
       }).firestore,
       namespace: props.namespace,
-      rootDocumentPath: `/${props.namespace}/tasks`,
+      rootDocumentPath: `/namespaces/${props.namespace}/jobs/by-status`,
     }),
     RTE.bind("datastore", ({ firestore, rootDocumentPath }) =>
       RTE.of(

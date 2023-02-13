@@ -1,21 +1,31 @@
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
 import { fromClassCodec } from "@iots/index.js";
-import { ProjectOwner } from "./ProjectOwner";
+import { ProjectOwnerId } from "./ProjectOwnerId";
+import { ApiKey } from "./ApiKey";
 
 export class Project {
   id;
-  owner;
+  ownerId;
+  apiKeys;
 
   constructor(props: ProjectProps) {
     this.id = props.id;
-    this.owner = props.owner;
+    this.ownerId = props.ownerId;
+    this.apiKeys = props.apiKeys;
   }
 
-  static propsCodec = Codec.struct({
-    id: Codec.string,
-    owner: ProjectOwner.codec,
-  });
+  static propsCodec = pipe(
+    Codec.struct({
+      id: Codec.string,
+      ownerId: ProjectOwnerId.codec,
+    }),
+    Codec.intersect(
+      Codec.partial({
+        apiKeys: Codec.array(ApiKey.codec),
+      })
+    )
+  );
 
   static codec = pipe(
     Project.propsCodec,

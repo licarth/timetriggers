@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "built/esm",
+    "module": "ES6"
+  },
+  "include": ["src/**/*"]
+}

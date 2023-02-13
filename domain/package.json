@@ -1,22 +1,25 @@
 {
   "name": "@timetriggers/domain",
-  "type": "module",
-  "main": "built/index.js",
+  "main": "built/cjs/index.js",
+  "module": "built/esm/index.js",
   "version": "1.0.0",
   "dependencies": {
+    "firebase": "^9.17.1",
     "firebase-admin": "^11.5.0",
     "fp-ts": "^2.12.3",
-    "io-ts": "^2.2.18"
+    "io-ts": "^2.2.18",
+    "lodash": "^4.17.21"
   },
   "scripts": {
-    "build": "tsc && resolve-tspaths",
+    "build": "tsc --project tsconfig.esm.json && tsc --project tsconfig.cjs.json && resolve-tspaths -p tsconfig.esm.json && resolve-tspaths -p tsconfig.cjs.json",
     "dev": "nodemon --watch src -e ts,tsx --exec 'npm run build'"
   },
   "devDependencies": {
     "@types/jest": "^29.2.4",
+    "@types/lodash": "^4.14.191",
     "jest": "^29.4.0",
     "nodemon": "^2.0.20",
-    "typescript": "^4.9.3",
-    "resolve-tspaths": "^0.8.3"
+    "resolve-tspaths": "^0.8.3",
+    "typescript": "^4.9.3"
   }
 }

@@ -4,4 +4,4 @@ export * from "./Organization";
 export * from "./OrganizationId";
 export * from "./Project";
 export * from "./ProjectId";
-export * from "./ProjectOwner";
+export * from "./ProjectOwnerId";

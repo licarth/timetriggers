@@ -1,15 +1,28 @@
-import { stringOpaqueCodec } from "@/iots";
+import { taggedUnionClassCodec } from "@iots/index.js";
 import * as Codec from "io-ts/lib/Codec.js";
 
-export namespace OrganizationId {
-  export const codec = stringOpaqueCodec("OrganizationId");
-  export const factory = (): OrganizationId => {
-    return `org-${randomString(8)}` as OrganizationId;
-  };
+export class OrganizationId {
+  _tag = "OrganizationId" as const;
+  _props;
+
+  id;
+
+  constructor(props: OrganizationIdProps) {
+    this._props = props;
+    this.id = props.id;
+  }
+
+  static propsCodec = Codec.struct({
+    id: Codec.string,
+  });
+
+  static codec = taggedUnionClassCodec(
+    this.propsCodec,
+    "OrganizationId",
+    OrganizationId
+  );
 }
 
-const randomString = (length: number): string => {
-  return Math.random().toString(36).substr(2, length);
-};
-
-export type OrganizationId = Codec.TypeOf<typeof OrganizationId.codec>;
+export type OrganizationIdProps = Codec.TypeOf<
+  typeof OrganizationId.propsCodec
+>;
