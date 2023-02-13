@@ -1,0 +1,47 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "queued",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "shards",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "jobDefinition.scheduledAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "registered",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "shards",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "jobDefinition.scheduledAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "registered",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "shards",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "registeredAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
