@@ -155,13 +155,9 @@ jobs:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
     steps:
       - uses: actions/checkout@v2
-      - name: gcloud auth
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
-
       - name: install firebase cli
         run: npm install -g firebase-tools gomplate
+      - run: firebase use doi-production
       - name: install myke
         run: |
           wget -qO /usr/local/bin/myke https://github.com/omio-labs/myke/releases/download/v1.0.2/myke_linux_amd64
@@ -170,3 +166,4 @@ jobs:
       - run: myke timetriggers/apply_rules
         env:
           NAMESPACE: doi-production
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
