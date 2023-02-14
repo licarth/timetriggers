@@ -135,7 +135,7 @@ jobs:
       - run: npm run deploy
 
   tests:
-    name: Run tests
+    name: Run agent tests
     defaults:
       run:
         working-directory: agent
@@ -160,7 +160,6 @@ jobs:
         with:
           node-version: 18
           cache: "npm"
-          cache-dependency-path: ./agent/package-lock.json
       - name: Install dependencies
         run: npm ci
       - name: Run tests
