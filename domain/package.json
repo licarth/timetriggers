@@ -4,7 +4,7 @@
   "module": "built/esm/index.js",
   "version": "1.0.0",
   "dependencies": {
-    "firebase": "^9.17.1",
+    "bcryptjs": "^2.4.3",
     "firebase-admin": "^11.5.0",
     "fp-ts": "^2.12.3",
     "io-ts": "^2.2.18",
@@ -15,6 +15,7 @@
     "dev": "nodemon --watch src -e ts,tsx --exec 'npm run build'"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.2",
     "@types/jest": "^29.2.4",
     "@types/lodash": "^4.14.191",
     "jest": "^29.4.0",

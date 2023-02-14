@@ -23,5 +23,5 @@ export const getProject = ({ projectId }: { projectId: ProjectId }) =>
         (reason) => new Error(String(reason))
       )
     ),
-    RTE.chainEitherKW(Project.codec.decode)
+    RTE.chainEitherKW(Project.codec("firestore").decode)
   );

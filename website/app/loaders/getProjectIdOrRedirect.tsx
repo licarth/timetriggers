@@ -7,6 +7,7 @@ export const getProjectIdOrRedirect = (
   projectId: string | undefined,
   redirectTo: string
 ) => {
+  console.log("getProjectIdOrRedirect", projectId);
   if (projectId === undefined) {
     return RTE.left(redirect(redirectTo));
   }

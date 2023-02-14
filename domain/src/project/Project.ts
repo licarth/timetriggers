@@ -4,6 +4,7 @@ import { fromClassCodec } from "@iots/index.js";
 import { ProjectOwnerId } from "./ProjectOwnerId";
 import { ApiKey } from "./ApiKey";
 import { FirebaseUserId } from "./FirebaseUserId";
+import { CodecType } from "./CodecType";
 
 export class Project {
   id;
@@ -41,24 +42,23 @@ export class Project {
     );
   }
 
-  static propsCodec = pipe(
-    Codec.struct({
-      id: Codec.string,
-      ownerId: ProjectOwnerId.codec,
-    }),
-    Codec.intersect(
-      Codec.partial({
-        readerIds: Codec.array(FirebaseUserId.codec),
-        editorIds: Codec.array(FirebaseUserId.codec),
-        apiKeys: Codec.array(ApiKey.codec),
-      })
-    )
-  );
+  static propsCodec = (codecType?: CodecType) =>
+    pipe(
+      Codec.struct({
+        id: Codec.string,
+        ownerId: ProjectOwnerId.codec,
+      }),
+      Codec.intersect(
+        Codec.partial({
+          readerIds: Codec.array(FirebaseUserId.codec),
+          editorIds: Codec.array(FirebaseUserId.codec),
+          apiKeys: Codec.array(ApiKey.codec(codecType)),
+        })
+      )
+    );
 
-  static codec = pipe(
-    Project.propsCodec,
-    Codec.compose(fromClassCodec(Project))
-  );
+  static codec = (codecType?: CodecType) =>
+    pipe(Project.propsCodec(codecType), Codec.compose(fromClassCodec(Project)));
 }
 
-export type ProjectProps = Codec.TypeOf<typeof Project.propsCodec>;
+export type ProjectProps = Codec.TypeOf<ReturnType<typeof Project.propsCodec>>;

@@ -47,7 +47,7 @@ export const hasAccessToProject = ({
             snapshots.map((snapshot) =>
               pipe(
                 snapshot.docs.map((doc) =>
-                  pipe(doc.data(), Project.codec.decode)
+                  pipe(doc.data(), Project.codec("firestore").decode)
                 ),
                 e.split,
                 ({ successes, errors }) => {

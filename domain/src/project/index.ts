@@ -5,3 +5,4 @@ export * from "./OrganizationId";
 export * from "./Project";
 export * from "./ProjectId";
 export * from "./ProjectOwnerId";
+export * from "./ApiKey";
