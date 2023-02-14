@@ -129,6 +129,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: superfly/flyctl-actions/setup-flyctl@master
+      # we first need to install & build the domain
+      - run: npm i && npm run build
+        working-directory: domain
       - run: npm run deploy
 
   tests:
