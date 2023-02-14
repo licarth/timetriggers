@@ -118,7 +118,7 @@ jobs:
       - name: 🌳 Cypress run
         uses: cypress-io/github-action@v5
         with:
-          start: npm run start:mocks
+          start: npm run start:mocks # @licarth note to self I removed Mocks
           wait-on: "http://localhost:8811"
         env:
           PORT: "8811"

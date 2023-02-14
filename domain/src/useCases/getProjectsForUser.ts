@@ -1,6 +1,7 @@
 import { e } from "@/fp-ts";
 import { FirebaseUserId, Project } from "@/project";
-import type {} from "firebase-admin";
+import type { auth } from "firebase-admin";
+import { UserImportBuilder } from "firebase-admin/lib/auth/user-import-builder";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
@@ -9,25 +10,32 @@ import _ from "lodash";
 
 type Dependencies = {
   firestore: FirebaseFirestore.Firestore;
+  auth: auth.Auth;
   namespace: string;
 };
 
 export const getProjectsForUser = (userId: FirebaseUserId) =>
   pipe(
     RTE.ask<Dependencies>(),
-    RTE.chainW(({ firestore, namespace }) =>
+    RTE.chainW(({ firestore, namespace, auth }) =>
       TE.tryCatchK(
         async () => {
+          const user = await auth.getUser(userId.id);
+          // console.log(user);
           const ownedProjects = firestore
             .collection(`/namespaces/${namespace}/projects`)
             .where("ownerId.id", "==", userId.id);
           const readerProjects = firestore
             .collection(`/namespaces/${namespace}/projects`)
             .where("readerIds", "array-contains", userId);
+          const editorProjects = firestore
+            .collection(`/namespaces/${namespace}/projects`)
+            .where("editorIds", "array-contains", userId);
 
           const snapshots = await Promise.all([
             ownedProjects.get(),
             readerProjects.get(),
+            editorProjects.get(),
           ]);
 
           return _.flatMap(
@@ -47,8 +55,7 @@ export const getProjectsForUser = (userId: FirebaseUserId) =>
             )
           );
         },
-        //@ts-ignore
-        (reason) => new Error(String(reason.stack))
+        (reason) => new Error(String(reason))
       )
     )
   );

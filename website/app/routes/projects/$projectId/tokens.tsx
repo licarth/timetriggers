@@ -14,6 +14,11 @@ import {
 } from "@chakra-ui/react";
 import { BsFillTrash2Fill } from "react-icons/bs";
 
+export const loader = async () => {
+  // Get project details
+  return {};
+};
+
 const Document = () => {
   const bgColor = useColorModeValue("white", "gray.900");
 

@@ -1,3 +1,5 @@
-import { Text } from "@chakra-ui/react";
+import { redirect } from "@remix-run/server-runtime";
 
-export default () => <Text>You are in project root.</Text>;
+export const loader = async () => {
+  return redirect("tokens");
+};
