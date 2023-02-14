@@ -1,25 +1,16 @@
-import { Box, Card, Flex, Heading, useColorModeValue } from "@chakra-ui/react";
+import { Card, Flex, Heading, useColorModeValue } from "@chakra-ui/react";
 import { Link, useLoaderData } from "@remix-run/react";
 import type { FirebaseUserId } from "@timetriggers/domain";
 import { getProjectsForUser, te } from "@timetriggers/domain";
-import { environmentVariable } from "~/environmentVariable";
-import { initializeApp } from "~/initializeFirebaseNode.server";
+import { buildDeps } from "~/buildDeps.server";
 
 export const loader = async () => {
-  const { firestore, auth } = initializeApp();
-  const namespace = environmentVariable("PUBLIC_NAMESPACE");
-
-  // // Create a default project if user does not already have one.
-  console.log("namespace", namespace);
+  // TODO: Create a default project if user does not already have one.
   const projects = await te.unsafeGetOrThrow(
     getProjectsForUser({
       _tag: "FirebaseUserId",
       id: "3awfh5hhDUYtWqzvRSvXTFvQT0I2",
-    } as unknown as FirebaseUserId)({
-      firestore,
-      namespace: environmentVariable("PUBLIC_NAMESPACE"),
-      auth,
-    })
+    } as unknown as FirebaseUserId)(buildDeps())
   );
   return { projects };
 };

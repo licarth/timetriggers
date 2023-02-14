@@ -3,16 +3,42 @@ import * as Codec from "io-ts/lib/Codec.js";
 import { fromClassCodec } from "@iots/index.js";
 import { ProjectOwnerId } from "./ProjectOwnerId";
 import { ApiKey } from "./ApiKey";
+import { FirebaseUserId } from "./FirebaseUserId";
 
 export class Project {
   id;
   ownerId;
+  readerIds;
+  editorIds;
   apiKeys;
 
   constructor(props: ProjectProps) {
     this.id = props.id;
     this.ownerId = props.ownerId;
+    this.readerIds = props.readerIds;
+    this.editorIds = props.editorIds;
     this.apiKeys = props.apiKeys;
+  }
+
+  isReader(userId: FirebaseUserId) {
+    return (
+      this.isOwner(userId) ||
+      this.isEditor(userId) ||
+      this.editorIds?.some((editorId) => editorId.id === userId.id)
+    );
+  }
+
+  isEditor(userId: FirebaseUserId) {
+    return (
+      this.isOwner(userId) ||
+      this.readerIds?.some((readerId) => readerId.id === userId.id)
+    );
+  }
+
+  isOwner(userId: FirebaseUserId) {
+    return (
+      this.ownerId._tag === "FirebaseUserId" && this.ownerId.id === userId.id
+    );
   }
 
   static propsCodec = pipe(
@@ -22,6 +48,8 @@ export class Project {
     }),
     Codec.intersect(
       Codec.partial({
+        readerIds: Codec.array(FirebaseUserId.codec),
+        editorIds: Codec.array(FirebaseUserId.codec),
         apiKeys: Codec.array(ApiKey.codec),
       })
     )
