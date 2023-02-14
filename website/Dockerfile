@@ -7,10 +7,6 @@ ENV NODE_ENV production
 
 # Install openssl for Prisma
 RUN apt-get update && apt-get install -y openssl
-
-# Install all node_modules, including dev dependencies
-FROM base as deps
-
 WORKDIR /myapp
 
 #######
@@ -19,22 +15,16 @@ ADD copy-of-domain ./copy-of-domain
 # replace package @timetriggers/domain with local link
 RUN json -I -f package.json -e "this.dependencies[\"@timetriggers/domain\"]=\"file:./copy-of-domain\""
 #######
+
+# Install all node_modules, including dev dependencies
+FROM base as deps
 
 RUN npm install --production=false
 
 # Setup production node_modules
 FROM base as production-deps
 
-WORKDIR /myapp
-
 COPY --from=deps /myapp/node_modules /myapp/node_modules
-
-####### 
-ADD package.json package-lock.json .npmrc ./
-ADD copy-of-domain ./copy-of-domain
-# replace package @timetriggers/domain with local link
-RUN json -I -f package.json -e "this.dependencies[\"@timetriggers/domain\"]=\"file:./copy-of-domain\""
-#######
 
 RUN npm prune --production
 
