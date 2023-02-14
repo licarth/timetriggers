@@ -5,5 +5,5 @@ node_modules
 .cache
 public/build
 build
-postgres-data
+postgres-data/
 copy-of-domain/node_modules
