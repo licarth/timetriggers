@@ -160,6 +160,7 @@ jobs:
         with:
           node-version: 18
           cache: "npm"
+          cache-dependency-path: ./agent/package-lock.json
       - name: Install dependencies
         run: npm ci
       - name: Run tests
