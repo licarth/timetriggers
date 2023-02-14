@@ -36,6 +36,12 @@ WORKDIR /myapp
 COPY --from=deps /myapp/node_modules /myapp/node_modules
 
 ADD . .
+#######
+ADD copy-of-domain ./copy-of-domain
+# replace package @timetriggers/domain with local link
+RUN json -I -f package.json -e "this.dependencies[\"@timetriggers/domain\"]=\"file:./copy-of-domain\""
+#######
+
 RUN npm run build
 
 # Finally, build the production image with minimal footprint
