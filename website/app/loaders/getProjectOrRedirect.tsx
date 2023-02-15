@@ -1,14 +1,14 @@
 import { redirect } from "@remix-run/server-runtime";
-import type { ProjectId } from "@timetriggers/domain";
-import { getProject } from "@timetriggers/domain";
+import type { ProjectSlug } from "@timetriggers/domain";
+import { getProjectBySlug } from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 
-export const getProjectOrRedirect = (
-  { projectId }: { projectId: ProjectId },
+export const getProjectBySlugOrRedirect = (
+  { projectSlug }: { projectSlug: ProjectSlug },
   redirectTo: string
 ) =>
   pipe(
-    getProject({ projectId }),
+    getProjectBySlug({ projectSlug }),
     RTE.orElse(() => RTE.left(redirect(redirectTo)))
   );

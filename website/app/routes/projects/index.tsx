@@ -1,34 +1,61 @@
-import { Card, Flex, Heading, useColorModeValue } from "@chakra-ui/react";
+import {
+  Card,
+  Flex,
+  Heading,
+  Stack,
+  Text,
+  useColorModeValue,
+} from "@chakra-ui/react";
 import { Link, useLoaderData } from "@remix-run/react";
-import type { FirebaseUserId } from "@timetriggers/domain";
-import { getProjectsForUser, te } from "@timetriggers/domain";
-import { buildDeps } from "~/buildDeps.server";
+import { LoaderFunction, redirect } from "@remix-run/server-runtime";
+import { e, getProjectsForUser, Project } from "@timetriggers/domain";
+import { pipe } from "fp-ts/lib/function";
+import * as RTE from "fp-ts/lib/ReaderTaskEither";
+import * as C from "io-ts/lib/Codec.js";
+import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
+import { loaderFromRte } from "~/utils/loaderFromRte.server";
 
-export const loader = async () => {
-  // TODO: Create a default project if user does not already have one.
-  const projects = await te.unsafeGetOrThrow(
-    getProjectsForUser({
-      _tag: "FirebaseUserId",
-      id: "3awfh5hhDUYtWqzvRSvXTFvQT0I2",
-    } as unknown as FirebaseUserId)(buildDeps())
+const wireCodec = C.array(Project.codec("string"));
+
+export const loader: LoaderFunction = async ({ request }) =>
+  loaderFromRte(
+    pipe(
+      RTE.Do,
+      RTE.bind("user", () => getUserOrRedirect(request, "/login")),
+      RTE.chainW(({ user }) => getProjectsForUser(user.id)),
+      RTE.filterOrElseW(
+        (projects) => projects.length !== 1,
+        (projects) => redirect(`/projects/${projects[0].slug}`)
+      ),
+      RTE.map((projects) => wireCodec.encode(projects))
+    )
   );
-  return { projects };
-};
 
 const Document = () => {
-  const { projects } = useLoaderData<typeof loader>();
+  const projects = e.unsafeGetOrThrow(pipe(useLoaderData(), wireCodec.decode));
 
   const bgColor = useColorModeValue("white", "gray.800");
   return (
-    <Flex bgColor={bgColor}>
-      {projects.map((project) => (
-        <Card m="5" p={10} size="sm" key={project.id}>
-          <Heading size="sm">
-            <Link to={project.id}>{String(project.id)}</Link>
-          </Heading>
-        </Card>
-      ))}
-    </Flex>
+    <Stack m={16} spacing={8}>
+      <Text>
+        🎉 You are a participant in more than one timetriggers.io project !
+        Please select below which project you'd like to see.
+      </Text>
+      <Flex bgColor={bgColor}>
+        {projects.map((project) => (
+          <Card
+            key={project.id}
+            to={project.slug}
+            as={Link}
+            m={15}
+            p={8}
+            size="sm"
+          >
+            <Heading size="sm">{String(project.slug)}</Heading>
+          </Card>
+        ))}
+      </Flex>
+    </Stack>
   );
 };
 

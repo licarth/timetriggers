@@ -1,8 +1,21 @@
 import { Flex } from "@chakra-ui/react";
-import { MenuEl } from "./MenuEl";
+import { useLocation } from "@remix-run/react";
+import type { FirebaseUser, Project } from "@timetriggers/domain";
+import { MenuElements } from "./MenuEl";
 import { SidebarBottom } from "./SidebarBottom";
 
-export const Sidebar = () => {
+type SidebarProps = {
+  user?: FirebaseUser;
+  projects?: Project[];
+};
+
+export const Sidebar = ({ user, projects }: SidebarProps) => {
+  const { pathname } = useLocation();
+
+  const selectedProjectSlug = pathname.startsWith("/projects/")
+    ? pathname.split("/")[2]
+    : undefined;
+
   return (
     <Flex
       pos="sticky"
@@ -12,7 +25,11 @@ export const Sidebar = () => {
       justifyContent={"space-between"}
       boxShadow="0 4px 12px 0 rgba(0,0,0,0.5)"
     >
-      <MenuEl />
+      <MenuElements
+        user={user}
+        projects={projects}
+        selectedProjectSlug={selectedProjectSlug}
+      />
       <SidebarBottom />
     </Flex>
   );

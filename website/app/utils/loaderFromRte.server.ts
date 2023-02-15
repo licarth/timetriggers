@@ -8,7 +8,16 @@ export const loaderFromRte = async <U>(
   rte: RTE.ReaderTaskEither<ReturnType<typeof buildDeps>, any, U>
 ) => {
   const result = rte(buildDeps());
-  return await te.unsafeGetOrThrow(result);
+  return await te.unsafeGetOrThrow(
+    pipe(
+      result,
+      TE.mapLeft((e) => {
+        // TODO if this is a DecodeError, we want to draw it properly
+        console.log(`ERROR !`, e); // TODO send to sentry
+        return e;
+      })
+    )
+  );
 };
 
 export const actionFromRte = async <U>(
@@ -17,11 +26,12 @@ export const actionFromRte = async <U>(
   const result = rte(buildDeps());
   return await te.unsafeGetOrThrow(
     pipe(
-      result,
-      TE.mapLeft((e) => {
-        // TODO if this is a DecodeError, we want to draw it properly
-        return e;
-      })
+      result
+      // TE.mapLeft((e) => {
+      //   // TODO if this is a DecodeError, we want to draw it properly
+      //   console.log(e); // TODO send to sentry
+      //   return e;
+      // })
     )
   );
 };

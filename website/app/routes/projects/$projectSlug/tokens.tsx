@@ -30,8 +30,8 @@ import * as C from "io-ts/lib/Codec";
 import { draw } from "io-ts/lib/Decoder";
 import { BsFillTrash2Fill } from "react-icons/bs";
 import { match } from "ts-pattern";
-import { getProjectIdOrRedirect } from "~/loaders/getProjectIdOrRedirect";
-import { getProjectOrRedirect } from "~/loaders/getProjectOrRedirect";
+import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
+import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte.server";
 
@@ -39,13 +39,12 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   return loaderFromRte(
     pipe(
       RTE.Do,
-      RTE.bind("projectId", () =>
-        getProjectIdOrRedirect(params.projectId, "projects")
+      RTE.bind("projectSlug", () =>
+        getProjectSlugOrRedirect(params.projectSlug, "/projects")
       ),
       RTE.bind("user", () => getUserOrRedirect(request)),
-      (x) => x,
-      RTE.bindW("project", ({ projectId }) =>
-        getProjectOrRedirect({ projectId }, "..")
+      RTE.bindW("project", ({ projectSlug }) =>
+        getProjectBySlugOrRedirect({ projectSlug }, "..")
       ),
       RTE.map(({ user, project }) => {
         if (project && project.isReader(user.id)) {
@@ -67,14 +66,14 @@ export const loader: LoaderFunction = async ({ params, request }) => {
 export const action: ActionFunction = ({ params, request }) => {
   return actionFromRte(
     pipe(
-      RTE.of(1),
-      RTE.bindW("projectId", () =>
-        getProjectIdOrRedirect(params.projectId, "projects")
+      RTE.Do,
+      RTE.bindW("projectSlug", () =>
+        getProjectSlugOrRedirect(params.projectSlug, "projects")
       ),
       RTE.bindW("user", () => getUserOrRedirect(request)),
       (x) => x,
-      RTE.bindW("project", ({ projectId }) =>
-        getProjectOrRedirect({ projectId }, "..")
+      RTE.bindW("project", ({ projectSlug }) =>
+        getProjectBySlugOrRedirect({ projectSlug }, "..")
       ),
       RTE.bindW("apiKey", () =>
         pipe(
@@ -89,10 +88,10 @@ export const action: ActionFunction = ({ params, request }) => {
         )
       ),
       RTE.chainW(
-        (args) =>
+        ({ apiKey, project: { id: projectId } }) =>
           match(request.method)
-            .with("POST", () => storeApiKey(args))
-            .with("DELETE", () => deleteApiKey(args))
+            .with("POST", () => storeApiKey({ apiKey, projectId }))
+            .with("DELETE", () => deleteApiKey({ apiKey, projectId }))
             .otherwise(() =>
               RTE.left("Unexpected response")
             ) as RTE.ReaderTaskEither<any, Error | string, any> // TODO @licarth - fix this. Don't know why we have to type this

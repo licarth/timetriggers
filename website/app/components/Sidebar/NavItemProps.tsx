@@ -8,4 +8,5 @@ export type NavItemProps = {
   icon: As<any>;
   active?: boolean;
   disabled?: boolean;
+  comingSoon?: boolean;
 };

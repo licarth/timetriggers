@@ -1,15 +1,20 @@
 import { redirect } from "@remix-run/server-runtime";
-import { ProjectId } from "@timetriggers/domain";
+import { ProjectSlug } from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 
-export const getProjectIdOrRedirect = (
-  projectId: string | undefined,
+export const getProjectSlugOrRedirect = (
+  rawProjectSlug: string | undefined,
   redirectTo: string
 ) => {
-  console.log("getProjectIdOrRedirect", projectId);
-  if (projectId === undefined) {
+  if (rawProjectSlug === undefined) {
     return RTE.left(redirect(redirectTo));
   }
-  return pipe(ProjectId.parse(projectId), RTE.fromEither);
+  return pipe(
+    ProjectSlug.parse(rawProjectSlug), // Parse the slug
+    RTE.fromEither,
+    RTE.orElseW(() => {
+      return RTE.left(redirect(redirectTo));
+    })
+  );
 };

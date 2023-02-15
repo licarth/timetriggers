@@ -34,8 +34,6 @@ export const deleteApiKey = ({
             );
           },
           (reason) => {
-            //@ts-ignore
-            // console.log(reason.stack);
             console.log("error", reason);
             return new Error(String(reason));
           }

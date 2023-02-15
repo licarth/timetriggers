@@ -5,10 +5,14 @@
   "version": "1.0.0",
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "firebase-admin": "^11.5.0",
     "fp-ts": "^2.12.3",
     "io-ts": "^2.2.18",
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "uuidv4": "^6.2.13"
+  },
+  "peerDependencies": {
+    "firebase-admin": "^11.5.0",
+    "ts-pattern": "^4.1.4"
   },
   "scripts": {
     "build": "tsc --project tsconfig.esm.json && tsc --project tsconfig.cjs.json && resolve-tspaths -p tsconfig.esm.json && resolve-tspaths -p tsconfig.cjs.json",

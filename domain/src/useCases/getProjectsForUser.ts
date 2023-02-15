@@ -1,7 +1,6 @@
 import { e } from "@/fp-ts";
 import { FirebaseUserId, Project } from "@/project";
 import type { auth } from "firebase-admin";
-import { UserImportBuilder } from "firebase-admin/lib/auth/user-import-builder";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
@@ -20,17 +19,18 @@ export const getProjectsForUser = (userId: FirebaseUserId) =>
     RTE.chainW(({ firestore, namespace, auth }) =>
       TE.tryCatchK(
         async () => {
-          const user = await auth.getUser(userId.id);
+          const serializedUserId = FirebaseUserId.codec.encode(userId);
+          const user = await auth.getUser(serializedUserId.id);
           // console.log(user);
           const ownedProjects = firestore
             .collection(`/namespaces/${namespace}/projects`)
-            .where("ownerId.id", "==", userId.id);
+            .where("ownerId.id", "==", serializedUserId.id);
           const readerProjects = firestore
             .collection(`/namespaces/${namespace}/projects`)
-            .where("readerIds", "array-contains", userId);
+            .where("readerIds", "array-contains", serializedUserId);
           const editorProjects = firestore
             .collection(`/namespaces/${namespace}/projects`)
-            .where("editorIds", "array-contains", userId);
+            .where("editorIds", "array-contains", serializedUserId);
 
           const snapshots = await Promise.all([
             ownedProjects.get(),

@@ -4,12 +4,17 @@ import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import { getUser } from "./getUser";
 
-export const getUserOrRedirect = (request: LoaderArgs["request"]) =>
+export const getUserOrRedirect = (
+  request: LoaderArgs["request"],
+  redirectTo?: string
+) =>
   pipe(
     getUser(request),
     RTE.fromTaskEither,
-    RTE.orElse(() => RTE.left(redirect("login"))),
+    RTE.orElse(() => RTE.left(redirect(redirectTo || "login"))),
     RTE.chainW((user) =>
-      user === null ? RTE.left(redirect("login")) : RTE.right(user)
+      user === null
+        ? RTE.left(redirect(redirectTo || "login"))
+        : RTE.right(user)
     )
   );

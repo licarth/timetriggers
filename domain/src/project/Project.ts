@@ -5,9 +5,12 @@ import { ProjectOwnerId } from "./ProjectOwnerId";
 import { ApiKey } from "./ApiKey";
 import { FirebaseUserId } from "./FirebaseUserId";
 import { CodecType } from "./CodecType";
+import { ProjectSlug } from "./ProjectSlug";
+import { ProjectId } from "./ProjectId";
 
 export class Project {
   id;
+  slug;
   ownerId;
   readerIds;
   editorIds;
@@ -15,6 +18,7 @@ export class Project {
 
   constructor(props: ProjectProps) {
     this.id = props.id;
+    this.slug = props.slug;
     this.ownerId = props.ownerId;
     this.readerIds = props.readerIds;
     this.editorIds = props.editorIds;
@@ -45,7 +49,8 @@ export class Project {
   static propsCodec = (codecType?: CodecType) =>
     pipe(
       Codec.struct({
-        id: Codec.string,
+        id: ProjectId.codec,
+        slug: ProjectSlug.codec,
         ownerId: ProjectOwnerId.codec,
       }),
       Codec.intersect(

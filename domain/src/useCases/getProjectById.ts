@@ -8,20 +8,31 @@ type Dependencies = {
   namespace: string;
 };
 
-export const getProject = ({ projectId }: { projectId: ProjectId }) =>
+export const getProjectById = ({ projectId }: { projectId: ProjectId }) =>
   pipe(
     RTE.ask<Dependencies>(),
     RTE.chainW(({ firestore, namespace }) =>
       TE.tryCatchK(
         async () => {
           const snapshot = await firestore
-            .doc(`/namespaces/${namespace}/projects/${projectId}`)
+            .collection(`/namespaces/${namespace}/projects`)
+            .where("id", "==", projectId)
+            .limit(1)
             .get();
 
-          return pipe(snapshot.data());
+          return snapshot.docs;
         },
         (reason) => new Error(String(reason))
       )
     ),
+    RTE.filterOrElseW(
+      (d) => d.length !== 0,
+      () => "Project not found"
+    ),
+    RTE.filterOrElseW(
+      (d) => d.length < 2,
+      () => `Multiple projects found for slug ${projectId}`
+    ),
+    RTE.map((d) => pipe(d[0].data())),
     RTE.chainEitherKW(Project.codec("firestore").decode)
   );
