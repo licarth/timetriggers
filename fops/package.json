@@ -1,0 +1,15 @@
+{
+  "name": "firestore-operations",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "fops": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "firebase-admin": "^11.5.0"
+  }
+}
