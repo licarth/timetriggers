@@ -17,6 +17,7 @@ import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import { redirect } from "@remix-run/server-runtime";
 import {
   ApiKey,
+  deleteApiKey,
   e,
   FirebaseUser,
   Project,
@@ -28,6 +29,7 @@ import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as C from "io-ts/lib/Codec";
 import { draw } from "io-ts/lib/Decoder";
 import { BsFillTrash2Fill } from "react-icons/bs";
+import { match } from "ts-pattern";
 import { getProjectIdOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
@@ -65,12 +67,11 @@ export const loader: LoaderFunction = async ({ params, request }) => {
 export const action: ActionFunction = ({ params, request }) => {
   return actionFromRte(
     pipe(
-      RTE.Do,
-      RTE.map(() => console.log("action params", params)),
-      RTE.bind("projectId", () =>
+      RTE.of(1),
+      RTE.bindW("projectId", () =>
         getProjectIdOrRedirect(params.projectId, "projects")
       ),
-      RTE.bind("user", () => getUserOrRedirect(request)),
+      RTE.bindW("user", () => getUserOrRedirect(request)),
       (x) => x,
       RTE.bindW("project", ({ projectId }) =>
         getProjectOrRedirect({ projectId }, "..")
@@ -87,8 +88,16 @@ export const action: ActionFunction = ({ params, request }) => {
           })
         )
       ),
-      RTE.chainW(storeApiKey),
-      RTE.map((a) => redirect("."))
+      RTE.chainW(
+        (args) =>
+          match(request.method)
+            .with("POST", () => storeApiKey(args))
+            .with("DELETE", () => deleteApiKey(args))
+            .otherwise(() =>
+              RTE.left("Unexpected response")
+            ) as RTE.ReaderTaskEither<any, Error | string, any> // TODO @licarth - fix this. Don't know why we have to type this
+      ),
+      RTE.map((a) => ({}))
     )
   );
 };
@@ -118,6 +127,17 @@ const Document = () => {
     // fetch POST request to create the token
     fetch("", {
       method: "POST",
+      body: JSON.stringify({ apiKey: codec.encode(apiKey) }),
+    })
+      .catch((e) => console.error(e))
+      .finally(() => {
+        navigate(".", { replace: true });
+      });
+  };
+
+  const deleteKey = async (apiKey: ApiKey) => {
+    fetch("", {
+      method: "DELETE",
       body: JSON.stringify({ apiKey: codec.encode(apiKey) }),
     })
       .catch((e) => console.error(e))
@@ -163,6 +183,7 @@ const Document = () => {
                     icon={<BsFillTrash2Fill />}
                     aria-label="delete"
                     colorScheme={"red"}
+                    onClick={() => deleteKey(apiKey)}
                   />
                 </Td>
               </Tr>
