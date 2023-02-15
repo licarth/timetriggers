@@ -11,6 +11,7 @@ import {
   Thead,
   Tr,
   useColorModeValue,
+  useToast,
 } from "@chakra-ui/react";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
@@ -28,6 +29,7 @@ import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as C from "io-ts/lib/Codec";
 import { draw } from "io-ts/lib/Decoder";
+import { useState } from "react";
 import { BsFillTrash2Fill } from "react-icons/bs";
 import { match } from "ts-pattern";
 import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
@@ -114,13 +116,16 @@ const Document = () => {
       user: FirebaseUser.codec,
     })
   );
+  const [isCreatingToken, setIsCreatingToken] = useState(false);
 
   const navigate = useNavigate();
 
   const generateToken = () => ApiKey.generate(user.id);
   const codec = ApiKey.codec("string");
+  const toast = useToast();
 
   const createKey = async () => {
+    setIsCreatingToken(true);
     const { rawKey, apiKey } = await generateToken();
     console.log("rawKey", rawKey);
     // fetch POST request to create the token
@@ -129,32 +134,61 @@ const Document = () => {
       body: JSON.stringify({ apiKey: codec.encode(apiKey) }),
     })
       .catch((e) => console.error(e))
+      .then(() => {
+        toast({
+          title: "Token created.",
+          status: "success",
+          duration: 9000,
+          isClosable: true,
+          position: "top-right",
+        });
+      })
       .finally(() => {
         navigate(".", { replace: true });
+        setIsCreatingToken(false);
       });
   };
 
   const deleteKey = async (apiKey: ApiKey) => {
+    setIsCreatingToken(true);
     fetch("", {
       method: "DELETE",
       body: JSON.stringify({ apiKey: codec.encode(apiKey) }),
     })
       .catch((e) => console.error(e))
+      .then(() => {
+        toast({
+          title: "Token deleted.",
+          status: "success",
+          duration: 9000,
+          isClosable: true,
+          position: "top-right",
+        });
+      })
       .finally(() => {
         navigate(".", { replace: true });
+        setIsCreatingToken(false);
       });
   };
 
   const apiKeys = project.apiKeys || [];
 
+  const createTokenButton = (
+    <Button
+      w={"xs"}
+      colorScheme={"green"}
+      onClick={() => createKey()}
+      isLoading={isCreatingToken}
+      loadingText="Loading…"
+    >
+      Create a new API Token
+    </Button>
+  );
+
   return (
     <Stack spacing={10} m={10}>
       <Text>Manage your API tokens from here.</Text>
-      {apiKeys.length !== 0 && (
-        <Button w={"xs"} colorScheme={"green"} onClick={() => createKey()}>
-          Create a new API Token
-        </Button>
-      )}
+      {apiKeys.length !== 0 && createTokenButton}
       <Card bgColor={bgColor}>
         <Table size={"sm"}>
           <Thead>
@@ -194,13 +228,7 @@ const Document = () => {
                     <Text textAlign="center">
                       You don't have any Api tokens yet !
                     </Text>
-                    <Button
-                      w={"xs"}
-                      colorScheme={"green"}
-                      onClick={() => createKey()}
-                    >
-                      Create a new API Token
-                    </Button>
+                    {createTokenButton}
                   </Stack>
                 </Td>
               </Tr>
