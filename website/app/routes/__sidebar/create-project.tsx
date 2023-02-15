@@ -63,7 +63,7 @@ export const action: ActionFunction = ({ params, request }) =>
           RTE.chainEitherKW((slug) => ProjectSlug.parse(slug!)) // @licarth we should be able to remove the `!` here, but it does not infer for some reason
         )
       ),
-      RTE.chainFirst(({ slug, creator }) =>
+      RTE.chainFirstW(({ slug, creator }) =>
         createProject({
           slug,
           creator: creator.id,

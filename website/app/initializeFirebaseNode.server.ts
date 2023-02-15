@@ -8,6 +8,7 @@ import {
 } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { environmentVariable } from "./environmentVariable";
 
 dotenv.config();
 
@@ -26,10 +27,13 @@ export function initializeApp({
     app = getApp();
     firstInitialization = false;
   } else {
-    if (useEmulators) {
-      console.log("🔸 Using Emulators in the Jobs");
-      process.env["FIRESTORE_EMULATOR_HOST"] = "localhost:8080";
-      process.env["FIREBASE_AUTH_EMULATOR_HOST"] = "localhost:8081";
+    if (
+      useEmulators ||
+      environmentVariable("PUBLIC_USE_EMULATORS") === "true"
+    ) {
+      console.log("🔸 Using Emulators in the Website (Node.js)");
+      process.env["FIRESTORE_EMULATOR_HOST"] = "0.0.0.0:8080";
+      process.env["FIREBASE_AUTH_EMULATOR_HOST"] = "0.0.0.0:8081";
       initializationOptions = {
         ...initializationOptions,
         projectId: "doi-production",

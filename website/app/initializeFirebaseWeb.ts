@@ -6,6 +6,7 @@ import {
   connectFirestoreEmulator,
   initializeFirestore,
 } from "firebase/firestore";
+import { environmentVariable } from "./environmentVariable";
 
 export function initializeFirebaseWeb({
   useEmulators = false,
@@ -20,7 +21,7 @@ export function initializeFirebaseWeb({
       firestore: getFirestore(existingApp),
     };
   } catch (e) {
-    console.log("🔸 Initializing Firebase App");
+    console.log("🔸 Initializing Firebase App for the first time");
   }
 
   let firebaseConfig = {
@@ -38,10 +39,10 @@ export function initializeFirebaseWeb({
     ignoreUndefinedProperties: true,
   });
 
-  if (useEmulators) {
-    console.log("🔸 Using firebase emulators");
-    connectFirestoreEmulator(firestore, "localhost", 8080);
-    connectAuthEmulator(auth, "http://localhost:8081", {
+  if (useEmulators || environmentVariable("PUBLIC_USE_EMULATORS") === "true") {
+    console.log("🔸 Using Emulators in the Website (React)");
+    connectFirestoreEmulator(firestore, "0.0.0.0", 8080);
+    connectAuthEmulator(auth, "http://0.0.0.0:8081", {
       disableWarnings: true,
     });
   }

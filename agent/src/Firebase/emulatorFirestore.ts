@@ -9,7 +9,7 @@ export function emulatorFirestore({
 }: Partial<{
   appName: string;
 }> = {}) {
-  console.log("🔸 Using Emulators in the Jobs");
+  console.log("🔸 Using Emulators in the Agent");
   process.env["FIRESTORE_EMULATOR_HOST"] = "localhost:8080";
   const initializationOptions = {
     projectId: "doi-test-2dc76",

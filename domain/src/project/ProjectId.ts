@@ -2,8 +2,7 @@ import { stringOpaqueCodec } from "@/iots";
 import * as E from "fp-ts/lib/Either.js";
 import * as Codec from "io-ts/lib/Codec.js";
 import _ from "lodash";
-import { validate } from "uuid";
-import { uuid } from "uuidv4";
+import { validate, v4 } from "uuid";
 import * as D from "io-ts/lib/Decoder.js";
 import { pipe } from "fp-ts/lib/function";
 
@@ -20,7 +19,7 @@ export namespace ProjectId {
     )
   );
   export const factory = (): ProjectId => {
-    return uuid() as ProjectId;
+    return v4() as ProjectId;
   };
 
   export const parse = (s: string) => {
@@ -31,7 +30,7 @@ export namespace ProjectId {
   };
 
   export const generate = (): ProjectId => {
-    return uuid() as ProjectId;
+    return v4() as ProjectId;
   };
 }
 

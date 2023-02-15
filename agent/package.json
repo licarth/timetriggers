@@ -34,7 +34,7 @@
     "dev": "nodemon --delay 0.5 --watch src --watch ../domain/built -e js,ts,tsx --exec 'npm run build && npm run start'",
     "build": "tsc && resolve-tspaths",
     "test": "dotenv -e .env.test -e.env.test.local jest",
-    "emulators": "firebase emulators:start --only firestore",
+    "emulators": "firebase emulators:start --only firestore,auth",
     "docker-compose": "docker-compose --env-file .env up -d",
     "test-ci": "firebase emulators:exec --only firestore 'npm run test -- -- --ci --forceExit'"
   },

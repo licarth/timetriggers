@@ -1,13 +1,12 @@
 import { stringOpaqueCodec } from "@/iots";
 import * as E from "fp-ts/lib/Either.js";
 import * as Codec from "io-ts/lib/Codec.js";
-import { validate } from "uuid";
-import { uuid } from "uuidv4";
+import { v4 } from "uuid";
 
 export namespace ProjectSlug {
   export const codec = stringOpaqueCodec("ProjectSlug");
   export const factory = (): ProjectSlug => {
-    return uuid() as ProjectSlug;
+    return v4() as ProjectSlug;
   };
 
   export const parse = (s: string) => {
