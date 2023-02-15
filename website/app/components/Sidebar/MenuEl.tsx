@@ -1,7 +1,6 @@
-import { Flex, Heading, IconButton, Select, Text } from "@chakra-ui/react";
-import { useNavigate, useLocation } from "@remix-run/react";
+import { Flex, Heading, IconButton, Select } from "@chakra-ui/react";
+import { useLocation, useNavigate } from "@remix-run/react";
 import type { FirebaseUser, Project } from "@timetriggers/domain";
-import { useState } from "react";
 import {
   BsBook,
   BsCollectionPlayFill,
@@ -17,14 +16,17 @@ type MenuElementsProps = {
   user?: FirebaseUser;
   projects?: Project[];
   selectedProjectSlug?: string;
+  navSize: NavSize;
+  setNavSize: (navSize: NavSize) => void;
 };
 
 export const MenuElements = ({
   selectedProjectSlug,
   projects,
   user,
+  navSize,
+  setNavSize,
 }: MenuElementsProps) => {
-  const [navSize, setNavSize] = useState<NavSize>("large");
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -95,7 +97,13 @@ export const MenuElements = ({
       <Heading mt={8} size="md" hidden={navSize === "small"}>
         Resources
       </Heading>
-      <NavItem navSize={navSize} title="Docs" icon={BsBook} disabled />
+      <NavItem
+        navSize={navSize}
+        title="Docs"
+        icon={BsBook}
+        disabled
+        comingSoon
+      />
     </Flex>
   );
 };
