@@ -3,9 +3,8 @@ import { json } from "@remix-run/node";
 import { initializeApp } from "~/initializeFirebaseNode.server";
 import { commitSession, getSession } from "../session.server";
 
-const { auth } = initializeApp();
-
 export const action: ActionFunction = async ({ request }) => {
+  const { auth } = initializeApp();
   const payload = await request.json();
   if (request.method === "POST") {
     const { idToken } = payload;

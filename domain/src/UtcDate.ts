@@ -1,7 +1,7 @@
 import { pipe } from "fp-ts/lib/function.js";
 import * as C from "io-ts/lib/Codec.js";
 import * as D from "io-ts/lib/Decoder.js";
-import { Timestamp } from "@google-cloud/firestore";
+import type { Timestamp } from "firebase-admin/firestore";
 
 export namespace UtcDate {
   export const stringCodec = C.make(
@@ -33,7 +33,6 @@ export namespace UtcDate {
 
 const isFirebaseTimesamp = function (i: unknown): i is Timestamp {
   return (
-    i instanceof Timestamp ||
     (i !== null &&
       typeof i === "object" &&
       i.hasOwnProperty("_seconds") &&

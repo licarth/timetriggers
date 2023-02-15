@@ -13,6 +13,7 @@ import {
   useColorModeValue,
 } from "@chakra-ui/react";
 import { useLoaderData, useNavigate } from "@remix-run/react";
+import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import { redirect } from "@remix-run/server-runtime";
 import {
   ApiKey,
@@ -30,63 +31,67 @@ import { BsFillTrash2Fill } from "react-icons/bs";
 import { getProjectIdOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
-import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte";
+import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte.server";
 
-export const loader = loaderFromRte(({ params, request }) =>
-  pipe(
-    RTE.Do,
-    RTE.bind("projectId", () =>
-      getProjectIdOrRedirect(params.projectId, "projects")
-    ),
-    RTE.bind("user", () => getUserOrRedirect(request)),
-    (x) => x,
-    RTE.bindW("project", ({ projectId }) =>
-      getProjectOrRedirect({ projectId }, "..")
-    ),
-    RTE.map(({ user, project }) => {
-      if (project && project.isReader(user.id)) {
-        return {
-          project: Project.codec("string").encode(project),
-          user: FirebaseUser.codec.encode(user),
-        };
-      } else {
-        return redirect("..");
-      }
-    })
-  )
-);
+export const loader: LoaderFunction = async ({ params, request }) => {
+  return loaderFromRte(
+    pipe(
+      RTE.Do,
+      RTE.bind("projectId", () =>
+        getProjectIdOrRedirect(params.projectId, "projects")
+      ),
+      RTE.bind("user", () => getUserOrRedirect(request)),
+      (x) => x,
+      RTE.bindW("project", ({ projectId }) =>
+        getProjectOrRedirect({ projectId }, "..")
+      ),
+      RTE.map(({ user, project }) => {
+        if (project && project.isReader(user.id)) {
+          return {
+            project: Project.codec("string").encode(project),
+            user: FirebaseUser.codec.encode(user),
+          };
+        } else {
+          return redirect("..");
+        }
+      })
+    )
+  );
+};
 
 /**
  * POST to create a new API key
  */
-export const action = actionFromRte(({ params, request }) => {
-  return pipe(
-    RTE.Do,
-    RTE.map(() => console.log("action params", params)),
-    RTE.bind("projectId", () =>
-      getProjectIdOrRedirect(params.projectId, "projects")
-    ),
-    RTE.bind("user", () => getUserOrRedirect(request)),
-    (x) => x,
-    RTE.bindW("project", ({ projectId }) =>
-      getProjectOrRedirect({ projectId }, "..")
-    ),
-    RTE.bindW("apiKey", () =>
-      pipe(
-        () => request.json(),
-        RTE.fromTask,
-        RTE.map((b) => b.apiKey),
-        RTE.chainEitherKW(ApiKey.codec("string").decode),
-        RTE.mapLeft((e) => {
-          console.error(draw(e));
-          return e;
-        })
-      )
-    ),
-    RTE.chainW(storeApiKey),
-    RTE.map((a) => redirect("."))
+export const action: ActionFunction = ({ params, request }) => {
+  return actionFromRte(
+    pipe(
+      RTE.Do,
+      RTE.map(() => console.log("action params", params)),
+      RTE.bind("projectId", () =>
+        getProjectIdOrRedirect(params.projectId, "projects")
+      ),
+      RTE.bind("user", () => getUserOrRedirect(request)),
+      (x) => x,
+      RTE.bindW("project", ({ projectId }) =>
+        getProjectOrRedirect({ projectId }, "..")
+      ),
+      RTE.bindW("apiKey", () =>
+        pipe(
+          () => request.json(),
+          RTE.fromTask,
+          RTE.map((b) => b.apiKey),
+          RTE.chainEitherKW(ApiKey.codec("string").decode),
+          RTE.mapLeft((e) => {
+            console.error(draw(e));
+            return e;
+          })
+        )
+      ),
+      RTE.chainW(storeApiKey),
+      RTE.map((a) => redirect("."))
+    )
   );
-});
+};
 
 const useIoTsLoaderDataOrThrow = <I, O, A>(codec: C.Codec<I, O, A>) => {
   const data = useLoaderData();
