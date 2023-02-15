@@ -1,4 +1,4 @@
-import { Flex, Heading, IconButton, Select } from "@chakra-ui/react";
+import { Code, Flex, Heading, IconButton, Select } from "@chakra-ui/react";
 import { useLocation, useNavigate } from "@remix-run/react";
 import type { FirebaseUser, Project } from "@timetriggers/domain";
 import {
@@ -68,7 +68,7 @@ export const MenuElements = ({
               >
                 {projects?.map((p) => (
                   <option key={p.slug} value={p.slug}>
-                    Project {p.slug}
+                    <Code>{p.slug}</Code>
                   </option>
                 ))}
               </Select>

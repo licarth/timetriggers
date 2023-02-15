@@ -1,3 +1,15 @@
+// import type { LoaderFunction } from "@remix-run/server-runtime";
+// import { redirect } from "@remix-run/server-runtime";
+// import { requireUserId } from "~/session.server";
+
+// export const loader: LoaderFunction = async ({ request }) => {
+//   const user = await requireUserId(request);
+//   if (user) {
+//     return redirect("/projects");
+//   } else {
+//     return redirect("/login");
+//   }
+// };
 import { Flex } from "@chakra-ui/react";
 import { Outlet, useLoaderData } from "@remix-run/react";
 import { LoaderFunction, redirect } from "@remix-run/server-runtime";

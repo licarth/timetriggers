@@ -27,6 +27,10 @@ export const loader: LoaderFunction = async ({ request }) =>
         (projects) => projects.length !== 1,
         (projects) => redirect(`/projects/${projects[0].slug}`)
       ),
+      RTE.filterOrElseW(
+        (projects) => projects.length > 0,
+        () => redirect(`/create-project`)
+      ),
       RTE.map((projects) => wireCodec.encode(projects))
     )
   );

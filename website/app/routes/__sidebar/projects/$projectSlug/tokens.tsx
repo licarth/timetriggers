@@ -65,8 +65,8 @@ export const loader: LoaderFunction = async ({ params, request }) => {
 /**
  * POST to create a new API key
  */
-export const action: ActionFunction = ({ params, request }) => {
-  return actionFromRte(
+export const action: ActionFunction = ({ params, request }) =>
+  actionFromRte(
     pipe(
       RTE.Do,
       RTE.bindW("projectSlug", () =>
@@ -101,7 +101,6 @@ export const action: ActionFunction = ({ params, request }) => {
       RTE.map((a) => ({}))
     )
   );
-};
 
 const useIoTsLoaderDataOrThrow = <I, O, A>(codec: C.Codec<I, O, A>) => {
   const data = useLoaderData();

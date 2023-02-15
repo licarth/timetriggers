@@ -29,6 +29,10 @@ export namespace ProjectId {
     }
     return E.of(s as ProjectId);
   };
+
+  export const generate = (): ProjectId => {
+    return uuid() as ProjectId;
+  };
 }
 
 export type ProjectId = Codec.TypeOf<typeof ProjectId.codec>;
