@@ -1,3 +1,4 @@
+import type { Language } from "prism-react-renderer";
 import Highlight, { defaultProps } from "prism-react-renderer";
 import theme from "prism-react-renderer/themes/vsDark";
 import { FaCopy } from "react-icons/fa";
@@ -42,10 +43,12 @@ export const CodeSample = ({
   code,
   copyToClipboardButton,
   legend,
+  language,
 }: {
   code: string;
   copyToClipboardButton?: boolean;
   legend?: React.ReactNode;
+  language: Language;
 }) => {
   return (
     <Container>
@@ -53,7 +56,7 @@ export const CodeSample = ({
         {...defaultProps}
         theme={theme}
         code={code}
-        language="typescript"
+        language={language}
       >
         {({ className, style, tokens, getLineProps, getTokenProps }) => (
           <Pre className={className} style={style}>

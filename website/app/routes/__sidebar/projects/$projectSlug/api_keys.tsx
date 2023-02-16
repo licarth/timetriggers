@@ -197,6 +197,7 @@ const ApiKeyUsageModal = ({
             </Text>
             <CodeSample
               code={codeWithKey(apiKey.value || `<API_KEY>`)}
+              language="typescript"
               copyToClipboardButton
             />
           </Stack>
@@ -224,6 +225,26 @@ fetch("https://api.timetriggers.io/schedule", {
     "X-TimeTriggers-At": "${formattedDate}",       // 1 minute from now
   },
 });
+  `.trim();
+};
+export const bashCodeWithKey = (apiKey?: string) => {
+  const formattedDate = format(
+    addMinutes(new Date(), 1),
+    "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"
+  );
+  return `
+  curl \\
+    -H "X-TimeTriggers-Url: https://licarth.eu.ngrok.io" \\
+    -H "X-TimeTriggers-At: ${formattedDate}" \\
+    -H "X-TimeTriggers-Key: ${apiKey}" \\
+    
+    # Everything below is your original request
+    -H "Content-type: application/json" \\
+    -X PUT \\
+    -d '{
+      "hello": "world"
+    }' \\
+  'https://timetriggers.io/schedule'
   `.trim();
 };
 
@@ -305,7 +326,7 @@ const Document = () => {
   return (
     <Stack spacing={10}>
       <Text>Manage your API keys from here.</Text>
-      {apiKeys.length !== 0 && createKeyButton}
+      {!_.isEmpty(apiKeys) && createKeyButton}
       <Card bgColor={bgColor} maxW="xxl" overflowY="scroll">
         <Table size="sm">
           <Thead>
@@ -338,7 +359,7 @@ const Document = () => {
                 </Td>
               </Tr>
             ))}
-            {apiKeys.length === 0 && (
+            {_.isEmpty(apiKeys) && (
               <Tr>
                 <Td colSpan={4}>
                   <Stack alignItems="center" m={4} spacing={8}>
@@ -389,9 +410,22 @@ const Document = () => {
             <CodeSample
               code={codeWithKey(apiKey?.value || `<API_KEY>`)}
               copyToClipboardButton
+              language="typescript"
               legend={
                 <>
                   Example with <Code>fetch()</Code> in Node.js
+                </>
+              }
+            />
+          </Box>
+          <Box mt={6}>
+            <CodeSample
+              code={bashCodeWithKey(apiKey?.value || `<API_KEY>`)}
+              copyToClipboardButton
+              language="bash"
+              legend={
+                <>
+                  Example with <Code>curl</Code>
                 </>
               }
             />
