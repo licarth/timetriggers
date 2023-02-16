@@ -1,4 +1,12 @@
-import type { ModalProps } from "@chakra-ui/react";
+import {
+  Box,
+  CardHeader,
+  Heading,
+  ListItem,
+  ModalProps,
+  OrderedList,
+  UnorderedList,
+} from "@chakra-ui/react";
 import {
   Alert,
   AlertIcon,
@@ -347,6 +355,56 @@ const Document = () => {
       {rawKey && (
         <ApiKeyUsageModal isOpen={isOpen} onClose={onClose} rawKey={rawKey} />
       )}
+      <Card>
+        <CardHeader>
+          <Heading as="h2" size="md">
+            How to use these API keys?
+          </Heading>
+        </CardHeader>
+        <CardBody pt={0}>
+          <OrderedList>
+            <ListItem>
+              Change your request url to{" "}
+              <Code>https://api.timetriggers.io/schedule</Code>
+            </ListItem>
+            <ListItem>
+              <Text>Add the following headers to your request:</Text>
+              <UnorderedList>
+                <ListItem>
+                  <Code>X-TimeTriggers-Key</Code> : your Api Key
+                </ListItem>
+                <ListItem>
+                  <Code>X-TimeTriggers-Url</Code> : the Url you want to hit
+                </ListItem>
+                <ListItem>
+                  <Code>X-TimeTriggers-At</Code> : the moment we should schedule
+                  the request, in the format{" "}
+                  <Code>yyyy-MM-dd'T'HH:mm:ss.SSSxxx</Code>
+                </ListItem>
+              </UnorderedList>
+            </ListItem>
+          </OrderedList>
+          <Box mt={6}>
+            <CodeSample
+              code={codeWithKey(rawKey || `<API_KEY>`)}
+              copyToClipboardButton
+              legend={
+                <>
+                  Example with <Code>fetch()</Code> in Node.js
+                </>
+              }
+            />
+          </Box>
+          <Alert status="success" mt={6} variant="top-accent">
+            <AlertIcon />
+            <Text>
+              That's it ! No need to change your <Code>method</Code>,{" "}
+              <Code>body</Code> or anything else. We'll reply without any body,
+              only with a header <Code>X-TimeTriggers-TaskId</Code>
+            </Text>
+          </Alert>
+        </CardBody>
+      </Card>
     </Stack>
   );
 };

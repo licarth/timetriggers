@@ -3,6 +3,7 @@ import theme from "prism-react-renderer/themes/vsDark";
 import { FaCopy } from "react-icons/fa";
 import { CopyToClipboardButton } from "./CopyToClipboardButton";
 import styled from "@emotion/styled";
+import { Box, Text } from "@chakra-ui/react";
 
 const Pre = styled.pre`
   text-align: left;
@@ -40,9 +41,11 @@ const TopRightButton = styled(CopyToClipboardButton)`
 export const CodeSample = ({
   code,
   copyToClipboardButton,
+  legend,
 }: {
   code: string;
   copyToClipboardButton?: boolean;
+  legend?: React.ReactNode;
 }) => {
   return (
     <Container>
@@ -67,6 +70,11 @@ export const CodeSample = ({
           </Pre>
         )}
       </Highlight>
+      {legend && (
+        <Box bgColor={"yellow.600"}>
+          <Text pl={1}>{legend}</Text>
+        </Box>
+      )}
       {copyToClipboardButton && (
         <TopRightButton
           variant={"solid"}
