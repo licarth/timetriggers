@@ -1,7 +1,16 @@
+import type { ModalProps } from "@chakra-ui/react";
 import {
   Button,
   Card,
+  Code,
   IconButton,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
   Stack,
   Table,
   Tbody,
@@ -11,8 +20,10 @@ import {
   Thead,
   Tr,
   useColorModeValue,
+  useDisclosure,
   useToast,
 } from "@chakra-ui/react";
+import styled from "@emotion/styled";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import { redirect } from "@remix-run/server-runtime";
@@ -24,11 +35,13 @@ import {
   Project,
   storeApiKey,
 } from "@timetriggers/domain";
-import { format } from "date-fns";
+import { addMinutes, format } from "date-fns";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as C from "io-ts/lib/Codec";
 import { draw } from "io-ts/lib/Decoder";
+import Highlight, { defaultProps } from "prism-react-renderer";
+import theme from "prism-react-renderer/themes/vsDark";
 import { useState } from "react";
 import { BsFillTrash2Fill } from "react-icons/bs";
 import { match } from "ts-pattern";
@@ -36,6 +49,10 @@ import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte.server";
+
+// export function links() {
+//   return [{ rel: "stylesheet", href: styles }];
+// }
 
 export const loader: LoaderFunction = async ({ params, request }) => {
   return loaderFromRte(
@@ -107,6 +124,83 @@ const useIoTsLoaderDataOrThrow = <I, O, A>(codec: C.Codec<I, O, A>) => {
   return e.unsafeGetOrThrow(pipe(data, codec.decode));
 };
 
+const ApiTokenUsageModal = ({
+  onClose,
+  isOpen,
+  rawToken,
+}: Pick<ModalProps, "isOpen"> &
+  Pick<ModalProps, "onClose"> & { rawToken?: string }) => {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="6xl">
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Api Key Created</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <Text>
+            Your new api token has been created ! Please save it, because you
+            won't be able to see it again ! (We only keep a hash of it)
+          </Text>
+          <Code
+            m={8}
+            fontSize={"1.2em"}
+            alignSelf={"center"}
+            colorScheme={"pink"}
+          >
+            {rawToken}
+          </Code>
+          <Text>
+            This is an example of how to use it with <Code>Typescript</Code> and{" "}
+            <Code>fetch</Code>.
+          </Text>
+          <Highlight
+            {...defaultProps}
+            theme={theme}
+            code={codeWithToken(rawToken)}
+            language="typescript"
+          >
+            {({ className, style, tokens, getLineProps, getTokenProps }) => (
+              <Pre className={className} style={style}>
+                {tokens.map((line, i) => (
+                  <Line key={i} {...getLineProps({ line, key: i })}>
+                    <LineNo>{i + 1}</LineNo>
+                    <LineContent>
+                      {line.map((token, key) => (
+                        <span key={key} {...getTokenProps({ token, key })} />
+                      ))}
+                    </LineContent>
+                  </Line>
+                ))}
+              </Pre>
+            )}
+          </Highlight>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button onClick={onClose}>Close</Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
+};
+
+const codeWithToken = (apiKey?: string) => {
+  const formattedDate = format(
+    addMinutes(new Date(), 1),
+    "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"
+  );
+  return `
+fetch("https://api.timetriggers.io/schedule", {
+  method: "POST",
+  headers: {
+    "X-TimeTriggers-Key": "${apiKey}",   // your API key
+    "X-TimeTriggers-Url": "https://yourdomain.com/endpoint",    // The url to call
+    "X-TimeTriggers-At": "${formattedDate}",       // 1 minute from now
+  },
+});
+  `.trim();
+};
+
 const Document = () => {
   const bgColor = useColorModeValue("white", "gray.900");
   const { project, user } = useIoTsLoaderDataOrThrow(
@@ -116,17 +210,22 @@ const Document = () => {
     })
   );
   const [isCreatingToken, setIsCreatingToken] = useState(false);
+  const [rawKey, setRawKey] = useState<string>();
 
   const navigate = useNavigate();
 
   const generateToken = () => ApiKey.generate(user.id);
   const codec = ApiKey.codec("string");
   const toast = useToast();
+  const { onOpen, onClose, isOpen } = useDisclosure();
 
   const createKey = async () => {
     setIsCreatingToken(true);
-    const { rawKey, apiKey } = await generateToken();
-    console.log("rawKey", rawKey);
+    const { rawKey: newRawKey, apiKey } = await generateToken();
+    setRawKey(newRawKey);
+
+    // open modal
+    onOpen();
     // fetch POST request to create the token
     fetch("", {
       method: "POST",
@@ -234,9 +333,38 @@ const Document = () => {
             )}
           </Tbody>
         </Table>
+        <ApiTokenUsageModal
+          isOpen={isOpen}
+          onClose={onClose}
+          rawToken={rawKey}
+        />
       </Card>
     </Stack>
   );
 };
+
+const Pre = styled.pre`
+  text-align: left;
+  margin: 1em 0;
+  padding: 0.5em;
+  overflow: scroll;
+  font-size: 0.8rem;
+`;
+
+const Line = styled.div`
+  display: table-row;
+`;
+
+const LineNo = styled.span`
+  display: table-cell;
+  text-align: right;
+  padding-right: 1em;
+  user-select: none;
+  opacity: 0.5;
+`;
+
+const LineContent = styled.span`
+  display: table-cell;
+`;
 
 export default Document;
