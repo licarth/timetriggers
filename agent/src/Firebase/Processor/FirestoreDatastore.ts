@@ -184,6 +184,7 @@ export class FirestoreDatastore implements Datastore {
                     console.log(
                       `❌ Could not decode ${errors.length} documents !`
                     );
+                    console.log(errors.map((e) => draw(e)));
                   }
                   return successes;
                 },

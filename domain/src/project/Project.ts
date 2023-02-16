@@ -57,7 +57,7 @@ export class Project {
         Codec.partial({
           readerIds: Codec.array(FirebaseUserId.codec),
           editorIds: Codec.array(FirebaseUserId.codec),
-          apiKeys: Codec.array(ApiKey.codec(codecType)),
+          apiKeys: Codec.record(ApiKey.codec(codecType)),
         })
       )
     );

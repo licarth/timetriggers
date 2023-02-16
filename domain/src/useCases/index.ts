@@ -1,5 +1,6 @@
 export * from "./createProject";
 export * from "./deleteApiKey";
+export * from "./getProjectByApiKey";
 export * from "./getProjectById";
 export * from "./getProjectBySlug";
 export * from "./getProjectsForUser";

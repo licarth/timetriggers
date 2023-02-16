@@ -87,10 +87,15 @@ export const start = (props: StartProps) =>
           )
         : RTE.of(undefined)
     ),
-    RTE.bindW("httpApi", ({ api }) =>
+    RTE.bindW("httpApi", ({ api, firestore }) =>
       api && props.httpApi?.enabled
         ? pipe(
-            initializeHttpApi(api, props.httpApi?.port),
+            initializeHttpApi({
+              api,
+              port: props.httpApi?.port,
+              firestore,
+              namespace: props.namespace,
+            }),
             RTE.map((x) => x.httpApi)
           )
         : RTE.of(undefined)

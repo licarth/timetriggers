@@ -5,12 +5,22 @@ import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import { createExpressApp } from "./createExpressApp";
 import { initializeEndpoints } from "./initializeExpressEndpoints";
 
-export const initializeHttpApi = (api: Api, port: number) =>
+export const initializeHttpApi = ({
+  api,
+  port,
+  firestore,
+  namespace,
+}: {
+  api: Api;
+  port: number;
+  firestore: FirebaseFirestore.Firestore;
+  namespace: string;
+}) =>
   pipe(
     RTE.of(api),
     RTE.bindW("expressApp", () => createExpressApp(port)),
     RTE.chainFirstW(({ expressApp: { app } }) =>
-      initializeEndpoints({ app, api })
+      initializeEndpoints({ app, api, firestore, namespace })
     ),
     RTE.bindW("httpApi", function ({ expressApp: { start } }) {
       const server = start();

@@ -26,11 +26,10 @@ export const deleteApiKey = ({
             const projectRef = firestore.doc(
               `/namespaces/${namespace}/projects/${projectId}`
             );
-            const apiKeysToRemove = [ApiKey.codec("firestore").encode(apiKey)];
 
             await projectRef.update(
-              "apiKeys",
-              FieldValue.arrayRemove(...apiKeysToRemove)
+              `apiKeys.${apiKey.value}`,
+              FieldValue.delete()
             );
           },
           (reason) => {

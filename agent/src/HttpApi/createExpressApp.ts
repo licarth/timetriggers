@@ -5,7 +5,7 @@ import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 export const createExpressApp = (port: number) => {
   const app = express();
 
-  app.use(express.json());
+  // app.use(express.json());
 
   return RTE.of({
     app,

@@ -13,7 +13,7 @@ export class RawBody {
   }
 
   toData() {
-    return this.raw;
+    return Buffer.from(this.raw, "utf8");
   }
 
   static propsCodec = Codec.struct({

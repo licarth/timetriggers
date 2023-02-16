@@ -42,7 +42,7 @@ export const createProject = ({
                 id: projectId,
                 slug,
                 ownerId: creator,
-                apiKeys: [],
+                apiKeys: {},
                 editorIds: [],
                 readerIds: [],
               });

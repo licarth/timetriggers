@@ -61,6 +61,7 @@ import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte.server";
 import { CodeSample } from "../../../../components/CodeSample";
+import _ from "lodash";
 
 export const loader: LoaderFunction = async ({ params, request }) => {
   return loaderFromRte(
@@ -135,9 +136,9 @@ const useIoTsLoaderDataOrThrow = <I, O, A>(codec: C.Codec<I, O, A>) => {
 const ApiKeyUsageModal = ({
   onClose,
   isOpen,
-  rawKey,
+  apiKey,
 }: Pick<ModalProps, "isOpen"> &
-  Pick<ModalProps, "onClose"> & { rawKey: string }) => {
+  Pick<ModalProps, "onClose"> & { apiKey: ApiKey }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size={{ base: "full", md: "6xl" }}>
       <ModalOverlay />
@@ -151,7 +152,7 @@ const ApiKeyUsageModal = ({
               won't be able to see it again ! (We only keep a hash of it)
             </Text>
 
-            {rawKey && (
+            {apiKey && (
               <Stack spacing={4} alignItems="center">
                 <Alert status="warning">
                   <AlertIcon />
@@ -174,10 +175,10 @@ const ApiKeyUsageModal = ({
                         alignSelf={"center"}
                         colorScheme={"pink"}
                       >
-                        {rawKey}
+                        {apiKey.value}
                       </Code>
                       <CopyToClipboardButton
-                        textToPutInClipboard={rawKey}
+                        textToPutInClipboard={apiKey.value}
                         size={"sm"}
                         rightIcon={<FaCopy />}
                         minW="fit-content"
@@ -195,7 +196,7 @@ const ApiKeyUsageModal = ({
               and <Code>fetch</Code>.
             </Text>
             <CodeSample
-              code={codeWithKey(rawKey || `<API_KEY>`)}
+              code={codeWithKey(apiKey.value || `<API_KEY>`)}
               copyToClipboardButton
             />
           </Stack>
@@ -235,7 +236,7 @@ const Document = () => {
     })
   );
   const [isCreatingKey, setIsCreatingKey] = useState(false);
-  const [rawKey, setRawKey] = useState<string>();
+  const [apiKey, setApiKey] = useState<ApiKey>();
 
   const navigate = useNavigate();
 
@@ -246,16 +247,16 @@ const Document = () => {
 
   const createKey = async () => {
     setIsCreatingKey(true);
-    const { rawKey: newRawKey, apiKey } = await generateKey();
+    const newApiKey = await generateKey();
 
     // fetch POST request to create the key
     fetch("", {
       method: "POST",
-      body: JSON.stringify({ apiKey: codec.encode(apiKey) }),
+      body: JSON.stringify({ apiKey: codec.encode(newApiKey) }),
     })
       .catch((e) => console.error(e))
       .then(() => {
-        setRawKey(newRawKey);
+        setApiKey(newApiKey);
         onOpen();
       })
       .finally(() => {
@@ -316,9 +317,9 @@ const Document = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {apiKeys.map((apiKey) => (
-              <Tr key={apiKey.hash}>
-                <Td>••••{apiKey.last4Chars}</Td>
+            {_.values(apiKeys).map((apiKey) => (
+              <Tr key={apiKey.value}>
+                <Td>••••{apiKey.value.slice(-4)}</Td>
                 <Td>
                   <Text isTruncated maxW="sm">
                     {format(apiKey.createdAt, "dd/MM/yyyy HH:mm")}
@@ -352,8 +353,8 @@ const Document = () => {
           </Tbody>
         </Table>
       </Card>
-      {rawKey && (
-        <ApiKeyUsageModal isOpen={isOpen} onClose={onClose} rawKey={rawKey} />
+      {apiKey && (
+        <ApiKeyUsageModal isOpen={isOpen} onClose={onClose} apiKey={apiKey} />
       )}
       <Card>
         <CardHeader>
@@ -386,7 +387,7 @@ const Document = () => {
           </OrderedList>
           <Box mt={6}>
             <CodeSample
-              code={codeWithKey(rawKey || `<API_KEY>`)}
+              code={codeWithKey(apiKey?.value || `<API_KEY>`)}
               copyToClipboardButton
               legend={
                 <>

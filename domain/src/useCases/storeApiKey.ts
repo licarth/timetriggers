@@ -26,10 +26,9 @@ export const storeApiKey = ({
             const projectRef = firestore.doc(
               `/namespaces/${namespace}/projects/${projectId}`
             );
-            const newApiKeys = [ApiKey.codec("firestore").encode(apiKey)];
             await projectRef.update(
-              "apiKeys",
-              FieldValue.arrayUnion(...newApiKeys)
+              `apiKeys.${apiKey.value}`,
+              ApiKey.codec("firestore").encode(apiKey)
             );
           },
           (reason) => {
