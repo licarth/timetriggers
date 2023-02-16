@@ -1,4 +1,4 @@
-import { Flex } from "@chakra-ui/react";
+import { Container, Flex, useColorModeValue } from "@chakra-ui/react";
 import { Outlet, useLoaderData } from "@remix-run/react";
 import type { LoaderFunction } from "@remix-run/server-runtime";
 import {
@@ -29,7 +29,13 @@ export default () => {
     <Flex flexDir={"row"}>
       <Sidebar user={user} projects={projects} />
       <Flex direction={"column"} flexGrow="1" justifyContent="space-between">
-        <Outlet />
+        <Container
+          maxW="full"
+          py={{ base: "6", md: "12" }}
+          px={{ base: "0", sm: "8" }}
+        >
+          <Outlet />
+        </Container>
         <Footer />
       </Flex>
     </Flex>

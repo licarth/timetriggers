@@ -77,27 +77,21 @@ export default () => {
   const name = useLoaderData() as string;
 
   return (
-    <Container
-      maxW="full"
-      py={{ base: "12", md: "24" }}
-      // px={{ base: "0", sm: "8" }}
-    >
-      <Stack align="center" spacing={8}>
-        <Text fontSize={30}>
-          Welcome to <Logo fontSize="30" /> !
-        </Text>
-        <Text>
-          It's now time to create your first project ! Give it a name, or we'll
-          call it <Code>{name}</Code> for you ! (you can change it later)
-        </Text>
-        <form method="post">
-          {/* Hidden input field for name */}
-          <input type="hidden" name="projectName" value={name} />
-          <Button w="xs" colorScheme="green" type="submit">
-            Create project 🎉
-          </Button>
-        </form>
-      </Stack>
-    </Container>
+    <Stack align="center" spacing={8}>
+      <Text fontSize={30}>
+        Welcome to <Logo fontSize="30" /> !
+      </Text>
+      <Text>
+        It's now time to create your first project ! Give it a name, or we'll
+        call it <Code>{name}</Code> for you ! (you can change it later)
+      </Text>
+      <form method="post">
+        {/* Hidden input field for name */}
+        <input type="hidden" name="projectName" value={name} />
+        <Button w="xs" colorScheme="green" type="submit">
+          Create project 🎉
+        </Button>
+      </form>
+    </Stack>
   );
 };

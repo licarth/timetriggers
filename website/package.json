@@ -44,6 +44,7 @@
     "@timetriggers/domain": "file:../domain",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
+    "copy-to-clipboard": "^3.3.3",
     "cross-env": "^7.0.3",
     "date-fns": "^2.29.3",
     "dotenv": "^16.0.3",

@@ -1,8 +1,10 @@
-import type { ModalProps } from "@chakra-ui/react";
+import { Alert, AlertIcon, Center, ModalProps } from "@chakra-ui/react";
 import {
   Button,
   Card,
+  CardBody,
   Code,
+  HStack,
   IconButton,
   Modal,
   ModalBody,
@@ -23,7 +25,6 @@ import {
   useDisclosure,
   useToast,
 } from "@chakra-ui/react";
-import styled from "@emotion/styled";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import { redirect } from "@remix-run/server-runtime";
@@ -35,24 +36,22 @@ import {
   Project,
   storeApiKey,
 } from "@timetriggers/domain";
+import copy from "copy-to-clipboard";
 import { addMinutes, format } from "date-fns";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as C from "io-ts/lib/Codec";
 import { draw } from "io-ts/lib/Decoder";
-import Highlight, { defaultProps } from "prism-react-renderer";
-import theme from "prism-react-renderer/themes/vsDark";
 import { useState } from "react";
 import { BsFillTrash2Fill } from "react-icons/bs";
+import { FaCopy } from "react-icons/fa";
 import { match } from "ts-pattern";
+import { CopyToClipboardButton } from "~/components/CopyToClipboardButton";
 import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte.server";
-
-// export function links() {
-//   return [{ rel: "stylesheet", href: styles }];
-// }
+import { CodeSample } from "../../../../components/CodeSample";
 
 export const loader: LoaderFunction = async ({ params, request }) => {
   return loaderFromRte(
@@ -124,12 +123,12 @@ const useIoTsLoaderDataOrThrow = <I, O, A>(codec: C.Codec<I, O, A>) => {
   return e.unsafeGetOrThrow(pipe(data, codec.decode));
 };
 
-const ApiTokenUsageModal = ({
+const ApiKeyUsageModal = ({
   onClose,
   isOpen,
-  rawToken,
+  rawKey,
 }: Pick<ModalProps, "isOpen"> &
-  Pick<ModalProps, "onClose"> & { rawToken?: string }) => {
+  Pick<ModalProps, "onClose"> & { rawKey: string }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="6xl">
       <ModalOverlay />
@@ -137,43 +136,54 @@ const ApiTokenUsageModal = ({
         <ModalHeader>Api Key Created</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          <Text>
-            Your new api token has been created ! Please save it, because you
-            won't be able to see it again ! (We only keep a hash of it)
-          </Text>
-          <Code
-            m={8}
-            fontSize={"1.2em"}
-            alignSelf={"center"}
-            colorScheme={"pink"}
-          >
-            {rawToken}
-          </Code>
-          <Text>
-            This is an example of how to use it with <Code>Typescript</Code> and{" "}
-            <Code>fetch</Code>.
-          </Text>
-          <Highlight
-            {...defaultProps}
-            theme={theme}
-            code={codeWithToken(rawToken)}
-            language="typescript"
-          >
-            {({ className, style, tokens, getLineProps, getTokenProps }) => (
-              <Pre className={className} style={style}>
-                {tokens.map((line, i) => (
-                  <Line key={i} {...getLineProps({ line, key: i })}>
-                    <LineNo>{i + 1}</LineNo>
-                    <LineContent>
-                      {line.map((token, key) => (
-                        <span key={key} {...getTokenProps({ token, key })} />
-                      ))}
-                    </LineContent>
-                  </Line>
-                ))}
-              </Pre>
+          <Stack spacing={4}>
+            <Text>
+              Your new api key has been created ! Please save it, because you
+              won't be able to see it again ! (We only keep a hash of it)
+            </Text>
+
+            {rawKey && (
+              <Stack spacing={4} alignItems="center">
+                <Alert status="warning">
+                  <AlertIcon />
+                  <Text>
+                    This is a <b>secret</b> ! Please keep it safe and don't
+                    share it with anyone. Don't publish this on a single page
+                    application !
+                  </Text>
+                </Alert>
+                <Card maxW={"xl"} p={1} variant={"outline"}>
+                  <CardBody>
+                    <HStack>
+                      <Code
+                        fontSize={"1.2em"}
+                        alignSelf={"center"}
+                        colorScheme={"pink"}
+                      >
+                        {rawKey}
+                      </Code>
+                      <CopyToClipboardButton
+                        textToPutInClipboard={rawKey}
+                        size={"sm"}
+                        rightIcon={<FaCopy />}
+                      >
+                        Copy
+                      </CopyToClipboardButton>
+                    </HStack>
+                  </CardBody>
+                </Card>
+              </Stack>
             )}
-          </Highlight>
+
+            <Text>
+              This is an example of how to use it with <Code>Typescript</Code>{" "}
+              and <Code>fetch</Code>.
+            </Text>
+            <CodeSample
+              code={codeWithKey(rawKey || `<API_KEY>`)}
+              copyToClipboardButton
+            />
+          </Stack>
         </ModalBody>
 
         <ModalFooter>
@@ -184,7 +194,7 @@ const ApiTokenUsageModal = ({
   );
 };
 
-const codeWithToken = (apiKey?: string) => {
+export const codeWithKey = (apiKey?: string) => {
   const formattedDate = format(
     addMinutes(new Date(), 1),
     "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"
@@ -209,21 +219,21 @@ const Document = () => {
       user: FirebaseUser.codec,
     })
   );
-  const [isCreatingToken, setIsCreatingToken] = useState(false);
+  const [isCreatingKey, setIsCreatingKey] = useState(false);
   const [rawKey, setRawKey] = useState<string>();
 
   const navigate = useNavigate();
 
-  const generateToken = () => ApiKey.generate(user.id);
+  const generateKey = () => ApiKey.generate(user.id);
   const codec = ApiKey.codec("string");
   const toast = useToast();
   const { onOpen, onClose, isOpen } = useDisclosure();
 
   const createKey = async () => {
-    setIsCreatingToken(true);
-    const { rawKey: newRawKey, apiKey } = await generateToken();
+    setIsCreatingKey(true);
+    const { rawKey: newRawKey, apiKey } = await generateKey();
 
-    // fetch POST request to create the token
+    // fetch POST request to create the key
     fetch("", {
       method: "POST",
       body: JSON.stringify({ apiKey: codec.encode(apiKey) }),
@@ -231,9 +241,10 @@ const Document = () => {
       .catch((e) => console.error(e))
       .then(() => {
         toast({
-          title: "Token created.",
+          title: "Api Key created",
+          variant: "subtle",
           status: "success",
-          duration: 9000,
+          duration: 3000,
           isClosable: true,
           position: "top-right",
         });
@@ -243,12 +254,12 @@ const Document = () => {
       })
       .finally(() => {
         navigate(".", { replace: true });
-        setIsCreatingToken(false);
+        setIsCreatingKey(false);
       });
   };
 
   const deleteKey = async (apiKey: ApiKey) => {
-    setIsCreatingToken(true);
+    setIsCreatingKey(true);
     fetch("", {
       method: "DELETE",
       body: JSON.stringify({ apiKey: codec.encode(apiKey) }),
@@ -256,42 +267,43 @@ const Document = () => {
       .catch((e) => console.error(e))
       .then(() => {
         toast({
-          title: "Token deleted.",
+          title: "Key deleted.",
+          variant: "subtle",
           status: "success",
-          duration: 9000,
+          duration: 3000,
           isClosable: true,
           position: "top-right",
         });
       })
       .finally(() => {
         navigate(".", { replace: true });
-        setIsCreatingToken(false);
+        setIsCreatingKey(false);
       });
   };
 
   const apiKeys = project.apiKeys || [];
 
-  const createTokenButton = (
+  const createKeyButton = (
     <Button
       w={"xs"}
       colorScheme={"green"}
       onClick={() => createKey()}
-      isLoading={isCreatingToken}
+      isLoading={isCreatingKey}
       loadingText="Loading…"
     >
-      Create a new API Token
+      Create a new API Key
     </Button>
   );
 
   return (
-    <Stack spacing={10} m={10}>
-      <Text>Manage your API tokens from here.</Text>
-      {apiKeys.length !== 0 && createTokenButton}
+    <Stack spacing={10}>
+      <Text>Manage your API keys from here.</Text>
+      {apiKeys.length !== 0 && createKeyButton}
       <Card bgColor={bgColor}>
         <Table size={"sm"}>
           <Thead>
             <Tr>
-              <Th>Token</Th>
+              <Th>Key</Th>
               <Th>Date Added</Th>
               {/* <Th>Last Used</Th> */}
               <Th></Th>
@@ -324,47 +336,21 @@ const Document = () => {
                 <Td colSpan={4}>
                   <Stack alignItems="center" m={4} spacing={8}>
                     <Text textAlign="center">
-                      You don't have any Api tokens yet !
+                      You don't have any Api keys yet !
                     </Text>
-                    {createTokenButton}
+                    {createKeyButton}
                   </Stack>
                 </Td>
               </Tr>
             )}
           </Tbody>
         </Table>
-        <ApiTokenUsageModal
-          isOpen={isOpen}
-          onClose={onClose}
-          rawToken={rawKey}
-        />
+        {rawKey && (
+          <ApiKeyUsageModal isOpen={isOpen} onClose={onClose} rawKey={rawKey} />
+        )}
       </Card>
     </Stack>
   );
 };
-
-const Pre = styled.pre`
-  text-align: left;
-  margin: 1em 0;
-  padding: 0.5em;
-  overflow: scroll;
-  font-size: 0.8rem;
-`;
-
-const Line = styled.div`
-  display: table-row;
-`;
-
-const LineNo = styled.span`
-  display: table-cell;
-  text-align: right;
-  padding-right: 1em;
-  user-select: none;
-  opacity: 0.5;
-`;
-
-const LineContent = styled.span`
-  display: table-cell;
-`;
 
 export default Document;

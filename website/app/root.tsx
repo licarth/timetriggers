@@ -7,18 +7,19 @@ import {
   ScrollRestoration,
   useLoaderData,
 } from "@remix-run/react";
+import { extendTheme, theme as baseTheme } from "@chakra-ui/react";
+import { mode } from "@chakra-ui/theme-tools";
 
 import {
   ChakraProvider,
   cookieStorageManagerSSR,
   localStorageManager,
 } from "@chakra-ui/react";
-import { withEmotionCache } from "@emotion/react";
+import { GlobalProps, withEmotionCache } from "@emotion/react";
 import type { LinksFunction, LoaderArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node"; // Depends on the runtime you choose
 import React, { useContext, useEffect } from "react";
 
-import { extendTheme } from "@chakra-ui/react";
 import _ from "lodash";
 import { ClientStyleContext, ServerStyleContext } from "./context";
 import { FirebaseAuthProvider } from "./contexts/FirebaseAuthContext";
@@ -134,6 +135,14 @@ export default function App() {
     config,
     colors,
     components,
+    styles: {
+      global: (props: GlobalProps) => ({
+        // Optionally set global CSS styles
+        body: {
+          bg: mode("gray.50", "gray.800")(props),
+        },
+      }),
+    },
   });
 
   return (
@@ -148,7 +157,6 @@ export default function App() {
       >
         <FirebaseAuthProvider>
           <Outlet />
-          {/* <Footer /> */}
         </FirebaseAuthProvider>
       </ChakraProvider>
     </Document>

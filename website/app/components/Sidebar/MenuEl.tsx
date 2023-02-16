@@ -77,7 +77,7 @@ export const MenuElements = ({
           {/* <Heading mt={8} size="md" hidden={navSize === "small"}>
             Project <code>{selectedProjectSlug}</code>
           </Heading> */}
-          <NavItem navSize={navSize} title="Tokens" icon={BsKey} active />
+          <NavItem navSize={navSize} title="Api Keys" icon={BsKey} active />
           <NavItem
             navSize={navSize}
             title="Triggers"
