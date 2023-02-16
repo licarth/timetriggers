@@ -222,10 +222,7 @@ const Document = () => {
   const createKey = async () => {
     setIsCreatingToken(true);
     const { rawKey: newRawKey, apiKey } = await generateToken();
-    setRawKey(newRawKey);
 
-    // open modal
-    onOpen();
     // fetch POST request to create the token
     fetch("", {
       method: "POST",
@@ -240,6 +237,9 @@ const Document = () => {
           isClosable: true,
           position: "top-right",
         });
+        // open modal
+        setRawKey(newRawKey);
+        onOpen();
       })
       .finally(() => {
         navigate(".", { replace: true });
