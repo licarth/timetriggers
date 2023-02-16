@@ -1,5 +1,7 @@
-import { Alert, AlertIcon, Center, ModalProps } from "@chakra-ui/react";
+import type { ModalProps } from "@chakra-ui/react";
 import {
+  Alert,
+  AlertIcon,
   Button,
   Card,
   CardBody,
@@ -36,7 +38,6 @@ import {
   Project,
   storeApiKey,
 } from "@timetriggers/domain";
-import copy from "copy-to-clipboard";
 import { addMinutes, format } from "date-fns";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
@@ -342,10 +343,10 @@ const Document = () => {
             )}
           </Tbody>
         </Table>
-        {rawKey && (
-          <ApiKeyUsageModal isOpen={isOpen} onClose={onClose} rawKey={rawKey} />
-        )}
       </Card>
+      {rawKey && (
+        <ApiKeyUsageModal isOpen={isOpen} onClose={onClose} rawKey={rawKey} />
+      )}
     </Stack>
   );
 };

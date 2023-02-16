@@ -1,15 +1,11 @@
-import { Button, useToast } from "@chakra-ui/react";
-import styled from "@emotion/styled";
-import copy from "copy-to-clipboard";
 import Highlight, { defaultProps } from "prism-react-renderer";
 import theme from "prism-react-renderer/themes/vsDark";
-import { useState } from "react";
 import { FaCopy } from "react-icons/fa";
 import { CopyToClipboardButton } from "./CopyToClipboardButton";
+import styled from "@emotion/styled";
 
 const Pre = styled.pre`
   text-align: left;
-  margin: 1em 0;
   padding: 0.5em;
   overflow: scroll;
   font-size: 0.8rem;
@@ -36,7 +32,7 @@ const Container = styled.div`
 `;
 
 const TopRightButton = styled(CopyToClipboardButton)`
-  position: relative;
+  position: absolute;
   top: 8px;
   right: 8px;
 `;
@@ -73,10 +69,10 @@ export const CodeSample = ({
       </Highlight>
       {copyToClipboardButton && (
         <TopRightButton
-          variant={"outline"}
+          variant={"solid"}
           textToPutInClipboard={code}
           rightIcon={<FaCopy />}
-          size={"sm"}
+          size={"xs"}
         >
           Copy
         </TopRightButton>
