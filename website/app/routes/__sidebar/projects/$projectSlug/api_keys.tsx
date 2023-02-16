@@ -60,8 +60,8 @@ import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte.server";
-import { CodeSample } from "../../../../components/CodeSample";
 import _ from "lodash";
+import { CodeExample } from "~/components/CodeExample";
 
 export const loader: LoaderFunction = async ({ params, request }) => {
   return loaderFromRte(
@@ -170,6 +170,14 @@ const ApiKeyUsageModal = ({
                 >
                   <CardBody>
                     <HStack>
+                      <CopyToClipboardButton
+                        textToPutInClipboard={apiKey.value}
+                        size={"sm"}
+                        rightIcon={<FaCopy />}
+                        minW="fit-content"
+                      >
+                        COPY
+                      </CopyToClipboardButton>
                       <Code
                         fontSize={"1.2em"}
                         alignSelf={"center"}
@@ -177,28 +185,17 @@ const ApiKeyUsageModal = ({
                       >
                         {apiKey.value}
                       </Code>
-                      <CopyToClipboardButton
-                        textToPutInClipboard={apiKey.value}
-                        size={"sm"}
-                        rightIcon={<FaCopy />}
-                        minW="fit-content"
-                      >
-                        Copy
-                      </CopyToClipboardButton>
                     </HStack>
                   </CardBody>
                 </Card>
               </Stack>
             )}
 
-            <Text>
-              This is an example of how to use it with <Code>Typescript</Code>{" "}
-              and <Code>fetch</Code>.
-            </Text>
-            <CodeSample
-              code={codeWithKey(apiKey.value || `<API_KEY>`)}
-              language="typescript"
-              copyToClipboardButton
+            <Heading size={"sm"}>Usage examples</Heading>
+            <CodeExample example="curl" apiKey={apiKey.value} />
+            <CodeExample
+              example="node-fetch-typescript"
+              apiKey={apiKey.value}
             />
           </Stack>
         </ModalBody>
@@ -209,43 +206,6 @@ const ApiKeyUsageModal = ({
       </ModalContent>
     </Modal>
   );
-};
-
-export const codeWithKey = (apiKey?: string) => {
-  const formattedDate = format(
-    addMinutes(new Date(), 1),
-    "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"
-  );
-  return `
-fetch("https://api.timetriggers.io/schedule", {
-  method: "POST",
-  headers: {
-    "X-TimeTriggers-Key": "${apiKey}",   // your API key
-    "X-TimeTriggers-Url": "https://yourdomain.com/endpoint",    // The url to call
-    "X-TimeTriggers-At": "${formattedDate}",       // 1 minute from now
-  },
-});
-  `.trim();
-};
-export const bashCodeWithKey = (apiKey?: string) => {
-  const formattedDate = format(
-    addMinutes(new Date(), 1),
-    "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"
-  );
-  return `
-  curl \\
-    -H "X-TimeTriggers-Url: https://licarth.eu.ngrok.io" \\
-    -H "X-TimeTriggers-At: ${formattedDate}" \\
-    -H "X-TimeTriggers-Key: ${apiKey}" \\
-    
-    # Everything below is your original request
-    -H "Content-type: application/json" \\
-    -X PUT \\
-    -d '{
-      "hello": "world"
-    }' \\
-  'https://timetriggers.io/schedule'
-  `.trim();
 };
 
 const Document = () => {
@@ -309,7 +269,7 @@ const Document = () => {
       });
   };
 
-  const apiKeys = project.apiKeys || [];
+  const apiKeys = project.apiKeys || {};
 
   const createKeyButton = (
     <Button
@@ -323,6 +283,7 @@ const Document = () => {
     </Button>
   );
 
+  const firstApiKey = _.values(apiKeys)[0];
   return (
     <Stack spacing={10}>
       <Text>Manage your API keys from here.</Text>
@@ -338,27 +299,31 @@ const Document = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {_.values(apiKeys).map((apiKey) => (
-              <Tr key={apiKey.value}>
-                <Td>••••{apiKey.value.slice(-4)}</Td>
-                <Td>
-                  <Text isTruncated maxW="sm">
-                    {format(apiKey.createdAt, "dd/MM/yyyy HH:mm")}
-                    {/* {apiKey.createdAt} */}
-                  </Text>
-                </Td>
-                {/* <Td>seconds ago</Td> */}
-                <Td>
-                  <IconButton
-                    size="xs"
-                    icon={<BsFillTrash2Fill />}
-                    aria-label="delete"
-                    colorScheme={"red"}
-                    onClick={() => deleteKey(apiKey)}
-                  />
-                </Td>
-              </Tr>
-            ))}
+            {_(apiKeys)
+              .values()
+              .sortBy("createdAt")
+              .valueOf()
+              .map((apiKey) => (
+                <Tr key={apiKey.value}>
+                  <Td>••••{apiKey.value.slice(-4)}</Td>
+                  <Td>
+                    <Text isTruncated maxW="sm">
+                      {format(apiKey.createdAt, "dd/MM/yyyy HH:mm")}
+                      {/* {apiKey.createdAt} */}
+                    </Text>
+                  </Td>
+                  {/* <Td>seconds ago</Td> */}
+                  <Td>
+                    <IconButton
+                      size="xs"
+                      icon={<BsFillTrash2Fill />}
+                      aria-label="delete"
+                      colorScheme={"red"}
+                      onClick={() => deleteKey(apiKey)}
+                    />
+                  </Td>
+                </Tr>
+              ))}
             {_.isEmpty(apiKeys) && (
               <Tr>
                 <Td colSpan={4}>
@@ -406,30 +371,6 @@ const Document = () => {
               </UnorderedList>
             </ListItem>
           </OrderedList>
-          <Box mt={6}>
-            <CodeSample
-              code={codeWithKey(apiKey?.value || `<API_KEY>`)}
-              copyToClipboardButton
-              language="typescript"
-              legend={
-                <>
-                  Example with <Code>fetch()</Code> in Node.js
-                </>
-              }
-            />
-          </Box>
-          <Box mt={6}>
-            <CodeSample
-              code={bashCodeWithKey(apiKey?.value || `<API_KEY>`)}
-              copyToClipboardButton
-              language="bash"
-              legend={
-                <>
-                  Example with <Code>curl</Code>
-                </>
-              }
-            />
-          </Box>
           <Alert status="success" mt={6} variant="top-accent">
             <AlertIcon />
             <Text>
@@ -438,6 +379,15 @@ const Document = () => {
               only with a header <Code>X-TimeTriggers-TaskId</Code>
             </Text>
           </Alert>
+          <Box mt={6}>
+            <CodeExample
+              example="node-fetch-typescript"
+              apiKey={firstApiKey?.value}
+            />
+          </Box>
+          <Box mt={6}>
+            <CodeExample example="curl" apiKey={firstApiKey?.value} />
+          </Box>
         </CardBody>
       </Card>
     </Stack>

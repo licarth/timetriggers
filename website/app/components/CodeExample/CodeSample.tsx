@@ -2,7 +2,7 @@ import type { Language } from "prism-react-renderer";
 import Highlight, { defaultProps } from "prism-react-renderer";
 import theme from "prism-react-renderer/themes/vsDark";
 import { FaCopy } from "react-icons/fa";
-import { CopyToClipboardButton } from "./CopyToClipboardButton";
+import { CopyToClipboardButton } from "../CopyToClipboardButton";
 import styled from "@emotion/styled";
 import { Box, Text } from "@chakra-ui/react";
 
@@ -85,7 +85,7 @@ export const CodeSample = ({
           rightIcon={<FaCopy />}
           size={"xs"}
         >
-          Copy
+          COPY
         </TopRightButton>
       )}
     </Container>

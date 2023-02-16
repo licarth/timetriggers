@@ -40,19 +40,19 @@ const Document = () => {
 
   const bgColor = useColorModeValue("white", "gray.800");
   return (
-    <Stack m={16} spacing={8}>
+    <Stack spacing={8}>
       <Text>
         🎉 You are a participant in more than one timetriggers.io project !
         Please select below which project you'd like to see.
       </Text>
-      <Flex bgColor={bgColor}>
+      <Flex bgColor={bgColor} wrap="wrap">
         {projects.map((project) => (
           <Card
             key={project.id}
             to={project.slug}
             as={Link}
-            m={15}
-            p={8}
+            m={4}
+            p={6}
             size="sm"
           >
             <Heading size="sm">{String(project.slug)}</Heading>

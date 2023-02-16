@@ -1,11 +1,12 @@
 import type { ButtonProps } from "@chakra-ui/react";
 import { Button } from "@chakra-ui/react";
+import styled from "@emotion/styled";
 import copy from "copy-to-clipboard";
 import { useState } from "react";
 
 export const CopyToClipboardButton = ({
   textToPutInClipboard,
-  tempButtonText = "Copied",
+  tempButtonText = "COPIED",
   children,
   ...props
 }: {
@@ -15,6 +16,7 @@ export const CopyToClipboardButton = ({
   const [tempDisplayed, setTempDisplayed] = useState(false);
   return (
     <Button
+      // Small caps
       {...props}
       onClick={() => {
         copy(textToPutInClipboard) && setTempDisplayed(true);
@@ -23,7 +25,11 @@ export const CopyToClipboardButton = ({
         }, 1000);
       }}
     >
-      {tempDisplayed ? tempButtonText : children}
+      <SmallCaps>{tempDisplayed ? tempButtonText : children}</SmallCaps>
     </Button>
   );
 };
+
+const SmallCaps = styled.span`
+  font-variant-caps: petite-caps;
+`;

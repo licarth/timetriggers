@@ -13,7 +13,10 @@ type SidebarProps = {
 
 export const Sidebar = ({ user, projects }: SidebarProps) => {
   const { pathname } = useLocation();
-  const [navSize, setNavSize] = useState<NavSize>("small");
+  const screenWidth = typeof window !== "undefined" && window.innerWidth;
+  const [navSize, setNavSize] = useState<NavSize>(
+    screenWidth > 600 ? "large" : "small"
+  );
 
   const selectedProjectSlug = pathname.startsWith("/projects/")
     ? pathname.split("/")[2]
