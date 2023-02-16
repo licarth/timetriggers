@@ -130,7 +130,7 @@ const ApiKeyUsageModal = ({
 }: Pick<ModalProps, "isOpen"> &
   Pick<ModalProps, "onClose"> & { rawKey: string }) => {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="6xl">
+    <Modal isOpen={isOpen} onClose={onClose} size={{ base: "full", md: "6xl" }}>
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>Api Key Created</ModalHeader>
@@ -152,7 +152,12 @@ const ApiKeyUsageModal = ({
                     application !
                   </Text>
                 </Alert>
-                <Card maxW={"xl"} p={1} variant={"outline"}>
+                <Card
+                  maxW={{ base: "full", md: "xl" }}
+                  p={1}
+                  variant={"outline"}
+                  overflowX={"scroll"}
+                >
                   <CardBody>
                     <HStack>
                       <Code
@@ -166,6 +171,7 @@ const ApiKeyUsageModal = ({
                         textToPutInClipboard={rawKey}
                         size={"sm"}
                         rightIcon={<FaCopy />}
+                        minW="fit-content"
                       >
                         Copy
                       </CopyToClipboardButton>
@@ -240,15 +246,6 @@ const Document = () => {
     })
       .catch((e) => console.error(e))
       .then(() => {
-        toast({
-          title: "Api Key created",
-          variant: "subtle",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-          position: "top-right",
-        });
-        // open modal
         setRawKey(newRawKey);
         onOpen();
       })
@@ -285,7 +282,7 @@ const Document = () => {
 
   const createKeyButton = (
     <Button
-      w={"xs"}
+      w="min-content"
       colorScheme={"green"}
       onClick={() => createKey()}
       isLoading={isCreatingKey}
@@ -299,8 +296,8 @@ const Document = () => {
     <Stack spacing={10}>
       <Text>Manage your API keys from here.</Text>
       {apiKeys.length !== 0 && createKeyButton}
-      <Card bgColor={bgColor}>
-        <Table size={"sm"}>
+      <Card bgColor={bgColor} maxW="xxl" overflowY="scroll">
+        <Table size="sm">
           <Thead>
             <Tr>
               <Th>Key</Th>

@@ -13,7 +13,7 @@ type SidebarProps = {
 
 export const Sidebar = ({ user, projects }: SidebarProps) => {
   const { pathname } = useLocation();
-  const [navSize, setNavSize] = useState<NavSize>("large");
+  const [navSize, setNavSize] = useState<NavSize>("small");
 
   const selectedProjectSlug = pathname.startsWith("/projects/")
     ? pathname.split("/")[2]
@@ -24,7 +24,8 @@ export const Sidebar = ({ user, projects }: SidebarProps) => {
       pos="sticky"
       direction="column"
       top="0"
-      h="100vh"
+      maxW={"fit-content"}
+      flexGrow={1}
       justifyContent={"space-between"}
       boxShadow="0 4px 12px 0 rgba(0,0,0,0.5)"
     >

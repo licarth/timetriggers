@@ -15,7 +15,8 @@ import {
   cookieStorageManagerSSR,
   localStorageManager,
 } from "@chakra-ui/react";
-import { GlobalProps, withEmotionCache } from "@emotion/react";
+import type { GlobalProps } from "@emotion/react";
+import { withEmotionCache } from "@emotion/react";
 import type { LinksFunction, LoaderArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node"; // Depends on the runtime you choose
 import React, { useContext, useEffect } from "react";
@@ -25,6 +26,7 @@ import { ClientStyleContext, ServerStyleContext } from "./context";
 import { FirebaseAuthProvider } from "./contexts/FirebaseAuthContext";
 import { environmentVariable } from "./environmentVariable";
 import { initializeFirebaseWeb } from "./initializeFirebaseWeb";
+import styled from "@emotion/styled";
 
 export let links: LinksFunction = () => {
   return [
@@ -43,8 +45,8 @@ interface DocumentProps {
 
 export const meta: MetaFunction = () => ({
   charset: "utf-8",
-  title: "timetriggers",
-  viewport: "width=device-width,initial-scale=1",
+  title: "timetriggers.io",
+  viewport: "initial-scale=1,viewport-fit=cover,width=device-width",
 });
 
 export async function loader({ request }: LoaderArgs) {
@@ -84,7 +86,7 @@ const Document = withEmotionCache(
     }
 
     return (
-      <html lang="en" className="h-full">
+      <Html lang="en">
         <head>
           <Meta />
           <Links />
@@ -96,21 +98,31 @@ const Document = withEmotionCache(
             />
           ))}
         </head>
-        <body className="h-full">
+        <Body>
           {children}
           <ScrollRestoration />
           <Scripts />
           <LiveReload />
-        </body>
+        </Body>
         <script
           dangerouslySetInnerHTML={{
             __html: `window.ENV = ${JSON.stringify(data.ENV)}`,
           }}
         />
-      </html>
+      </Html>
     );
   }
 );
+
+const Body = styled.body`
+  height: 100%;
+  min-height: -webkit-fill-available;
+`;
+
+const Html = styled.html`
+  height: 100%;
+  min-height: -webkit-fill-available;
+`;
 
 export default function App() {
   const { cookies } = useLoaderData();

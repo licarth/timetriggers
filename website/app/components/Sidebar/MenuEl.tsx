@@ -37,13 +37,13 @@ export const MenuElements = ({
 
   return (
     <Flex
-      p={"5%"}
+      p={navSize === "small" ? "3px" : "12px"}
       flexDir="column"
       alignItems="flex-start"
       as="nav"
+      overflowY="hidden"
       w={navSize === "small" ? "60px" : "200px"}
       borderRadius={navSize === "small" ? "15px" : "30px"}
-      overflow="hidden"
       transition="all 0.5s ease"
     >
       <Flex flexDir={"row"} mt="5" alignItems={"center"}>
@@ -56,54 +56,55 @@ export const MenuElements = ({
         />
         {navSize === "large" && <Logo fontSize="1rem" />}
       </Flex>
-
-      {selectedProjectSlug && (
-        <>
-          {projects && projects?.length > 1 && (
-            <>
-              <Select
-                mt={8}
-                defaultValue={selectedProjectSlug}
-                onChange={(v) => navigateToProject(v.target.value)}
-              >
-                {projects?.map((p) => (
-                  <option key={p.slug} value={p.slug}>
-                    <Code>{p.slug}</Code>
-                  </option>
-                ))}
-              </Select>
-            </>
-          )}
-          {/* <Heading mt={8} size="md" hidden={navSize === "small"}>
+      <Flex flexDir={"column"} overflowY="scroll" w="full">
+        {selectedProjectSlug && (
+          <>
+            {projects && projects?.length > 1 && (
+              <>
+                <Select
+                  mt={8}
+                  defaultValue={selectedProjectSlug}
+                  onChange={(v) => navigateToProject(v.target.value)}
+                >
+                  {projects?.map((p) => (
+                    <option key={p.slug} value={p.slug}>
+                      <Code>{p.slug}</Code>
+                    </option>
+                  ))}
+                </Select>
+              </>
+            )}
+            {/* <Heading mt={8} size="md" hidden={navSize === "small"}>
             Project <code>{selectedProjectSlug}</code>
           </Heading> */}
-          <NavItem navSize={navSize} title="Api Keys" icon={BsKey} active />
-          <NavItem
-            navSize={navSize}
-            title="Triggers"
-            icon={BsCollectionPlayFill}
-            disabled
-            comingSoon
-          />
-          <NavItem
-            navSize={navSize}
-            title="Settings"
-            icon={BsGearFill}
-            disabled
-            comingSoon
-          />
-        </>
-      )}
-      <Heading mt={8} size="md" hidden={navSize === "small"}>
-        Resources
-      </Heading>
-      <NavItem
-        navSize={navSize}
-        title="Docs"
-        icon={BsBook}
-        disabled
-        comingSoon
-      />
+            <NavItem navSize={navSize} title="Api Keys" icon={BsKey} active />
+            <NavItem
+              navSize={navSize}
+              title="Triggers"
+              icon={BsCollectionPlayFill}
+              disabled
+              comingSoon
+            />
+            <NavItem
+              navSize={navSize}
+              title="Settings"
+              icon={BsGearFill}
+              disabled
+              comingSoon
+            />
+          </>
+        )}
+        <Heading mt={8} size="md" hidden={navSize === "small"}>
+          Resources
+        </Heading>
+        <NavItem
+          navSize={navSize}
+          title="Docs"
+          icon={BsBook}
+          disabled
+          comingSoon
+        />
+      </Flex>
     </Flex>
   );
 };

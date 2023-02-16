@@ -14,6 +14,7 @@ import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { loaderFromRte } from "~/utils/loaderFromRte.server";
 import { Sidebar } from "~/components/Sidebar/Sidebar";
 import * as C from "io-ts/lib/Codec.js";
+import styled from "@emotion/styled";
 
 const wireCodec = C.struct({
   projects: C.array(Project.codec("string")),
@@ -26,11 +27,16 @@ export default () => {
   );
 
   return (
-    <Flex flexDir={"row"}>
+    <StyledFlex flexDir={"row"} maxW="full">
       <Sidebar user={user} projects={projects} />
-      <Flex direction={"column"} flexGrow="1" justifyContent="space-between">
+      <Flex
+        overflow="scroll"
+        direction={"column"}
+        flexGrow="1"
+        justifyContent="space-between"
+      >
         <Container
-          maxW="full"
+          maxW={{ base: "70vw", md: "full" }}
           py={{ base: "6", md: "12" }}
           px={{ base: "0", sm: "8" }}
         >
@@ -38,7 +44,7 @@ export default () => {
         </Container>
         <Footer />
       </Flex>
-    </Flex>
+    </StyledFlex>
   );
 };
 
@@ -51,3 +57,15 @@ export const loader: LoaderFunction = async ({ request }) =>
       RTE.map(({ projects, user }) => wireCodec.encode({ projects, user }))
     )
   );
+
+const StyledFlex = styled(Flex)`
+  height: 100%;
+  height: 100vh;
+
+  /* mobile viewport bug fix */
+  height: -webkit-fill-available;
+
+  /* See 
+  https://allthingssmitty.com/2020/05/11/css-fix-for-100vh-in-mobile-webkit/
+  and https://github.com/chakra-ui/chakra-ui/issues/6027 */
+`;
