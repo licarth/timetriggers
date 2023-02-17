@@ -1,7 +1,6 @@
 {
   "name": "@timetriggers/domain",
   "main": "built/cjs/index.js",
-  "type": "module",
   "module": "built/esm/index.js",
   "version": "1.0.0",
   "dependencies": {

@@ -16,11 +16,7 @@ export class OrganizationId {
     id: Codec.string,
   });
 
-  static codec = taggedUnionClassCodec(
-    this.propsCodec,
-    "OrganizationId",
-    OrganizationId
-  );
+  static codec = taggedUnionClassCodec(this.propsCodec, OrganizationId);
 }
 
 export type OrganizationIdProps = Codec.TypeOf<

@@ -20,11 +20,7 @@ export class Organization {
     name: Codec.string,
   });
 
-  static codec = taggedUnionClassCodec(
-    this.propsCodec,
-    "Organization",
-    Organization
-  );
+  static codec = taggedUnionClassCodec(this.propsCodec, Organization);
 }
 
 export type OrganizationProps = Codec.TypeOf<typeof Organization.propsCodec>;

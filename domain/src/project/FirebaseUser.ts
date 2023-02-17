@@ -24,11 +24,7 @@ export class FirebaseUser {
     });
   };
 
-  static codec = taggedUnionClassCodec(
-    this.propsCodec,
-    "FirebaseUser",
-    FirebaseUser
-  );
+  static codec = taggedUnionClassCodec(this.propsCodec, FirebaseUser);
 }
 
 export type FirebaseUserProps = Codec.TypeOf<typeof FirebaseUser.propsCodec>;
