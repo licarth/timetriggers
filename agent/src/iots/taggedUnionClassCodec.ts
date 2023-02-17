@@ -1,9 +1,8 @@
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
 import * as Encoder from "io-ts/lib/Encoder.js";
-import { fromClassCodec } from "@iots/index.js";
-import { Proped } from "./Proped";
 import { fromClassCodecNotExtends } from "./fromClassCodecNotExtends";
+import { Proped } from "./Proped";
 
 export const taggedUnionClassCodec = <
   PropsType,
@@ -22,6 +21,5 @@ export const taggedUnionClassCodec = <
         Encoder.compose({ encode: (i) => ({ ...i, _tag: tag }) })
       )
     ),
-    (x) => x,
     Codec.compose(fromClassCodecNotExtends(typeConstructor))
   );

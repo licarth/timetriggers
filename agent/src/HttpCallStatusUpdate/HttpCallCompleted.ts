@@ -24,12 +24,11 @@ export class HttpCallCompleted {
     response: HttpCallResponse.codec,
   });
 
-  static codec: Codec.Codec<unknown, { startedAt: string }, HttpCallCompleted> =
-    taggedUnionClassCodec(
-      this.propsCodec,
-      "HttpCallCompleted",
-      HttpCallCompleted
-    );
+  static codec = taggedUnionClassCodec(
+    this.propsCodec,
+    "HttpCallCompleted",
+    HttpCallCompleted
+  );
 }
 
 export type HttpCallCompletedProps = Codec.TypeOf<
