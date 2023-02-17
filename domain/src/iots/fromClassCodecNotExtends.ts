@@ -8,13 +8,24 @@ export const fromClassCodecNotExtends = <
 >(
   typeConstructor: new (s: PropsType) => ClassType
 ): Codec.Codec<
-  PropsType,
-  PropsType & { _tag: string; _version: number },
+  PropsType & { _tag: string; _version?: number },
+  PropsType & { _tag: string; _version?: number },
   ClassType
 > =>
   Codec.make(
     {
-      decode: (props: PropsType) => Decoder.success(new typeConstructor(props)),
+      decode: (props) => {
+        const o = new typeConstructor(props);
+        if (o._version && o._version !== props._version) {
+          return Decoder.failure(
+            props,
+            `Version mismatch: expected ${o._version}, got ${props._version}`
+          );
+        }
+        return Decoder.success(o);
+      },
     },
-    { encode: (i) => ({ ...i._props, _tag: i._tag, _version: i._version }) }
+    {
+      encode: (i) => ({ ...i._props, _tag: i._tag, _version: i._version }),
+    }
   );

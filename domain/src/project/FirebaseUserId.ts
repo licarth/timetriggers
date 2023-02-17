@@ -16,11 +16,7 @@ export class FirebaseUserId {
     id: Codec.string,
   });
 
-  static codec = taggedUnionClassCodec(
-    this.propsCodec,
-    "FirebaseUserId",
-    FirebaseUserId
-  );
+  static codec = taggedUnionClassCodec(this.propsCodec, FirebaseUserId);
 }
 
 export type FirebaseUserIdProps = Codec.TypeOf<

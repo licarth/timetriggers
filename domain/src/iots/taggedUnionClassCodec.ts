@@ -11,17 +11,25 @@ export const taggedUnionClassCodec = <
   ClassType extends Proped<PropsType>
 >(
   propsCodec: Codec.Codec<unknown, SerializedPropsType, PropsType>,
-  tag: string,
   typeConstructor: new (s: PropsType) => ClassType
-): Codec.Codec<unknown, SerializedPropsType, ClassType> =>
-  pipe(
+): Codec.Codec<unknown, SerializedPropsType, ClassType> => {
+  const propsCodecWithTag = pipe(
+    propsCodec,
+    Codec.intersect(
+      Codec.struct({
+        _tag: Codec.string,
+      })
+    )
+  );
+  return pipe(
     Codec.make(
-      propsCodec,
+      propsCodecWithTag,
       pipe(
-        propsCodec,
-        Encoder.compose({ encode: (i) => ({ ...i, _tag: tag }) })
+        propsCodecWithTag,
+        Encoder.compose({ encode: (i) => ({ ...i, _tag: i._tag }) })
       )
     ),
     (x) => x,
     Codec.compose(fromClassCodecNotExtends(typeConstructor))
   );
+};

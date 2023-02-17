@@ -16,14 +16,18 @@ export const taggedVersionedClassCodec = <
   typeConstructor: new (s: PropsType) => ClassType;
 }): Codec.Codec<
   unknown,
-  SerializedPropsType & { _tag: string; _version: number },
+  SerializedPropsType & { _tag: string; _version?: number },
   ClassType
 > => {
-  const propsCodecWithTagAndVersion = pipe(
+  const propsCodecWithTagAndMaybeVersion = pipe(
     propsCodec,
     Codec.intersect(
       Codec.struct({
         _tag: Codec.string,
+      })
+    ),
+    Codec.intersect(
+      Codec.partial({
         _version: Codec.number,
       })
     )
@@ -31,9 +35,9 @@ export const taggedVersionedClassCodec = <
 
   return pipe(
     Codec.make(
-      propsCodecWithTagAndVersion,
+      propsCodecWithTagAndMaybeVersion,
       pipe(
-        propsCodecWithTagAndVersion, // props encoder => SerializedPropsType
+        propsCodecWithTagAndMaybeVersion, // props encoder => SerializedPropsType
         Encoder.compose({
           encode: (i) => ({ ...i, _tag: i._tag, _version: i._version }),
         })
