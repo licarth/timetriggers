@@ -256,7 +256,7 @@ const Document = () => {
       .then(() => {
         toast({
           title: "Key deleted.",
-          variant: "subtle",
+          variant: "top-accent",
           status: "success",
           duration: 3000,
           isClosable: true,

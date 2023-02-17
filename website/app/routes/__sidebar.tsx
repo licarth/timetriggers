@@ -1,4 +1,5 @@
-import { Container, Flex, useColorModeValue } from "@chakra-ui/react";
+import { Container, Flex } from "@chakra-ui/react";
+import styled from "@emotion/styled";
 import { Outlet, useLoaderData } from "@remix-run/react";
 import type { LoaderFunction } from "@remix-run/server-runtime";
 import {
@@ -9,12 +10,12 @@ import {
 } from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
+import * as C from "io-ts/lib/Codec.js";
 import { Footer } from "~/components/footer/Footer";
+import { MobileTopbar } from "~/components/MobileTopbar";
+import { DesktopSidebar } from "~/components/DesktopSidebar";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { loaderFromRte } from "~/utils/loaderFromRte.server";
-import { Sidebar } from "~/components/Sidebar/Sidebar";
-import * as C from "io-ts/lib/Codec.js";
-import styled from "@emotion/styled";
 
 const wireCodec = C.struct({
   projects: C.array(Project.codec("string")),
@@ -27,24 +28,27 @@ export default () => {
   );
 
   return (
-    <StyledFlex flexDir={"row"} maxW="full">
-      <Sidebar user={user} projects={projects} />
-      <Flex
-        overflow="scroll"
-        direction={"column"}
-        flexGrow="1"
-        justifyContent="space-between"
-      >
-        <Container
-          maxW={{ base: "70vw", md: "full" }}
-          py={{ base: "6", md: "12" }}
-          px={{ base: "0", sm: "8" }}
+    <RootStyledFlex flexDir="column" maxW="full" top={0}>
+      <MobileTopbar user={user} projects={projects} />
+      <StyledFlex flexDir="row" flexGrow={1}>
+        <DesktopSidebar user={user} projects={projects} />
+        <Flex
+          overflow="scroll"
+          direction={"column"}
+          flexGrow="1"
+          justifyContent="space-between"
         >
-          <Outlet />
-        </Container>
-        <Footer />
-      </Flex>
-    </StyledFlex>
+          <Container
+            maxW={"6xl"}
+            py={{ base: "6", md: "12" }}
+            px={{ base: "4", sm: "8" }}
+          >
+            <Outlet />
+          </Container>
+          <Footer />
+        </Flex>
+      </StyledFlex>
+    </RootStyledFlex>
   );
 };
 
@@ -58,9 +62,13 @@ export const loader: LoaderFunction = async ({ request }) =>
     )
   );
 
+const RootStyledFlex = styled(Flex)`
+  height: 100%;
+`;
+
 const StyledFlex = styled(Flex)`
   height: 100%;
-  height: 100vh;
+  max-height: 100%;
 
   /* mobile viewport bug fix */
   height: -webkit-fill-available;

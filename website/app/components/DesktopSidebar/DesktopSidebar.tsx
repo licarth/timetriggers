@@ -11,7 +11,7 @@ type SidebarProps = {
   projects?: Project[];
 };
 
-export const Sidebar = ({ user, projects }: SidebarProps) => {
+export const DesktopSidebar = ({ user, projects }: SidebarProps) => {
   const { pathname } = useLocation();
   const screenWidth = typeof window !== "undefined" && window.innerWidth;
   const [navSize, setNavSize] = useState<NavSize>(
@@ -31,6 +31,7 @@ export const Sidebar = ({ user, projects }: SidebarProps) => {
       flexGrow={1}
       justifyContent={"space-between"}
       boxShadow="0 4px 12px 0 rgba(0,0,0,0.5)"
+      display={{ base: "none", sm: "flex" }}
     >
       <MenuElements
         user={user}
