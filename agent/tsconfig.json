@@ -16,14 +16,13 @@
       "@/*": ["src/*"],
       "@iots": ["src/iots"],
       "@iots/*": ["src/iots/*"],
-      "@domain": ["src/iots"],
-      "@domain/*": ["src/domain/*"],
       "@services": ["src/services"],
       "@services/*": ["src/services/*"]
     },
     "sourceMap": true
   },
   "include": ["src/**/*", "newrelic.mjs"],
+  "files": ["src/index.d.ts"],
   "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node"
