@@ -66,6 +66,7 @@ jobs:
     needs:
       - build_docker_agent
       - tests
+      - domain_tests
     if: github.ref == 'refs/heads/main'
     env:
       IMAGE_TAG: ${{ github.sha }}
@@ -107,6 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - tests
+      - domain_tests
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
     steps:
@@ -165,6 +167,31 @@ jobs:
         run: npm install
       - name: Run tests
         run: npm run test-ci
+
+  domain_tests:
+    name: Run domain tests
+    defaults:
+      run:
+        working-directory: domain
+    runs-on: ubuntu-latest
+    env:
+      FORCE_COLOR: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      # we first need to install & build the domain
+      - run: npm i && npm run build
+        working-directory: domain
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18
+          cache: "npm"
+          cache-dependency-path: ./domain/package-lock.json
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm run test
 
   deploy_firebase_rules:
     name: Deploy firebase rules in production

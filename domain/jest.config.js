@@ -1,10 +1,10 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 
-import { pathsToModuleNameMapper } from "ts-jest";
+const { pathsToModuleNameMapper } = require("ts-jest");
 // In the following statement, replace `./tsconfig` with the path to your `tsconfig` file
 // which contains the path mapping (ie the `compilerOptions.paths` option):
 // Import as json to avoid TS errors
-import tsconfig from "./tsconfig.base.json" assert { type: "json" };
+const tsconfig = require("./tsconfig.base.json");
 
 const compilerOptions = tsconfig.compilerOptions;
 
@@ -15,7 +15,7 @@ const pathsEntries = pathsToModuleNameMapper(compilerOptions.paths, {
 
 const esModules = [].join("|");
 
-export default {
+module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
 
