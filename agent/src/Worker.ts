@@ -1,6 +1,6 @@
 import { Observable } from "rxjs";
 import { HttpCallStatusUpdate } from "./HttpCallStatusUpdate/HttpCallStatusUpdate";
-import { JobDefinition } from "./domain/JobDefinition";
+import { JobDefinition } from "@timetriggers/domain";
 
 export interface Worker {
   /**

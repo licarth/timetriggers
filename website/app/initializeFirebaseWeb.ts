@@ -49,7 +49,3 @@ export function initializeFirebaseWeb({
 
   return { auth, app, firestore };
 }
-
-const randomString = () => {
-  return Math.random().toString(36).substring(7);
-};

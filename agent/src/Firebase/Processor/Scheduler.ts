@@ -1,10 +1,10 @@
-import { Clock } from "@/Clock/Clock";
+import { Clock } from "@timetriggers/domain";
 import {
   ClusterNodeInformation,
   CoordinationClient,
 } from "@/Coordination/CoordinationClient";
-import { JobDefinition } from "@/domain/JobDefinition";
-import { JobId } from "@/domain/JobId";
+import { JobDefinition } from "@timetriggers/domain";
+import { JobId } from "@timetriggers/domain";
 import { te } from "@/fp-ts";
 import { withTimeout } from "@/fp-ts/withTimeout";
 import { getOrReportToSentry } from "@/Sentry/getOrReportToSentry";

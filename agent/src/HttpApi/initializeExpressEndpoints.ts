@@ -1,16 +1,18 @@
 import { Api } from "@/Api";
-import { Headers } from "@/domain/Headers";
-import { JobScheduleArgs } from "@/domain/JobScheduleArgs";
-import { RawBody } from "@/domain/RawBody";
-import { ScheduledAt } from "@/domain/ScheduledAt";
 import { rte } from "@/fp-ts";
-import { getProjectByApiKey } from "@timetriggers/domain";
+import {
+  countUsage,
+  getProjectByApiKey,
+  Headers,
+  JobScheduleArgs,
+  RawBody,
+  ScheduledAt,
+} from "@timetriggers/domain";
 import bodyParser from "body-parser";
 import { Express } from "express";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RT from "fp-ts/lib/ReaderTask.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
-import { draw } from "io-ts/lib/Decoder.js";
 
 export const initializeEndpoints = ({
   app,
@@ -42,11 +44,15 @@ export const initializeEndpoints = ({
         RTE.Do,
         RTE.bindW("project", () => getProjectByApiKey({ apiKeyValue })),
         RTE.bindW("rawBody", () => {
-          return RTE.fromEither(
-            RawBody.codec.decode({ raw: req.body.toString("utf8") })
+          return pipe(
+            { raw: req.body.toString("utf8") },
+            RawBody.codec.decode,
+            RTE.fromEither,
+            RTE.map((x) => x)
           );
         }),
-        RTE.chainW(
+        RTE.bindW(
+          "a",
           ({ rawBody }) =>
             pipe(
               api.schedule(
@@ -66,6 +72,12 @@ export const initializeEndpoints = ({
               rte.sideEffect((jobId) => res.send({ success: true, jobId }))
             )
           // Todo handle errors due to scheduling
+        ),
+        RTE.chainW(({ project }) =>
+          countUsage({
+            project,
+            apiKeyValue,
+          })
         ),
         RTE.mapLeft((error) => {
           // console.log(draw(error));

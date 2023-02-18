@@ -1,5 +1,5 @@
 import { UtcDate } from "@timetriggers/domain";
-import { taggedUnionClassCodec } from "@/iots";
+import { taggedUnionClassCodec } from "@timetriggers/domain/built/cjs/iots";
 import * as Codec from "io-ts/lib/Codec.js";
 
 export class HttpCallErrored {
@@ -21,7 +21,7 @@ export class HttpCallErrored {
   });
 
   static codec: Codec.Codec<unknown, { startedAt: string }, HttpCallErrored> =
-    taggedUnionClassCodec(this.propsCodec, "HttpCallErrored", HttpCallErrored);
+    taggedUnionClassCodec(this.propsCodec, HttpCallErrored);
 }
 
 export type HttpCallErroredProps = Codec.TypeOf<

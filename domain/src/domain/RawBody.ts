@@ -20,7 +20,7 @@ export class RawBody {
     raw: Codec.string,
   });
 
-  static codec = taggedUnionClassCodec(this.propsCodec, "RawBody", RawBody);
+  static codec = taggedUnionClassCodec(this.propsCodec, RawBody);
 }
 
 export type RawBodyProps = Codec.TypeOf<typeof RawBody.propsCodec>;

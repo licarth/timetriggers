@@ -1,5 +1,4 @@
-import { UtcDate } from "@timetriggers/domain";
-import { taggedUnionClassCodec } from "@/iots";
+import { taggedUnionClassCodec, UtcDate } from "@timetriggers/domain";
 import * as Codec from "io-ts/lib/Codec.js";
 
 export class HttpCallStarted {
@@ -18,7 +17,7 @@ export class HttpCallStarted {
   });
 
   static codec: Codec.Codec<unknown, { startedAt: string }, HttpCallStarted> =
-    taggedUnionClassCodec(this.propsCodec, "HttpCallStarted", HttpCallStarted);
+    taggedUnionClassCodec(this.propsCodec, HttpCallStarted);
 }
 
 export type HttpCallStartedProps = Codec.TypeOf<

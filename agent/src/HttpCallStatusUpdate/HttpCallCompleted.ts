@@ -1,5 +1,5 @@
 import { UtcDate } from "@timetriggers/domain";
-import { taggedUnionClassCodec } from "@/iots";
+import { taggedUnionClassCodec } from "@timetriggers/domain";
 import * as Codec from "io-ts/lib/Codec.js";
 import { HttpCallResponse } from "./HttpCallResponse";
 
@@ -24,11 +24,7 @@ export class HttpCallCompleted {
     response: HttpCallResponse.codec,
   });
 
-  static codec = taggedUnionClassCodec(
-    this.propsCodec,
-    "HttpCallCompleted",
-    HttpCallCompleted
-  );
+  static codec = taggedUnionClassCodec(this.propsCodec, HttpCallCompleted);
 }
 
 export type HttpCallCompletedProps = Codec.TypeOf<

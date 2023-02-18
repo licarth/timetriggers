@@ -1,10 +1,10 @@
-import { JobDefinition } from "@/domain/JobDefinition";
+import { JobDefinition } from "@timetriggers/domain";
 import { Observable } from "rxjs";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { HttpCallLastStatus } from "@/HttpCallStatusUpdate";
-import { JobScheduleArgs } from "@/domain/JobScheduleArgs";
-import { JobId } from "@/domain/JobId";
-import { Shard } from "@/domain/Shard";
+import { JobScheduleArgs } from "@timetriggers/domain";
+import { JobId } from "@timetriggers/domain";
+import { Shard } from "@timetriggers/domain";
 import { ShardsToListenTo } from "./ShardsToListenTo";
 
 export type ShardingAlgorithm = (job: JobId) => Shard[];

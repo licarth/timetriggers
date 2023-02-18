@@ -3,7 +3,7 @@ import * as Codec from "io-ts/lib/Codec.js";
 import { fromClassCodec } from "@iots/index.js";
 import { ScheduledAt } from "./ScheduledAt";
 import { JobId } from "./JobId";
-import { Clock } from "@/Clock/Clock";
+import { Clock } from "../Clock";
 import { Http } from "./Http";
 import { JobScheduleArgs } from "./JobScheduleArgs";
 

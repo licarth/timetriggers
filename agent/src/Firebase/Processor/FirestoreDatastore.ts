@@ -1,11 +1,12 @@
-import { Clock } from "@/Clock/Clock";
-import { SystemClock } from "@/Clock/SystemClock";
+import { Clock } from "@timetriggers/domain";
+import { SystemClock } from "@timetriggers/domain";
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
-import { FirestoreJobDocument } from "@/domain/FirebaseJobDocument";
-import { JobDefinition } from "@/domain/JobDefinition";
-import { JobId } from "@/domain/JobId";
-import { JobScheduleArgs } from "@/domain/JobScheduleArgs";
-import { RegisteredAt } from "@/domain/RegisteredAt";
+import { FirestoreJobDocument } from "@timetriggers/domain";
+import { JobDefinition } from "@timetriggers/domain";
+import { JobId } from "@timetriggers/domain";
+import { JobScheduleArgs } from "@timetriggers/domain";
+import { RegisteredAt } from "@timetriggers/domain";
+import * as Codec from "io-ts/lib/Codec.js";
 import { e } from "@/fp-ts";
 import {
   HttpCallCompleted,

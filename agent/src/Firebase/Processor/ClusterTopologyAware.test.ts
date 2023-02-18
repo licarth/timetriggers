@@ -1,4 +1,4 @@
-import { TestClock } from "@/Clock/TestClock";
+import { TestClock } from "@timetriggers/domain";
 import { ZookeeperCoordinationClient } from "@/Coordination/ZookeeperCoordinationClient";
 import { te } from "@/fp-ts";
 import { InMemoryDataStore } from "./InMemoryDataStore";

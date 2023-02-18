@@ -1,6 +1,6 @@
 import * as TE from "fp-ts/lib/TaskEither.js";
-import { JobId } from "./domain/JobId";
-import { JobScheduleArgs } from "./domain/JobScheduleArgs";
+import { JobId } from "@timetriggers/domain";
+import { JobScheduleArgs } from "@timetriggers/domain";
 
 /**
  * Main interface for scheduling a callback.

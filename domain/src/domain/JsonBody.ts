@@ -20,7 +20,7 @@ export class JsonBody {
     raw: Codec.string,
   });
 
-  static codec = taggedUnionClassCodec(this.propsCodec, "JsonBody", JsonBody);
+  static codec = taggedUnionClassCodec(this.propsCodec, JsonBody);
 }
 
 export type JsonBodyProps = Codec.TypeOf<typeof JsonBody.propsCodec>;

@@ -1,6 +1,6 @@
 import { Api } from "./Api";
-import { Clock } from "./Clock/Clock";
-import { SystemClock } from "./Clock/SystemClock";
+import { Clock } from "@timetriggers/domain";
+import { SystemClock } from "@timetriggers/domain";
 import { AxiosWorkerPool } from "./AxiosWorkerPool";
 
 export type AbstractApiProps = {

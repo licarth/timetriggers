@@ -1,9 +1,9 @@
 import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
-import { Shard } from "@/domain/Shard";
+import { Shard } from "@timetriggers/domain";
 import * as TE from "fp-ts/lib/TaskEither.js";
-import { JobDefinition } from "../domain/JobDefinition";
-import { JobId } from "../domain/JobId";
+import { JobDefinition } from "@timetriggers/domain";
+import { JobId } from "@timetriggers/domain";
 import { Datastore } from "./Processor/Datastore";
 
 const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(15);

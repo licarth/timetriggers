@@ -1,4 +1,4 @@
-import { Shard } from "@/domain/Shard";
+import { Shard } from "@timetriggers/domain";
 import { ShardsToListenTo } from "@/Firebase/Processor/ShardsToListenTo";
 import { flow } from "fp-ts/lib/function.js";
 import _ from "lodash";

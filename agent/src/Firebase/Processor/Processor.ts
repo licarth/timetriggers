@@ -1,11 +1,11 @@
 import { AxiosWorkerPool } from "@/AxiosWorkerPool";
-import { Clock } from "@/Clock/Clock";
-import { TestClock } from "@/Clock/TestClock";
+import { Clock } from "@timetriggers/domain";
+import { TestClock } from "@timetriggers/domain";
 import {
   ClusterNodeInformation,
   CoordinationClient,
 } from "@/Coordination/CoordinationClient";
-import { JobDefinition } from "@/domain/JobDefinition";
+import { JobDefinition } from "@timetriggers/domain";
 import { te } from "@/fp-ts";
 import { HttpCallCompleted } from "@/HttpCallStatusUpdate/HttpCallCompleted";
 import { HttpCallErrored } from "@/HttpCallStatusUpdate/HttpCallErrored";

@@ -1,7 +1,7 @@
-import { TestClock } from "@/Clock/TestClock";
-import { JobDefinition } from "@/domain/JobDefinition";
-import { ScheduledAt } from "@/domain/ScheduledAt";
-import { Shard } from "@/domain/Shard";
+import { TestClock } from "@timetriggers/domain";
+import { JobDefinition } from "@timetriggers/domain";
+import { ScheduledAt } from "@timetriggers/domain";
+import { Shard } from "@timetriggers/domain";
 import { te } from "@/fp-ts";
 import { randomString } from "@/test/randomString";
 import { addMilliseconds } from "date-fns";

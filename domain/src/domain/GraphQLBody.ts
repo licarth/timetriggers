@@ -19,11 +19,7 @@ export class GraphQLBody {
     raw: Codec.string,
   });
 
-  static codec = taggedUnionClassCodec(
-    this.propsCodec,
-    "GraphQLBody",
-    GraphQLBody
-  );
+  static codec = taggedUnionClassCodec(this.propsCodec, GraphQLBody);
 }
 
 export type GraphQLBodyProps = Codec.TypeOf<typeof GraphQLBody.propsCodec>;

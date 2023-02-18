@@ -1,13 +1,13 @@
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
 import { fromClassCodec } from "@iots/index.js";
-import { UtcDate } from "@timetriggers/domain";
+import { UtcDate } from "../";
 import * as D from "io-ts/lib/Decoder.js";
 
-export class RegisteredAt {
+export class ScheduledAt {
   date;
 
-  constructor(props: RegisteredAtProps) {
+  constructor(props: ScheduledAtProps) {
     this.date = props.date;
   }
 
@@ -23,7 +23,7 @@ export class RegisteredAt {
         { encode: (s) => s.date }
       )
     ),
-    Codec.compose(fromClassCodec(RegisteredAt))
+    Codec.compose(fromClassCodec(ScheduledAt))
   );
 
   static codec = pipe(
@@ -34,26 +34,25 @@ export class RegisteredAt {
         { encode: (s) => s.date }
       )
     ),
-    Codec.compose(RegisteredAt.propsCodec),
-    // mapProps((a) => ({ date: a })),
-    Codec.compose(fromClassCodec(RegisteredAt))
+    Codec.compose(ScheduledAt.propsCodec),
+    Codec.compose(fromClassCodec(ScheduledAt))
   );
 
-  static fromUTCString(date: string): RegisteredAt {
-    return new RegisteredAt({ date: new Date(date) });
+  static fromUTCString(date: string): ScheduledAt {
+    return new ScheduledAt({ date: new Date(date) });
   }
 
-  static factory = (props: Partial<RegisteredAtProps> = {}) => {
-    return new RegisteredAt({
+  static factory = (props: Partial<ScheduledAtProps> = {}) => {
+    return new ScheduledAt({
       date: props.date ?? new Date(),
     });
   };
 
-  static fromDate(date: Date): RegisteredAt {
-    return new RegisteredAt({ date });
+  static fromDate(date: Date): ScheduledAt {
+    return new ScheduledAt({ date });
   }
 }
 
-export type RegisteredAtProps = Codec.TypeOf<typeof RegisteredAt.propsCodec>;
+export type ScheduledAtProps = Codec.TypeOf<typeof ScheduledAt.propsCodec>;
 
 // const mapProps = (map: Record<string, any>) => {};

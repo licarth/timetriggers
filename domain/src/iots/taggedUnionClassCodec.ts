@@ -29,7 +29,6 @@ export const taggedUnionClassCodec = <
         Encoder.compose({ encode: (i) => ({ ...i, _tag: i._tag }) })
       )
     ),
-    (x) => x,
     Codec.compose(fromClassCodecNotExtends(typeConstructor))
   );
 };

@@ -1,7 +1,7 @@
 import { AxiosWorkerPool } from "@/AxiosWorkerPool";
-import { TestClock } from "@/Clock/TestClock";
-import { JobDefinition } from "@/domain/JobDefinition";
-import { JobId } from "@/domain/JobId";
+import { TestClock } from "@timetriggers/domain";
+import { JobDefinition } from "@timetriggers/domain";
+import { JobId } from "@timetriggers/domain";
 import { externallyResolvablePromise } from "@/externallyResolvablePromise";
 import { te } from "@/fp-ts";
 import {

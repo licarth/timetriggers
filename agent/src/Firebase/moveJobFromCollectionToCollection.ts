@@ -1,5 +1,5 @@
-import { FirestoreJobDocument } from "@/domain/FirebaseJobDocument";
-import { JobDefinition } from "@/domain/JobDefinition";
+import { FirestoreJobDocument } from "@timetriggers/domain";
+import { JobDefinition } from "@timetriggers/domain";
 
 export const moveJobDefinition = ({
   firestore,

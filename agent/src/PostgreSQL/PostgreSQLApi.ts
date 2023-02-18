@@ -1,7 +1,7 @@
 import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
 import * as TE from "fp-ts/lib/TaskEither.js";
-import { JobDefinition } from "../domain/JobDefinition";
-import { JobId } from "../domain/JobId";
+import { JobDefinition } from "@timetriggers/domain";
+import { JobId } from "@timetriggers/domain";
 
 export type PostgreSQLApiProps = AbstractApiProps & {};
 

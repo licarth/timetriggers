@@ -6,7 +6,7 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "fp-ts": "^2.12.3",
-    "io-ts": "^2.2.18",
+    "io-ts": "^2.2.20",
     "lodash": "^4.17.21",
     "uuidv4": "^6.2.13"
   },
@@ -16,7 +16,7 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.esm.json && tsc --project tsconfig.cjs.json && resolve-tspaths -p tsconfig.esm.json && resolve-tspaths -p tsconfig.cjs.json",
-    "dev": "nodemon --watch src -e ts,tsx --exec 'npm run build'",
+    "dev": "nodemon --watch src --watch package.json -e ts,tsx,json --exec 'npm run build'",
     "test": "jest"
   },
   "devDependencies": {

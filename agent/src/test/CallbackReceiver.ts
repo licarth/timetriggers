@@ -1,4 +1,4 @@
-import { JobId } from "@/domain/JobId";
+import { JobId } from "@timetriggers/domain";
 import express from "express";
 import getPort from "get-port";
 import { RequestHandler } from "express";

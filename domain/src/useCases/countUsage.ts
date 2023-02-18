@@ -1,4 +1,4 @@
-import { ApiKey, ProjectId } from "@/project";
+import { ApiKey, Project } from "../project";
 import { FieldValue } from "firebase-admin/firestore";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
@@ -10,11 +10,12 @@ type Dependencies = {
 };
 
 type Args = {
-  projectId: ProjectId;
-  apiKey: ApiKey;
+  project: Project;
+  apiKeyValue: ApiKey["value"];
+  //   jobArgs:
 };
 
-export const deleteApiKey = ({ projectId, apiKey }: Args) =>
+export const countUsage = ({ project, apiKeyValue }: Args) =>
   pipe(
     RTE.ask<Dependencies>(),
     RTE.bindW("project", ({ firestore, namespace }) =>
@@ -22,13 +23,10 @@ export const deleteApiKey = ({ projectId, apiKey }: Args) =>
         TE.tryCatchK(
           async () => {
             const projectRef = firestore.doc(
-              `/namespaces/${namespace}/projects/${projectId}`
+              `/namespaces/${namespace}/monthly-usage/${project.id}`
             );
 
-            await projectRef.update(
-              `apiKeys.${apiKey.value}`,
-              FieldValue.delete()
-            );
+            await projectRef.update(`planned.trigger`, FieldValue.increment(1));
           },
           (reason) => {
             console.log("error", reason);
