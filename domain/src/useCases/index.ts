@@ -1,4 +1,3 @@
-export * from "./countUsage";
 export * from "./createProject";
 export * from "./deleteApiKey";
 export * from "./getProjectByApiKey";

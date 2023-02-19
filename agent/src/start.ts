@@ -34,13 +34,14 @@ type StartProps = {
 
 export const start = (props: StartProps) =>
   pipe(
-    RTE.of({
+    RTE.Do,
+    RTE.map(() => ({
       firestore: initializeApp({
         serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT,
       }).firestore,
       namespace: props.namespace,
       rootDocumentPath: `/namespaces/${props.namespace}/jobs/by-status`,
-    }),
+    })),
     RTE.bind("datastore", ({ firestore, rootDocumentPath }) =>
       RTE.of(
         new FirestoreDatastore({
@@ -111,7 +112,7 @@ export const startScheduler = ({
   firestore: FirebaseFirestore.Firestore;
   coordinationClient?: CoordinationClient;
   datastore: Datastore;
-}): RTE.ReaderTaskEither<never, Error, Scheduler> =>
+}) =>
   pipe(
     Scheduler.build({
       datastore,
@@ -124,7 +125,7 @@ const buildApi = ({
   datastore,
 }: StartProps & {
   datastore: Datastore;
-}): RTE.ReaderTaskEither<never, Error, Api> =>
+}) =>
   pipe(
     RTE.of(
       new DatastoreApi({

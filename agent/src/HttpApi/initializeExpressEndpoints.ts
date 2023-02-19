@@ -1,7 +1,8 @@
 import { Api } from "@/Api";
 import { rte } from "@/fp-ts";
+import { countUsage } from "@/useCases";
 import {
-  countUsage,
+  Clock,
   getProjectByApiKey,
   Headers,
   JobScheduleArgs,
@@ -19,11 +20,13 @@ export const initializeEndpoints = ({
   api,
   firestore,
   namespace,
+  clock,
 }: {
   app: Express;
   api: Api;
   firestore: FirebaseFirestore.Firestore;
   namespace: string;
+  clock: Clock;
 }) => {
   app
     .use(
@@ -103,7 +106,7 @@ export const initializeEndpoints = ({
           });
         }),
         logErrors
-      )({ firestore, namespace })();
+      )({ firestore, namespace, clock })();
     });
   return RTE.of(void 0);
 };

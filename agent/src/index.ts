@@ -1,3 +1,4 @@
+import { SystemClock } from "@timetriggers/domain";
 import "source-map-support/register.js";
 import { environmentVariable } from "./environmentVariable";
 import { te } from "./fp-ts";
@@ -51,7 +52,7 @@ if (process.env.NEW_RELIC_KEY) {
           enabled: true,
           port: Number(environmentVariable("HTTP_API_PORT")) || 3000,
         },
-      })(undefined as never)
+      })({ clock: new SystemClock() })
     );
     return;
   }
