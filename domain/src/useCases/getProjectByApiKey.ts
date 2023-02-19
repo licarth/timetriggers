@@ -1,10 +1,9 @@
-import { e, rte, te } from "@/fp-ts";
-import { isDecodeError } from "@/iots";
-import { ApiKey, Project, ProjectSlug } from "@/project";
+import { e } from "@/fp-ts";
+import { ApiKey, Project } from "@/project";
+import * as E from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
-import * as E from "fp-ts/lib/Either";
 import { draw } from "io-ts/lib/Decoder";
 
 type Dependencies = {
@@ -51,14 +50,8 @@ export const getProjectByApiKey = ({
       pipe(
         d,
         Project.codec("firestore").decode,
-        E.mapLeft((e) => {
-          console.log("error !!", e);
-          if (isDecodeError(e)) {
-            console.error(draw(e));
-          } else {
-            console.log("not a decode error", e);
-          }
-          return e;
+        e.leftSideEffect((e) => {
+          console.log(draw(e));
         })
       )
     )

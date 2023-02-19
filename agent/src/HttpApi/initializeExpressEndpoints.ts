@@ -1,7 +1,6 @@
 import { Api } from "@/Api";
 import { rte } from "@/fp-ts";
 import {
-  countUsage,
   getProjectByApiKey,
   Headers,
   JobScheduleArgs,
@@ -13,8 +12,6 @@ import { Express } from "express";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RT from "fp-ts/lib/ReaderTask.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
-import { DecodeError, draw } from "io-ts/lib/Decoder.js";
-import { isDecodeError } from "@timetriggers/domain";
 
 export const initializeEndpoints = ({
   app,
@@ -53,7 +50,6 @@ export const initializeEndpoints = ({
               } else {
                 res.status(500).send({ success: false, error: e });
               }
-              isDecodeError(e) && console.error(draw(e));
               return "error-already-handled";
             })
           )
@@ -115,17 +111,7 @@ const logErrors = <R, E, A>(rte: RTE.ReaderTaskEither<R, E, A>) =>
     rte,
     RTE.foldW(
       (error) => {
-        if (error) {
-          try {
-            draw(error as unknown as DecodeError);
-          } finally {
-          }
-          if (isDecodeError(error)) {
-            console.error(draw(error));
-          } else {
-            console.error(error);
-          }
-        }
+        console.error(error);
         return RT.of(void 0);
       },
       () => RT.of(void 0)
