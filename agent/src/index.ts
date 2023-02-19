@@ -34,7 +34,7 @@ if (process.env.NEW_RELIC_KEY) {
           enabled: true,
           port: Number(environmentVariable("HTTP_API_PORT")) || 3000,
         },
-      })(undefined as never)
+      })({ clock: new SystemClock() })
     );
     return;
   } else if (environmentVariable("NEW_SCHEDULER") === "true") {
