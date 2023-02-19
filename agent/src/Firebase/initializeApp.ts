@@ -34,6 +34,7 @@ export function initializeApp({
     };
   }
   app = firebaseInit(initializationOptions, appName || randomString());
+
   firestore = getFirestore(app);
   firestore.settings({
     ignoreUndefinedProperties: true,

@@ -1,4 +1,4 @@
-import { FieldValue } from "@google-cloud/firestore";
+import { FieldValue } from "firebase-admin/firestore";
 import { format } from "date-fns";
 import _ from "lodash";
 import { initializeApp } from "./Firebase/initializeApp";

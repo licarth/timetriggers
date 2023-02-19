@@ -1,6 +1,7 @@
 import { Api } from "@/Api";
 import { rte } from "@/fp-ts";
 import {
+  countUsage,
   getProjectByApiKey,
   Headers,
   JobScheduleArgs,
@@ -85,13 +86,6 @@ export const initializeEndpoints = ({
             )
           // Todo handle errors due to scheduling
         ),
-        // RTE.chainW(({ project, jobScheduleArgs }) =>
-        //   countUsage({
-        //     project,
-        //     apiKeyValue,
-        //     jobScheduleArgs,
-        //   })
-        // ),
         RTE.mapLeft((error) => {
           if (error === "error-already-handled") {
             console.log("error already handled");
@@ -99,6 +93,14 @@ export const initializeEndpoints = ({
             res.sendStatus(500); // TODO useful error message to users
           }
           return error;
+        }),
+        // Below this point we don't run res.send anymore.
+        RTE.chainW(({ project, jobScheduleArgs }) => {
+          return countUsage({
+            project,
+            apiKeyValue,
+            jobScheduleArgs,
+          });
         }),
         logErrors
       )({ firestore, namespace })();

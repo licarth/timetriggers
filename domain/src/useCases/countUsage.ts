@@ -28,15 +28,12 @@ export const countUsage = ({ project, apiKeyValue, jobScheduleArgs }: Args) =>
               `/namespaces/${namespace}/usage/${project.id}/monthly/all}`
             );
 
-            await usageDoc.update(
-              String(
-                `planned.trigger.${format(
-                  jobScheduleArgs.scheduledAt.date,
-                  "yyyy.MM"
-                )}`
-              ),
-              FieldValue.increment(1)
-            );
+            await usageDoc.update({
+              [`planned.trigger.${format(
+                jobScheduleArgs.scheduledAt.date,
+                "yyyy.MM"
+              )}`]: FieldValue.increment(1),
+            });
           },
           (reason) => {
             console.log("error", reason);
