@@ -8,13 +8,10 @@ export const taggedVersionedClassCodec = <
   PropsType,
   SerializedPropsType,
   ClassType extends Proped<PropsType>
->({
-  propsCodec,
-  typeConstructor,
-}: {
-  propsCodec: Codec.Codec<unknown, SerializedPropsType, PropsType>;
-  typeConstructor: new (s: PropsType) => ClassType;
-}): Codec.Codec<
+>(
+  propsCodec: Codec.Codec<unknown, SerializedPropsType, PropsType>,
+  typeConstructor: new (s: PropsType) => ClassType
+): Codec.Codec<
   unknown,
   SerializedPropsType & { _tag: string; _version?: number },
   ClassType

@@ -1,4 +1,4 @@
-import { taggedUnionClassCodec } from "@iots/index.js";
+import { taggedUnionClassCodec } from "@iots";
 import * as Codec from "io-ts/lib/Codec.js";
 
 export class FirebaseUserId {

@@ -1,7 +1,7 @@
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
 import * as Encoder from "io-ts/lib/Encoder.js";
-import { fromClassCodec } from "@iots/index.js";
+import { fromClassCodec } from "@iots";
 import { Proped } from "./Proped";
 import { fromClassCodecNotExtends } from "./fromClassCodecNotExtends";
 

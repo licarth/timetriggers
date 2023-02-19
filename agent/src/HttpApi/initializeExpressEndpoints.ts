@@ -13,6 +13,8 @@ import { Express } from "express";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RT from "fp-ts/lib/ReaderTask.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
+import { DecodeError, draw } from "io-ts/lib/Decoder.js";
+import { isDecodeError } from "@timetriggers/domain";
 
 export const initializeEndpoints = ({
   app,
@@ -42,46 +44,65 @@ export const initializeEndpoints = ({
 
       await pipe(
         RTE.Do,
-        RTE.bindW("project", () => getProjectByApiKey({ apiKeyValue })),
+        RTE.bindW("project", () =>
+          pipe(
+            getProjectByApiKey({ apiKeyValue }),
+            RTE.mapLeft((e) => {
+              if (e === "Project not found") {
+                res.status(404).send({ success: false, error: e });
+              } else {
+                res.status(500).send({ success: false, error: e });
+              }
+              isDecodeError(e) && console.error(draw(e));
+              return "error-already-handled";
+            })
+          )
+        ),
         RTE.bindW("rawBody", () => {
           return pipe(
-            { raw: req.body.toString("utf8") },
+            { _tag: "RawBody", raw: req.body.toString("utf8") },
             RawBody.codec.decode,
-            RTE.fromEither,
-            RTE.map((x) => x)
+            RTE.fromEither
           );
         }),
-        RTE.bindW(
-          "a",
-          ({ rawBody }) =>
+        RTE.bindW("jobScheduleArgs", ({ rawBody }) =>
+          RTE.of(
+            new JobScheduleArgs({
+              scheduledAt,
+              http: {
+                url,
+                options: {
+                  method: req.method,
+                  headers: Headers.fromExpress(req.headers),
+                  body: rawBody,
+                },
+              },
+            })
+          )
+        ),
+        RTE.chainFirstW(
+          ({ jobScheduleArgs }) =>
             pipe(
-              api.schedule(
-                new JobScheduleArgs({
-                  scheduledAt,
-                  http: {
-                    url,
-                    options: {
-                      method: req.method,
-                      headers: Headers.fromExpress(req.headers),
-                      body: rawBody,
-                    },
-                  },
-                })
-              ),
+              api.schedule(jobScheduleArgs),
               RTE.fromTaskEither,
               rte.sideEffect((jobId) => res.send({ success: true, jobId }))
             )
           // Todo handle errors due to scheduling
         ),
-        RTE.chainW(({ project }) =>
-          countUsage({
-            project,
-            apiKeyValue,
-          })
-        ),
+        // RTE.chainW(({ project, jobScheduleArgs }) =>
+        //   countUsage({
+        //     project,
+        //     apiKeyValue,
+        //     jobScheduleArgs,
+        //   })
+        // ),
         RTE.mapLeft((error) => {
-          // console.log(draw(error));
-          res.sendStatus(500); // TODO useful error message to users
+          if (error === "error-already-handled") {
+            console.log("error already handled");
+          } else {
+            res.sendStatus(500); // TODO useful error message to users
+          }
+          return error;
         }),
         logErrors
       )({ firestore, namespace })();
@@ -94,7 +115,17 @@ const logErrors = <R, E, A>(rte: RTE.ReaderTaskEither<R, E, A>) =>
     rte,
     RTE.foldW(
       (error) => {
-        console.error(error);
+        if (error) {
+          try {
+            draw(error as unknown as DecodeError);
+          } finally {
+          }
+          if (isDecodeError(error)) {
+            console.error(draw(error));
+          } else {
+            console.error(error);
+          }
+        }
         return RT.of(void 0);
       },
       () => RT.of(void 0)

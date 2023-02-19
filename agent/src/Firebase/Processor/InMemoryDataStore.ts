@@ -173,7 +173,7 @@ export class InMemoryDataStore implements Datastore {
   schedule(
     jobDefinition: JobScheduleArgs,
     shardingAlgorithm?: ShardingAlgorithm
-  ) {
+  ): TE.TaskEither<Error, JobId> {
     const jobId = JobId.factory();
     const shards = shardingAlgorithm ? shardingAlgorithm(jobId) : undefined;
     // Make sure shards start at 2 and increment 1 by 1:

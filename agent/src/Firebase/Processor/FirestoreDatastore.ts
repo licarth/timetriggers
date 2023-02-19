@@ -64,7 +64,7 @@ export class FirestoreDatastore implements Datastore {
   schedule(
     args: JobScheduleArgs,
     shardingAlgorithm?: ShardingAlgorithm | undefined
-  ): TE.TaskEither<Error, JobId> {
+  ) {
     return TE.tryCatch(
       async () => {
         const id = JobId.factory();
@@ -83,11 +83,11 @@ export class FirestoreDatastore implements Datastore {
         );
         return id;
       },
-      (reason) => new Error(`Failed to schedule job: ${reason}`)
+      (reason) => `Failed to schedule job: ${reason}`
     );
   }
 
-  close(): TE.TaskEither<any, void> {
+  close() {
     this.state = "stopped";
     return TE.right(undefined);
   }

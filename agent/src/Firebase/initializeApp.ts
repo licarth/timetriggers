@@ -20,7 +20,7 @@ export function initializeApp({
     process.env["FIRESTORE_EMULATOR_HOST"] = "localhost:8080";
     initializationOptions = {
       ...initializationOptions,
-      projectId: "doi-test-2dc76",
+      projectId: "doi-production",
     };
   } else {
     delete process.env["FIRESTORE_EMULATOR_HOST"];

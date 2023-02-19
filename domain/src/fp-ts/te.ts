@@ -11,6 +11,12 @@ export namespace te {
       return E.of(void 0);
     });
 
+  export const leftSideEffect = <E>(sideEffect: (e: E) => any) =>
+    TE.mapLeft((e: E) => {
+      sideEffect(e);
+      return e;
+    });
+
   export const unsafeGetOrThrow = async <T>(
     taskEither: TE.TaskEither<unknown, T>
   ): Promise<T> => {

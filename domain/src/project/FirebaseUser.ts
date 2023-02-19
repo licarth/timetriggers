@@ -1,4 +1,4 @@
-import { taggedUnionClassCodec } from "@iots/index.js";
+import { taggedUnionClassCodec } from "@iots";
 import { DecodedIdToken } from "firebase-admin/lib/auth/token-verifier";
 import * as Codec from "io-ts/lib/Codec.js";
 import { FirebaseUserId } from "./FirebaseUserId";

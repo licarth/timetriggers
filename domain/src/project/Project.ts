@@ -1,6 +1,6 @@
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
-import { fromClassCodec } from "@iots/index.js";
+import { fromClassCodec } from "@iots";
 import { ProjectOwnerId } from "./ProjectOwnerId";
 import { ApiKey } from "./ApiKey";
 import { FirebaseUserId } from "./FirebaseUserId";

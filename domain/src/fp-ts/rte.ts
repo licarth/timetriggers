@@ -10,6 +10,12 @@ export namespace rte {
       return E.of(void 0);
     });
 
+  export const leftSideEffect = <E>(sideEffect: (e: E) => any) =>
+    RTE.mapLeft((e: E) => {
+      sideEffect(e);
+      return e;
+    });
+
   export const unsafeGetOrThrow = <R, T>(
     readerTaskEither: RTE.ReaderTaskEither<R, unknown, T>
   ) => {

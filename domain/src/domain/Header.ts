@@ -1,6 +1,6 @@
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
-import { fromClassCodec } from "@iots/index.js";
+import { fromClassCodec } from "@iots";
 import { randomString } from "@/test/randomString";
 
 export class Header {

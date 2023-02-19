@@ -17,10 +17,7 @@ export class MonthlyUsageV1 {
     incompatibleProp: Codec.string,
   });
 
-  static codec = taggedVersionedClassCodec({
-    propsCodec: this.propsCodec,
-    typeConstructor: MonthlyUsageV1,
-  });
+  static codec = taggedVersionedClassCodec(this.propsCodec, this);
 }
 
 export type MonthlyUsageV1Props = Codec.TypeOf<

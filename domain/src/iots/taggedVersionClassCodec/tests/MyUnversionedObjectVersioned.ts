@@ -17,10 +17,7 @@ export class MyUnversionedObjectV1 {
     incompatibleProp: Codec.string,
   });
 
-  static codec = taggedVersionedClassCodec({
-    propsCodec: this.propsCodec,
-    typeConstructor: this,
-  });
+  static codec = taggedVersionedClassCodec(this.propsCodec, this);
 }
 
 export type MyUnversionedObjectVersionedProps = Codec.TypeOf<

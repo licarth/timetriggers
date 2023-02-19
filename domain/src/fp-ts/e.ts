@@ -16,6 +16,12 @@ export namespace e {
     );
   };
 
+  export const leftSideEffect = <E>(sideEffect: (e: E) => any) =>
+    E.mapLeft((e: E) => {
+      sideEffect(e);
+      return e;
+    });
+
   export const split = <E, A>(arrayOfE: Array<E.Either<E, A>>) => {
     return pipe(arrayOfE, mergeFn);
   };

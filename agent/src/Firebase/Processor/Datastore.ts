@@ -21,8 +21,8 @@ export interface Datastore {
   schedule(
     args: JobScheduleArgs,
     shardingAlgorithm?: ShardingAlgorithm
-  ): TE.TaskEither<Error, JobId>;
-  cancel(jobId: JobId): TE.TaskEither<Error, void>;
+  ): TE.TaskEither<any, JobId>;
+  cancel(jobId: JobId): TE.TaskEither<any, void>;
 
   /**
    * This is a stream of registered jobs.

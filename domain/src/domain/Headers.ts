@@ -1,6 +1,6 @@
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
-import { fromClassCodec } from "@iots/index.js";
+import { fromClassCodec } from "@iots";
 import { Header } from "./Header";
 import _ from "lodash";
 import { toLowerCase } from "fp-ts/lib/string.js";

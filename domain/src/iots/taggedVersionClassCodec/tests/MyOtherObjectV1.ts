@@ -17,10 +17,7 @@ export class MyOtherObjectV1 {
     anotherProp: Codec.array(Codec.string),
   });
 
-  static codec = taggedVersionedClassCodec({
-    propsCodec: this.propsCodec,
-    typeConstructor: this,
-  });
+  static codec = taggedVersionedClassCodec(this.propsCodec, this);
 }
 
 export type MyObjectV1Props = Codec.TypeOf<typeof MyOtherObjectV1.propsCodec>;

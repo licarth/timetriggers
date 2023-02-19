@@ -1,6 +1,6 @@
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
-import { fromClassCodec } from "@iots/index.js";
+import { fromClassCodec } from "@iots";
 import { UtcDate } from "../";
 import * as D from "io-ts/lib/Decoder.js";
 
