@@ -25,6 +25,8 @@ const setUpdate = (update: { [key: string]: any }) => {
   );
 };
 
+const utcFormat = (date: Date, f: string) => formatInTimeZone(date, "Z", f);
+
 export const countUsage = ({ project, apiKeyValue, jobScheduleArgs }: Args) =>
   pipe(
     RTE.ask<Dependencies>(),
@@ -32,8 +34,7 @@ export const countUsage = ({ project, apiKeyValue, jobScheduleArgs }: Args) =>
       pipe(
         TE.tryCatchK(
           async () => {
-            const utcFormat = (date: Date, f: string) =>
-              formatInTimeZone(date, "Z", f);
+            const scheduledAt = jobScheduleArgs.scheduledAt.date;
             const nowUtc = zonedTimeToUtc(clock.now(), "UTC");
             const projectUsageDoc = firestore.doc(
               `/namespaces/${namespace}/projects/${project.id}/usage/all-forever:month`
@@ -43,24 +44,20 @@ export const countUsage = ({ project, apiKeyValue, jobScheduleArgs }: Args) =>
             );
             const hourlyGlobalUsageDoc = firestore.doc(
               `/namespaces/${namespace}/global-usage/planned-day:minute-${utcFormat(
-                nowUtc,
+                scheduledAt,
                 "yyyy-MM-dd"
               )}`
             );
 
             const usageUpdate = {
-              [`planned.trigger.${utcFormat(
-                jobScheduleArgs.scheduledAt.date,
-                "yyyy.MM"
-              )}`]: FieldValue.increment(1),
+              [`planned.trigger.${utcFormat(scheduledAt, "yyyy.MM")}`]:
+                FieldValue.increment(1),
               [`done.api.schedule.${utcFormat(nowUtc, "yyyy.MM")}`]:
                 FieldValue.increment(1),
             };
             const globalMonthMinuteUpdate = {
-              [`trigger.${utcFormat(
-                jobScheduleArgs.scheduledAt.date,
-                "HH.mm"
-              )}`]: FieldValue.increment(1),
+              [`trigger.${utcFormat(scheduledAt, "HH.mm")}`]:
+                FieldValue.increment(1),
             };
 
             const b = firestore.batch();
