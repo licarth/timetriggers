@@ -55,7 +55,12 @@ export class InMemoryDataStore implements Datastore {
     args: GetJobsInQueueArgs,
     shardsToListenTo?: ShardsToListenTo | undefined
   ): TE.TaskEither<any, JobDefinition[]> {
-    throw new Error("Method not implemented.");
+    const jobs = _.sortBy(
+      this.jobsMatchingShard(this.queuedJobs, shardsToListenTo),
+      (i) => i.scheduledAt.date.getTime()
+    ).splice(0, args.limit);
+
+    return TE.right(jobs);
   }
 
   close(): TE.TaskEither<any, void> {
