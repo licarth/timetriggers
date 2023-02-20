@@ -17,7 +17,7 @@ import _ from "lodash";
 import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 import { Datastore } from "./Datastore";
 import { humanReadibleMs } from "./humanReadibleMs";
-import { distinct, interval, pipe as pipeObs } from "rxjs";
+import { debounceTime, distinct, interval, pipe as pipeObs } from "rxjs";
 import { distinctArray } from "./distinctArray";
 
 const MINUTE = 1000 * 60;
@@ -159,6 +159,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       ),
       TE.map((observable) => {
         const subscription = observable
+          .pipe(debounceTime(500))
           .pipe(
             distinctArray(
               (JobDefinition) => JobDefinition.id,
