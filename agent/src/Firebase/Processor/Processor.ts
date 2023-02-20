@@ -111,7 +111,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
           return isOver;
         },
         {
-          maxAttempts: 300,
+          maxAttempts: 20,
         }
       ),
       TE.map(() => {
@@ -149,12 +149,16 @@ export class Processor extends ClusterTopologyDatastoreAware {
         },
         this.shardsToListenTo
       ),
-      TE.map((jobs) => {
+      TE.chainW((jobs) => {
         // Optimization: all jobs that are scheduled in the past should be scheduled immediately
         // in a single transaction
-        getOrReportToSentry(this._processJobs(jobs));
+        return pipe(
+          this._processJobs(jobs),
+          TE.map(() => ({
+            resultCount: jobs.length,
+          }))
+        );
         // jobs that are to schedule before a certain date & with an offset ?
-        return { resultCount: jobs.length };
       })
     );
   }
