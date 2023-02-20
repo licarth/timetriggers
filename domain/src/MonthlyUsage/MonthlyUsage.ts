@@ -5,6 +5,8 @@ export namespace MonthlyUsage {
   export const codec = C.sum("_version")({
     1: MonthlyUsageV1.codec,
   });
+
+  export const empty = MonthlyUsageV1.empty();
 }
 
 export type MonthlyUsage = C.TypeOf<typeof MonthlyUsage.codec>;

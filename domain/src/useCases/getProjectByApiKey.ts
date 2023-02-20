@@ -21,14 +21,11 @@ export const getProjectByApiKey = ({
     RTE.chainW(({ firestore, namespace }) =>
       TE.tryCatchK(
         async () => {
-          console.log("namespace", namespace);
           const snapshot = await firestore
             .collection(`/namespaces/${namespace}/projects`)
             .orderBy(`apiKeys.${apiKeyValue}`)
             .limit(1)
             .get();
-
-          console.log("snapshot", snapshot.docs.length);
 
           return snapshot.docs;
         },
@@ -51,7 +48,7 @@ export const getProjectByApiKey = ({
         d,
         Project.codec("firestore").decode,
         e.leftSideEffect((e) => {
-          console.log(draw(e));
+          console.error(`Cannot decode project`, draw(e));
         })
       )
     )

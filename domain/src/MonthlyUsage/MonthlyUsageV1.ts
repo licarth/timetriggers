@@ -1,4 +1,5 @@
 import { taggedVersionedClassCodec } from "@/iots/taggedVersionClassCodec/taggedVersionedClassCodec";
+import { ProjectId } from "@/project";
 import * as Codec from "io-ts/lib/Codec.js";
 
 export class MonthlyUsageV1 {
@@ -6,16 +7,35 @@ export class MonthlyUsageV1 {
   _version = 1 as const;
   _props;
 
-  incompatibleProp;
+  done;
+  planned;
 
   constructor(props: MonthlyUsageV1Props) {
     this._props = props;
-    this.incompatibleProp = props.incompatibleProp;
+    this.done = props.done;
+    this.planned = props.planned;
   }
 
-  static propsCodec = Codec.struct({
-    incompatibleProp: Codec.string,
+  getScheduleUsageForYearMonth(year: number, month: number) {
+    const monthString = month.toString().padStart(2, "0");
+    return this.done?.api?.schedule?.[year]?.[monthString] ?? 0;
+  }
+
+  static propsCodec = Codec.partial({
+    projectId: ProjectId.codec,
+    done: Codec.partial({
+      api: Codec.partial({
+        schedule: Codec.record(Codec.record(Codec.number)),
+      }),
+    }),
+    planned: Codec.partial({
+      trigger: Codec.record(Codec.record(Codec.number)),
+    }),
   });
+
+  static empty() {
+    return new MonthlyUsageV1({});
+  }
 
   static codec = taggedVersionedClassCodec(this.propsCodec, this);
 }

@@ -7,3 +7,4 @@ export * from "./getProjectsForUser";
 export * from "./hasAccessToProject";
 export * from "./projectExists";
 export * from "./storeApiKey";
+export * from "./getProjectUsageFromSlug";

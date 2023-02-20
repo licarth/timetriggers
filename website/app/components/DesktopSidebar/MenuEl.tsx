@@ -1,6 +1,6 @@
 import { Code, Flex, Heading, IconButton, Select } from "@chakra-ui/react";
 import { useLocation, useNavigate } from "@remix-run/react";
-import type { FirebaseUser, Project } from "@timetriggers/domain";
+import type { FirebaseUser, MonthlyUsage, Project } from "@timetriggers/domain";
 import {
   BsBook,
   BsCollectionPlayFill,
@@ -11,6 +11,7 @@ import { FiMenu } from "react-icons/fi";
 import { Logo } from "~/components/Logo";
 import { NavItem } from "./NavItem";
 import type { NavSize } from "./NavItemProps";
+import { ProjectUsage } from "./ProjectUsage";
 
 type MenuElementsProps = {
   user?: FirebaseUser;
@@ -18,6 +19,7 @@ type MenuElementsProps = {
   selectedProjectSlug?: string;
   navSize: NavSize;
   setNavSize: (navSize: NavSize) => void;
+  projectMonthlyUsage?: MonthlyUsage;
 };
 
 export const MenuElements = ({
@@ -26,12 +28,13 @@ export const MenuElements = ({
   user,
   navSize,
   setNavSize,
+  projectMonthlyUsage,
 }: MenuElementsProps) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
+  const currentProjectPath = pathname.split("/").slice(3).join("/");
   const navigateToProject = (slug: string) => {
-    const currentProjectPath = pathname.split("/").slice(3).join("/");
     navigate(`/projects/${slug}/${currentProjectPath}`);
   };
 
@@ -63,6 +66,7 @@ export const MenuElements = ({
               <>
                 <Select
                   mt={8}
+                  mb={4}
                   defaultValue={selectedProjectSlug}
                   onChange={(v) => navigateToProject(v.target.value)}
                 >
@@ -74,9 +78,12 @@ export const MenuElements = ({
                 </Select>
               </>
             )}
-            {/* <Heading mt={8} size="md" hidden={navSize === "small"}>
-            Project <code>{selectedProjectSlug}</code>
-          </Heading> */}
+            {projectMonthlyUsage && navSize === "large" && (
+              <ProjectUsage
+                usage={projectMonthlyUsage}
+                selectedProjectSlug={selectedProjectSlug}
+              />
+            )}
             <NavItem navSize={navSize} title="Api Keys" icon={BsKey} active />
             <NavItem
               navSize={navSize}

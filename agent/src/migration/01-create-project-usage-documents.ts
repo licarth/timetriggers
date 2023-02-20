@@ -1,3 +1,5 @@
+import { MonthlyUsage, ProjectId } from "@timetriggers/domain";
+import { MonthlyUsageV1 } from "@timetriggers/domain/built/cjs/MonthlyUsage/MonthlyUsageV1";
 import { initializeApp } from "../Firebase/initializeApp";
 
 const { firestore } = initializeApp({
@@ -13,16 +15,22 @@ const { firestore } = initializeApp({
     projectDocs.forEach(async (projectDoc) => {
       const { id: projectId } = projectDoc;
       const usageDoc = firestore.doc(
-        `/namespaces/${process.env.NAMESPACE}/projects/${projectId}/usage/monthly`
+        `/namespaces/${process.env.NAMESPACE}/projects/${projectId}/usage/all-forever:month`
       );
-      await firestore.recursiveDelete(
-        firestore.doc(
-          `/namespaces/${process.env.NAMESPACE}/projects/${projectId}/usage`
-        )
+      // await firestore.recursiveDelete(
+      //   firestore.doc(
+      //     `/namespaces/${process.env.NAMESPACE}/projects/${projectId}/usage`
+      //   )
+      // );
+      t.set(
+        usageDoc,
+        MonthlyUsage.codec.encode(
+          new MonthlyUsageV1({
+            projectId: projectId as ProjectId,
+          })
+        ),
+        { merge: true }
       );
-      t.set(usageDoc, {
-        projectId,
-      });
     });
   });
 
