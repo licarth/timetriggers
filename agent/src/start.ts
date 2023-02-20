@@ -82,7 +82,7 @@ export const start = (props: StartProps) =>
               coordinationClient,
               workerPool: new AxiosWorkerPool({
                 minSize: 1,
-                maxSize: 5,
+                maxSize: 100,
               }),
             })
           )

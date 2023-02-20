@@ -15,6 +15,7 @@ import { getOrReportToSentry } from "@/Sentry/getOrReportToSentry";
 import { WorkerPool } from "@/WorkerPool";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
+import * as T from "fp-ts/lib/Task.js";
 import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 import { Datastore } from "./Datastore";
 import { InMemoryDataStore } from "./InMemoryDataStore";
@@ -107,11 +108,19 @@ export class Processor extends ClusterTopologyDatastoreAware {
                 // We should not continue processing, only retry the job. And then fail.
                 // We should rather execute them sequentially and fail at the first one
                 (s) => s,
-                failAtFirst,
-                TE.mapLeft((e) => {
-                  console.log(e);
-                  return e;
-                })
+                // failAtFirst,
+                // TE.mapLeft((e) => {
+                //   console.log(e);
+                //   return e;
+                // })
+                te.executeAllInArray({ parallelism: 100 }),
+                (x) => x,
+                T.map(({ successes, errors }) => {
+                  console.log(`[Processor] ${successes.length} jobs processed`);
+                  console.log(`[Processor] ${errors.length} jobs errored`);
+                  return void 0;
+                }),
+                TE.fromTask
                 // te.executeAllInArray({ parallelism: 1 }),
               )
             )
