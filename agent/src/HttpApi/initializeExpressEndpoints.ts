@@ -10,10 +10,12 @@ import {
   ScheduledAt,
 } from "@timetriggers/domain";
 import bodyParser from "body-parser";
+import { max } from "date-fns";
 import { Express } from "express";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RT from "fp-ts/lib/ReaderTask.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
+import * as E from "fp-ts/lib/Either.js";
 
 export const initializeEndpoints = ({
   app,
@@ -38,13 +40,19 @@ export const initializeEndpoints = ({
     )
     .all("/schedule", async (req, res) => {
       const url = req.headers["x-timetriggers-url"] as string;
-      const scheduledAt = ScheduledAt.fromUTCString(
-        req.headers["x-timetriggers-at"] as string
-      );
-      const apiKeyValue = req.headers["x-timetriggers-key"] as string;
+      const apiKeyValue = (req.headers["x-timetriggers-key"] as string) || "";
 
       await pipe(
         RTE.Do,
+        RTE.bindW("scheduledAt", () =>
+          pipe(
+            req.headers["x-timetriggers-at"] as string,
+            ScheduledAt.parseISOString,
+            E.map((d) => max([d.date, clock.now()])),
+            E.map(ScheduledAt.fromDate),
+            RTE.fromEither
+          )
+        ),
         RTE.bindW("project", () =>
           pipe(
             getProjectByApiKey({ apiKeyValue }),
@@ -65,7 +73,7 @@ export const initializeEndpoints = ({
             RTE.fromEither
           );
         }),
-        RTE.bindW("jobScheduleArgs", ({ rawBody }) =>
+        RTE.bindW("jobScheduleArgs", ({ rawBody, scheduledAt }) =>
           RTE.of(
             new JobScheduleArgs({
               scheduledAt,

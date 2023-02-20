@@ -10,10 +10,15 @@ const { firestore } = initializeApp({
     const projectDocs = await firestore
       .collection(`/namespaces/${process.env.NAMESPACE}/projects`)
       .get();
-    projectDocs.forEach((projectDoc) => {
+    projectDocs.forEach(async (projectDoc) => {
       const { id: projectId } = projectDoc;
       const usageDoc = firestore.doc(
         `/namespaces/${process.env.NAMESPACE}/projects/${projectId}/usage/monthly`
+      );
+      await firestore.recursiveDelete(
+        firestore.doc(
+          `/namespaces/${process.env.NAMESPACE}/projects/${projectId}/usage`
+        )
       );
       t.set(usageDoc, {
         projectId,

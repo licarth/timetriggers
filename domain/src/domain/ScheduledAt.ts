@@ -3,6 +3,7 @@ import * as Codec from "io-ts/lib/Codec.js";
 import { fromClassCodec } from "@iots";
 import { UtcDate } from "../";
 import * as D from "io-ts/lib/Decoder.js";
+import * as E from "fp-ts/lib/Either.js";
 
 export class ScheduledAt {
   date;
@@ -46,6 +47,18 @@ export class ScheduledAt {
     return new ScheduledAt({
       date: props.date ?? new Date(),
     });
+  };
+
+  static parseISOString = (
+    date: unknown
+  ): E.Either<"Invalid Date", ScheduledAt> => {
+    if (typeof date !== "string") {
+      return E.left("Invalid Date");
+    }
+    const d = new Date(date);
+    return isNaN(d.getTime())
+      ? E.left("Invalid Date")
+      : E.right(new ScheduledAt({ date: d }));
   };
 
   static fromDate(date: Date): ScheduledAt {
