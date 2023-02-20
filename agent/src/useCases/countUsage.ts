@@ -60,8 +60,15 @@ export const countUsage = ({ project, apiKeyValue, jobScheduleArgs }: Args) =>
                 FieldValue.increment(1),
             };
 
+            const withProjectId = (a: object) => ({
+              projectId: project.id,
+              ...a,
+            });
+
             const b = firestore.batch();
-            b.set(projectUsageDoc, setUpdate(usageUpdate), { merge: true });
+            b.set(projectUsageDoc, withProjectId(setUpdate(usageUpdate)), {
+              merge: true,
+            });
             b.set(monthlyGlobalUsageDoc, setUpdate(usageUpdate), {
               merge: true,
             });
