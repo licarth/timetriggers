@@ -167,15 +167,20 @@ export class Processor extends ClusterTopologyDatastoreAware {
     console.log(`[Processor] waiting for next job in queue...`);
     // this.unsubscribeNextJob = unsubscribe;
     const self = this;
+    const limit = 100;
     return pipe(
-      this.datastore.waitForNextJobsInQueue(
-        { limit: 1 },
-        this.shardsToListenTo
-      ),
+      this.datastore.waitForNextJobsInQueue({ limit }, this.shardsToListenTo),
       TE.map((o) => {
         const subscription = o.pipe(debounceTime(500)).subscribe((jobs) => {
-          console.log("🔴🔴🔴🔴");
-          getOrReportToSentry(self.processQueue());
+          getOrReportToSentry(
+            pipe(
+              self._processJobs(jobs),
+              TE.chainW(() =>
+                // Only reschedule if we have more jobs to process
+                jobs.length < limit ? TE.right(undefined) : self.processQueue()
+              )
+            )
+          );
         });
         self.unsubscribeQueue = () => subscription.unsubscribe();
       })
