@@ -118,7 +118,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
         if (totalJobs === 0) {
           console.log(`[Processor] - No jobs to schedule.`);
         } else {
-          console.log(`[Processor] ✅ Scheduled ${totalJobs} jobs`);
+          console.log(`[Processor] ✅ Processed ${totalJobs} jobs`);
         }
         this.isReadingQueue = false;
         return void 0;

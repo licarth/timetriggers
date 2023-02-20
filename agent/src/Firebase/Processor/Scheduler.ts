@@ -20,7 +20,7 @@ import { humanReadibleMs } from "./humanReadibleMs";
 import { distinct, interval, pipe as pipeObs } from "rxjs";
 import { distinctArray } from "./distinctArray";
 
-const MINUTE = 1000 * 60 * 60;
+const MINUTE = 1000 * 60;
 const HOUR = 1000 * 60 * 60;
 
 type SchedulerProps = {
@@ -184,11 +184,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     );
   }
 
-  private _scheduleNextPeriod({
-    offset,
-  }: {
-    offset: number;
-  }): TE.TaskEither<Error, { resultCount: number }> {
+  private _scheduleNextPeriod({ offset }: { offset: number }) {
     // Here we should get into a loop until
     // we have a result that returns no jobs
     return pipe(
@@ -200,12 +196,17 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         },
         this.shardsToListenTo
       ),
-      TE.map((jobs) => {
+      TE.chainW((jobs) => {
         // Optimization: all jobs that are scheduled in the past should be scheduled immediately
         // in a single transaction
-        getOrReportToSentry(this._scheduleNewJobs(jobs));
+        return pipe(
+          this._scheduleNewJobs(jobs),
+          TE.map(() => ({
+            resultCount: jobs.length,
+          }))
+        );
         // jobs that are to schedule before a certain date & with an offset ?
-        return { resultCount: jobs.length };
+        // return { resultCount: jobs.length };
       })
     );
   }
