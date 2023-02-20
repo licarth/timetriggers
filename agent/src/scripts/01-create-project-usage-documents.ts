@@ -1,5 +1,4 @@
-import { MonthlyUsage, ProjectId } from "@timetriggers/domain";
-import { MonthlyUsageV1 } from "@timetriggers/domain/built/cjs/MonthlyUsage/MonthlyUsageV1";
+import { MonthlyUsage, MonthlyUsageV1, ProjectId } from "@timetriggers/domain";
 import { initializeApp } from "../Firebase/initializeApp";
 
 const { firestore } = initializeApp({

@@ -34,6 +34,7 @@
     "deploy": "cp -r ../domain ./copy-of-domain && flyctl deploy --remote-only",
     "dev": "nodemon --delay 0.5 --watch src --watch ../domain/built -e js,ts,tsx --exec 'npm run build && npm run start'",
     "build": "tsc && resolve-tspaths",
+    "run-script": "dotenv -e .env node ./built/scripts/$1",
     "test": "dotenv -e .env.test -e.env.test.local jest",
     "emulators": "firebase emulators:start --only firestore,auth",
     "docker-compose": "docker-compose --env-file .env up -d",
