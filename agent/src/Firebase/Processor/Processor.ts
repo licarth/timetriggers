@@ -38,7 +38,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
   isProcessing = false;
   isReadingQueue = false;
   hasToReadAgain = false;
-  readFromQueueBatch = 20;
+  readFromQueueBatch = 100;
   state: "not_started" | "running" | "closing" | "closed" = "not_started";
   closedHook = () => {};
 
@@ -111,7 +111,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
           return isOver;
         },
         {
-          maxAttempts: 20,
+          maxAttempts: 300,
         }
       ),
       TE.map(() => {

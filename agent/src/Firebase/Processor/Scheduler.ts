@@ -273,7 +273,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
           return isOver;
         },
         {
-          maxAttempts: 20,
+          maxAttempts: 300,
         }
       ),
       TE.map(() => {
