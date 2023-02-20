@@ -17,6 +17,11 @@ export type GetJobsScheduledBeforeArgs = {
   limit: number;
 };
 
+export type GetJobsInQueueArgs = {
+  offset?: number;
+  limit: number;
+};
+
 export interface Datastore {
   schedule(
     args: JobScheduleArgs,
@@ -74,7 +79,7 @@ export interface Datastore {
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<any, JobDefinition[]>;
 
-  // Some datastores support watching for added / modified jobs. For these, we can avoid high-frequency polling.
+  // Some datastoressupport watching for added / modified jobs. For these, we can avoid high-frequency polling.
   // => 1. listen to jobs newly (re-)scheduled within a given time range from now (and in the past).
   // => 2. and poll for jobs beyond that time range.
 
@@ -99,6 +104,11 @@ export interface Datastore {
     },
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<Error, Observable<JobDefinition[]>>;
+
+  getJobsInQueue(
+    args: GetJobsInQueueArgs,
+    shardsToListenTo?: ShardsToListenTo
+  ): TE.TaskEither<any, JobDefinition[]>;
 
   /**
    * Moves this job to the queue so that it's immediately picked up by the processor(s).

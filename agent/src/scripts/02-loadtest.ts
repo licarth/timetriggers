@@ -15,7 +15,7 @@ const { firestore } = initializeApp({
   serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
 });
 
-const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(10);
+const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(5);
 
 (async () => {
   const now = new Date();
@@ -30,7 +30,7 @@ const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(10);
     te.unsafeGetOrThrow(
       datastore.schedule(
         new JobScheduleArgs({
-          scheduledAt: ScheduledAt.fromDate(addSeconds(now, 10)),
+          scheduledAt: ScheduledAt.fromDate(addSeconds(now, 1)),
           http: {
             options: undefined,
             url: "https://api.timetriggers.io/1",

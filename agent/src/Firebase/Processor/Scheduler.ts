@@ -17,6 +17,8 @@ import _ from "lodash";
 import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 import { Datastore } from "./Datastore";
 import { humanReadibleMs } from "./humanReadibleMs";
+import { distinct, interval, pipe as pipeObs } from "rxjs";
+import { distinctArray } from "./distinctArray";
 
 const MINUTE = 1000 * 60 * 60;
 const HOUR = 1000 * 60 * 60;
@@ -129,7 +131,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       ),
       TE.chainFirstW(() =>
         pipe(
-          this.startListeningToNewJobs(),
+          this.waitForNewJobs(),
           TE.orElse((reason) => {
             if (reason === "not implemented") {
               console.log(
@@ -147,7 +149,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     );
   }
 
-  private startListeningToNewJobs() {
+  private waitForNewJobs() {
     return pipe(
       this.datastore.listenToNewlyRegisteredJobs(
         {
@@ -156,15 +158,23 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         this.shardsToListenTo
       ),
       TE.map((observable) => {
-        const subscription = observable.subscribe((jobs) => {
-          // Trigger a check for new jobs
-          getOrReportToSentry(
-            pipe(
-              this._scheduleNewJobs(jobs) // Wait for the jobs to be scheduled, then schedule the next period
-              // TE.chain(() => this.scheduleNextPeriod()) // Not needed with firestore...
+        const subscription = observable
+          .pipe(
+            distinctArray(
+              (JobDefinition) => JobDefinition.id,
+              interval(10 * 60 * 1000) // 10 minutes
             )
-          );
-        });
+          )
+          .subscribe((jobs) => {
+            // Trigger a check for new jobs
+            getOrReportToSentry(
+              pipe(
+                this.scheduleNextPeriod()
+                // this._scheduleNewJobs(jobs), // Wait for the jobs to be scheduled, then schedule the next period
+                // TE.chain(() => this.scheduleNextPeriod()) // Not needed with firestore...
+              )
+            );
+          });
 
         this.listeningToNewJobUnsubscribeHooks.push(() =>
           subscription.unsubscribe()

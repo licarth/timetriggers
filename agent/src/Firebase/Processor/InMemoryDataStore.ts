@@ -14,6 +14,7 @@ import Multimap from "multimap";
 import { interval, Observable, Observer, Subscriber } from "rxjs";
 import {
   Datastore,
+  GetJobsInQueueArgs,
   GetJobsScheduledBeforeArgs,
   ShardingAlgorithm,
 } from "./Datastore";
@@ -49,6 +50,12 @@ export class InMemoryDataStore implements Datastore {
     this.completedJobs = new Map<JobId, JobDefinition>(
       toEntries(props.completedJobs)
     );
+  }
+  getJobsInQueue(
+    args: GetJobsInQueueArgs,
+    shardsToListenTo?: ShardsToListenTo | undefined
+  ): TE.TaskEither<any, JobDefinition[]> {
+    throw new Error("Method not implemented.");
   }
 
   close(): TE.TaskEither<any, void> {

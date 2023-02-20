@@ -406,7 +406,7 @@ export class FirestoreDatastore implements Datastore {
               .orderBy("jobDefinition.scheduledAt", "asc")
               .limit(limit)
               .onSnapshot((snapshot) => {
-                // console.log(`[Datastore] found ${snapshot.size} docs...`);
+                console.log(`[Datastore] found ${snapshot.size} docs...`);
                 const { errors, successes } = pipe(
                   snapshot.docs.map((doc) =>
                     FirestoreJobDocument.codec.decode(doc.data())
@@ -426,7 +426,7 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
                     `[Datastore] got next ${successes.length} valid next jobs...`
                   );
                   // Check here if jobs are valid. If not, just wait.
-                  unsubscribe && unsubscribe(); // Stop listening if the job can run
+                  // unsubscribe && unsubscribe(); // Stop listening if the job can run
                   const jobdefinitions = successes.map(
                     (doc) => doc.jobDefinition
                   );
@@ -456,6 +456,43 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
       //     })
       //   )
       // )
+    );
+  }
+
+  getJobsInQueue(
+    { offset, limit }: GetJobsScheduledBeforeArgs,
+    shardsToListenTo?: ShardsToListenTo
+  ) {
+    return TE.tryCatch(
+      async () => {
+        console.log("[Datastore] Fetching queued jobs ");
+        let query = shardedFirestoreQuery(
+          this.firestore.collection(
+            `${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`
+          ),
+          toShards(shardsToListenTo)
+        ).limit(limit);
+
+        if (offset) {
+          query = query.offset(offset);
+        }
+
+        const snapshot = await query.get();
+
+        return pipe(
+          snapshot.docs.map((doc) =>
+            pipe(
+              doc.data(),
+              FirestoreJobDocument.codec.decode,
+              E.map((x) => x.jobDefinition)
+            )
+          ),
+          e.split,
+          ({ successes }) => successes
+        );
+      },
+      (reason) =>
+        new Error(`[Datastore] Failed to get next jobs from queue: ${reason}`)
     );
   }
 }

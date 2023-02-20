@@ -21,6 +21,9 @@ import { Datastore } from "./Datastore";
 import { InMemoryDataStore } from "./InMemoryDataStore";
 import * as Sentry from "@sentry/node";
 import "@sentry/tracing";
+import chalk from "chalk";
+import { distinctArray } from "./distinctArray";
+import { debounceTime, interval } from "rxjs";
 
 type ProcessorProps = {
   clock?: Clock;
@@ -33,10 +36,13 @@ export class Processor extends ClusterTopologyDatastoreAware {
   workerPool;
   datastore;
   isProcessing = false;
+  isReadingQueue = false;
+  hasToReadAgain = false;
+  readFromQueueBatch = 20;
   state: "not_started" | "running" | "closing" | "closed" = "not_started";
   closedHook = () => {};
 
-  unsubscribeNextJob: () => void = () => {};
+  unsubscribeQueue: () => void = () => {};
 
   firstTopologyChange: boolean;
 
@@ -54,8 +60,14 @@ export class Processor extends ClusterTopologyDatastoreAware {
       this.firstTopologyChange = false;
     } else {
     }
-    this.unsubscribeNextJob && this.unsubscribeNextJob();
-    getOrReportToSentry(this.takeNextJob());
+    this.unsubscribeQueue && this.unsubscribeQueue();
+
+    getOrReportToSentry(
+      pipe(
+        this.processQueue(),
+        TE.chainW(() => this.waitForNextJobInQueue())
+      )
+    );
   }
 
   static build = (props: ProcessorProps): TE.TaskEither<Error, Processor> =>
@@ -67,78 +79,148 @@ export class Processor extends ClusterTopologyDatastoreAware {
       })
     );
 
-  takeNextJob(): TE.TaskEither<Error, void> {
+  /**
+   * This method should be called regularily, at least twice per period (if period = 2h, then once an hour)
+   * */
+  processQueue(): TE.TaskEither<Error, void> {
+    if (this.isReadingQueue) {
+      console.log("[Processor] Already reading queue, skipping this one...");
+      this.hasToReadAgain = true;
+      return TE.right(undefined);
+    }
+
+    this.isReadingQueue = true;
+    console.log(`[Processor] 📚 Reading jobs from queue ...`);
+    let offset = 0;
+    let totalJobs = 0;
+    return pipe(
+      async () => offset,
+      TE.fromTask,
+      TE.chain((offset) => this._processQueue({ offset })),
+      te.repeatUntil(
+        ({ resultCount }) => {
+          const isOver = offset === 0 && resultCount < this.readFromQueueBatch;
+          if (!isOver) {
+            totalJobs += resultCount;
+            if (resultCount < this.readFromQueueBatch) {
+              offset = 0;
+            } else {
+              offset += resultCount;
+            }
+          }
+          return isOver;
+        },
+        {
+          maxAttempts: 300,
+        }
+      ),
+      TE.map(() => {
+        if (totalJobs === 0) {
+          console.log(`[Processor] - No jobs to schedule.`);
+        } else {
+          console.log(`[Processor] ✅ Scheduled ${totalJobs} jobs`);
+        }
+        this.isReadingQueue = false;
+        return void 0;
+      }),
+      TE.chainW(() => {
+        if (this.hasToReadAgain) {
+          this.hasToReadAgain = false;
+          return this.processQueue();
+        } else {
+          return TE.right(undefined);
+        }
+      })
+    );
+  }
+
+  private _processQueue({
+    offset,
+  }: {
+    offset: number;
+  }): TE.TaskEither<Error, { resultCount: number }> {
+    // Here we should get into a loop until
+    // we have a result that returns no jobs
+    return pipe(
+      this.datastore.getJobsInQueue(
+        {
+          offset,
+          limit: this.readFromQueueBatch,
+        },
+        this.shardsToListenTo
+      ),
+      TE.map((jobs) => {
+        // Optimization: all jobs that are scheduled in the past should be scheduled immediately
+        // in a single transaction
+        getOrReportToSentry(this._processJobs(jobs));
+        // jobs that are to schedule before a certain date & with an offset ?
+        return { resultCount: jobs.length };
+      })
+    );
+  }
+
+  waitForNextJobInQueue() {
     console.log(`[Processor] waiting for next job in queue...`);
     // this.unsubscribeNextJob = unsubscribe;
     const self = this;
     return pipe(
       this.datastore.waitForNextJobsInQueue(
-        { limit: 50 },
+        { limit: 1 },
         this.shardsToListenTo
       ),
-      TE.chainW(function (o) {
-        return TE.tryCatch(
-          () =>
-            new Promise<JobDefinition[]>((resolve, reject) => {
-              const subscription = o.subscribe(
-                (jobs) => {
-                  resolve(jobs);
-                },
-                (err) => reject(err)
-              );
-              self.unsubscribeNextJob = () => subscription.unsubscribe();
-            }),
-          (e) => new Error("Could not take next job")
-        );
-      }),
-      TE.chain((jobs) => {
-        console.log(`[Processor] got ${jobs.length} jobs...`);
-        if (this.state === "closing") {
-          this.state = "closed";
-          this.closedHook();
-          return TE.of(undefined);
-        } else {
-          this.isProcessing = true;
-          return pipe(
-            TE.of(jobs),
-            TE.chainFirstW((jobDefinition) =>
-              pipe(
-                jobDefinition.map((job) => this.processJob(job)), // We could stop processing if we changed Shards
-                // What should we do if it fails ?
-                // We should not continue processing, only retry the job. And then fail.
-                // We should rather execute them sequentially and fail at the first one
-                (s) => s,
-                // failAtFirst,
-                // TE.mapLeft((e) => {
-                //   console.log(e);
-                //   return e;
-                // })
-                te.executeAllInArray({ parallelism: 100 }),
-                (x) => x,
-                T.map(({ successes, errors }) => {
-                  console.log(`[Processor] ${successes.length} jobs processed`);
-                  console.log(`[Processor] ${errors.length} jobs errored`);
-                  return void 0;
-                }),
-                TE.fromTask
-                // te.executeAllInArray({ parallelism: 1 }),
-              )
-            )
-          );
-        }
-      }),
-      TE.chain(() => {
-        this.isProcessing = false;
-        if (this.state === "closing") {
-          this.state = "closed";
-
-          this.closedHook();
-          return TE.of(undefined);
-        } else {
-          return this.takeNextJob();
-        }
+      TE.map((o) => {
+        const subscription = o.pipe(debounceTime(500)).subscribe((jobs) => {
+          console.log("🔴🔴🔴🔴");
+          getOrReportToSentry(self.processQueue());
+        });
+        self.unsubscribeQueue = () => subscription.unsubscribe();
       })
     );
+  }
+
+  private _processJobs(jobs: JobDefinition[]) {
+    if (this.state === "closing") {
+      this.state = "closed";
+      this.closedHook();
+      return TE.of(undefined);
+    } else {
+      this.isProcessing = true;
+      return pipe(
+        TE.of(jobs),
+        TE.chainFirstW((jobDefinition) =>
+          pipe(
+            jobDefinition.map((job) => this.processJob(job)), // We could stop processing if we changed Shards
+            // What should we do if it fails ?
+            // We should not continue processing, only retry the job. And then fail.
+            // We should rather execute them sequentially and fail at the first one
+            (s) => s,
+            // failAtFirst,
+            // TE.mapLeft((e) => {
+            //   console.log(e);
+            //   return e;
+            // })
+            te.executeAllInArray({ parallelism: 100 }),
+            (x) => x,
+            T.map(({ successes, errors }) => {
+              console.log(`[Processor] ${successes.length} jobs processed`);
+              console.log(`[Processor] ${errors.length} jobs errored`);
+              return void 0;
+            }),
+            TE.fromTask
+            // te.executeAllInArray({ parallelism: 1 }),
+          )
+        ),
+        TE.chain(() => {
+          this.isProcessing = false;
+          if (this.state === "closing") {
+            this.state = "closed";
+
+            this.closedHook();
+          }
+          return TE.of(undefined);
+        })
+      );
+    }
   }
 
   processJob(jobDefinition: JobDefinition) {
@@ -195,7 +277,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
     let t: TE.TaskEither<Error, void>;
     this.state = "closing";
     this.coordinationClientSubscription?.unsubscribe();
-    this.unsubscribeNextJob();
+    this.unsubscribeQueue();
 
     if (this.isProcessing) {
       // Wait for current job to finish
