@@ -23,7 +23,7 @@ describe("Date", () => {
   it("firestore codec encode", () => {
     const date = new Date("2021-01-01T00:00:00.000Z");
     expect(SpecialDate.codec("firestore").encode(date as SpecialDate)).toEqual(
-      Timestamp.fromDate(date)
+      date
     );
   });
   it("string codec decode", () => {
