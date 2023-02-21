@@ -8,7 +8,7 @@ import {
   Tooltip,
   useColorModeValue,
 } from "@chakra-ui/react";
-import { NavItemProps } from "./NavItemProps";
+import type { NavItemProps } from "./NavItemProps";
 
 export const NavItem = ({
   navSize,
@@ -17,6 +17,7 @@ export const NavItem = ({
   active,
   disabled,
   comingSoon,
+  href,
 }: NavItemProps) => {
   const activeColor = useColorModeValue("gray.200", "gray.700");
   const textColor = useColorModeValue("gray.900", "white");
@@ -30,6 +31,7 @@ export const NavItem = ({
     >
       <Menu placement="right">
         <Link
+          href={href}
           padding={3}
           borderRadius={8}
           bgColor={active ? activeColor : "none"}

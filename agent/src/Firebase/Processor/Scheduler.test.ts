@@ -22,13 +22,13 @@ describe("Scheduler", () => {
       const datastore = InMemoryDataStore.factory({
         clock,
         registeredJobs: _.times(200, () =>
-          JobDocument.registeredNowWithoutShards(
-            JobDefinition.factory({
+          JobDocument.registeredNowWithoutShards({
+            jobDefinition: JobDefinition.factory({
               clock,
               scheduledAt: ScheduledAt.factory(addHours(clock.now(), -1)),
             }),
-            clock
-          )
+            clock,
+          })
         ),
       });
       scheduler = await te.unsafeGetOrThrow(
@@ -49,15 +49,15 @@ describe("Scheduler", () => {
       const datastore = InMemoryDataStore.factory({
         clock,
         registeredJobs: _.times(1, () =>
-          JobDocument.registeredNowWithoutShards(
-            JobDefinition.factory({
+          JobDocument.registeredNowWithoutShards({
+            jobDefinition: JobDefinition.factory({
               clock,
               scheduledAt: ScheduledAt.factory(
                 addMilliseconds(clock.now(), 500)
               ),
             }),
-            clock
-          )
+            clock,
+          })
         ),
       });
       scheduler = await te.unsafeGetOrThrow(
@@ -81,12 +81,12 @@ describe("Scheduler", () => {
       const datastore = InMemoryDataStore.factory({
         clock,
         registeredJobs: _.times(1, () =>
-          JobDocument.registeredNowWithoutShards(
-            JobDefinition.factory({
+          JobDocument.registeredNowWithoutShards({
+            jobDefinition: JobDefinition.factory({
               scheduledAt: ScheduledAt.factory(addSeconds(clock.now(), 130)),
             }),
-            clock
-          )
+            clock,
+          })
         ),
       });
       scheduler = await te.unsafeGetOrThrow(

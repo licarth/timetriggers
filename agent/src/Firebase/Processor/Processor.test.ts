@@ -50,16 +50,16 @@ describe("Processor (not sharded)", () => {
         datastore: InMemoryDataStore.factory({
           clock,
           queuedJobs: [
-            JobDocument.registeredNowWithoutShards(
-              JobDefinition.factory({
+            JobDocument.registeredNowWithoutShards({
+              jobDefinition: JobDefinition.factory({
                 id: jobId,
                 http: Http.factory({
                   url: `http://localhost:${callbackReceiver.port}`,
                 }),
                 clock,
               }),
-              clock
-            ),
+              clock,
+            }),
           ],
         }),
       })
@@ -95,15 +95,15 @@ describe("Processor (not sharded)", () => {
         datastore: InMemoryDataStore.factory({
           clock,
           queuedJobs: [
-            JobDocument.registeredNowWithoutShards(
-              JobDefinition.factory({
+            JobDocument.registeredNowWithoutShards({
+              jobDefinition: JobDefinition.factory({
                 http: Http.factory({
                   url: `http://localhost:${callbackReceiver.port}`,
                 }),
                 clock,
               }),
-              clock
-            ),
+              clock,
+            }),
           ],
         }),
       })

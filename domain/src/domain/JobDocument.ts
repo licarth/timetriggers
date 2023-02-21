@@ -1,6 +1,7 @@
 import { Clock } from "@/Clock";
 import { taggedVersionedClassCodec } from "@/iots/taggedVersionClassCodec/taggedVersionedClassCodec";
-import { CodecType } from "@/project";
+import { CodecType, ProjectId } from "@/project";
+import { pipe } from "fp-ts/lib/function";
 import * as Codec from "io-ts/lib/Codec.js";
 import { JobDefinition } from "./JobDefinition";
 import { JobStatus } from "./JobStatus";
@@ -23,25 +24,38 @@ export class JobDocument {
   }
 
   static propsCodec = (codecType: CodecType) =>
-    Codec.struct({
-      jobDefinition: JobDefinition.codec(codecType),
-      status: JobStatus.codec(codecType),
-      shards: Codec.array(Codec.string),
-    });
+    pipe(
+      Codec.struct({
+        jobDefinition: JobDefinition.codec(codecType),
+        status: JobStatus.codec(codecType),
+        shards: Codec.array(Codec.string),
+      }),
+      Codec.intersect(
+        Codec.partial({
+          projectId: ProjectId.codec,
+        })
+      )
+    );
 
   static codec = (codecType: CodecType) =>
     taggedVersionedClassCodec(this.propsCodec(codecType), this);
 
-  static registeredNowWithoutShards(
-    jobDefinition: JobDefinition,
-    clock: Clock
-  ) {
+  static registeredNowWithoutShards({
+    jobDefinition,
+    clock,
+    projectId,
+  }: {
+    jobDefinition: JobDefinition;
+    clock: Clock;
+    projectId?: ProjectId;
+  }) {
     return new JobDocument({
       jobDefinition,
       status: new JobStatus({
         value: "registered",
         registeredAt: RegisteredAt.fromDate(clock.now()),
       }),
+      projectId,
       shards: [],
     });
   }

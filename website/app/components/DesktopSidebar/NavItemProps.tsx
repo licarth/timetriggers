@@ -9,4 +9,5 @@ export type NavItemProps = {
   active?: boolean;
   disabled?: boolean;
   comingSoon?: boolean;
+  href?: string;
 };

@@ -89,9 +89,9 @@ export const initializeEndpoints = ({
           )
         ),
         RTE.chainFirstW(
-          ({ jobScheduleArgs }) =>
+          ({ jobScheduleArgs, project: { id: projectId } }) =>
             pipe(
-              api.schedule(jobScheduleArgs),
+              api.schedule(jobScheduleArgs, projectId),
               RTE.fromTaskEither,
               rte.sideEffect((jobId) => res.send({ success: true, jobId }))
             )

@@ -1,0 +1,33 @@
+[debug] [2023-02-21T20:28:50.320Z] ----------------------------------------------------------------------
+[debug] [2023-02-21T20:28:50.321Z] Command:       /usr/local/bin/firebase /Users/thomas/.cache/firebase/tools/lib/node_modules/firebase-tools/lib/bin/firebase deploy --only firestore:indexes
+[debug] [2023-02-21T20:28:50.321Z] CLI Version:   10.1.1
+[debug] [2023-02-21T20:28:50.321Z] Platform:      darwin
+[debug] [2023-02-21T20:28:50.322Z] Node Version:  v12.18.1
+[debug] [2023-02-21T20:28:50.327Z] Time:          Tue Feb 21 2023 21:28:50 GMT+0100 (Central European Standard Time)
+[debug] [2023-02-21T20:28:50.327Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2023-02-21T20:28:50.382Z] Field ".emulators.auth.port" in "firebase.json" is possibly invalid: should be number
+[debug] [2023-02-21T20:28:50.387Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2023-02-21T20:28:50.387Z] > authorizing via signed-in user (thomascarli@gmail.com)
+[debug] [2023-02-21T20:28:50.388Z] [iam] checking project doi-production for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2023-02-21T20:28:50.390Z] >>> HTTP REQUEST POST https://cloudresourcemanager.googleapis.com/v1/projects/doi-production:testIamPermissions  
+ {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2023-02-21T20:28:51.089Z] <<< HTTP RESPONSE 200 {"content-type":"application/json; charset=UTF-8","vary":"X-Origin, Referer, Origin,Accept-Encoding","date":"Tue, 21 Feb 2023 20:28:51 GMT","server":"ESF","cache-control":"private","x-xss-protection":"0","x-frame-options":"SAMEORIGIN","x-content-type-options":"nosniff","server-timing":"gfet4t7; dur=573","alt-svc":"h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000","accept-ranges":"none","transfer-encoding":"chunked"}
+[info] 
+[info] === Deploying to 'doi-production'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[debug] [2023-02-21T20:28:51.102Z] >>> HTTP REQUEST GET https://firestore.googleapis.com/v1/projects/doi-production/databases/(default)/collectionGroups/-/indexes  
+ 
+[debug] [2023-02-21T20:28:51.348Z] <<< HTTP RESPONSE 200 {"content-type":"application/json; charset=UTF-8","vary":"X-Origin, Referer, Origin,Accept-Encoding","date":"Tue, 21 Feb 2023 20:28:51 GMT","server":"ESF","cache-control":"private","x-xss-protection":"0","x-frame-options":"SAMEORIGIN","x-content-type-options":"nosniff","alt-svc":"h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000","accept-ranges":"none","transfer-encoding":"chunked"}
+[debug] [2023-02-21T20:28:51.350Z] >>> HTTP REQUEST GET https://firestore.googleapis.com/v1/projects/doi-production/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false  
+ 
+[debug] [2023-02-21T20:28:51.563Z] <<< HTTP RESPONSE 200 {"content-type":"application/json; charset=UTF-8","vary":"X-Origin, Referer, Origin,Accept-Encoding","date":"Tue, 21 Feb 2023 20:28:51 GMT","server":"ESF","cache-control":"private","x-xss-protection":"0","x-frame-options":"SAMEORIGIN","x-content-type-options":"nosniff","alt-svc":"h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000","accept-ranges":"none","transfer-encoding":"chunked"}
+[info] i  firestore: The following indexes are defined in your project but are not present in your firestore indexes file:
+	(jobs) -- (shards,CONTAINS) (status.value,ASCENDING) (jobDefinition.scheduledAt,ASCENDING) (jobDefinition.id,ASCENDING) (status.registeredAt,ASCENDING) 
+	(jobs) -- (shards,CONTAINS) (scheduledWithin.`1h`,ASCENDING) (status.value,ASCENDING) (status.registeredAt,ASCENDING) (jobDefinition.id,ASCENDING) 
+	(jobs) -- (status.value,ASCENDING) (jobDefinition.scheduledAt,ASCENDING) (status.registeredAt,ASCENDING) (jobDefinition.id,ASCENDING) 
+	(jobs) -- (scheduledWithin.`1h`,ASCENDING) (status.value,ASCENDING) (status.registeredAt,ASCENDING) (jobDefinition.id,ASCENDING) 
+	(jobs) -- (status.value,ASCENDING) (jobDefinition.scheduledAt,ASCENDING) 
+	(jobs) -- (status.value,ASCENDING) (jobDefinition.scheduledAt,ASCENDING) (jobDefinition.id,ASCENDING) (status.registeredAt,ASCENDING)  

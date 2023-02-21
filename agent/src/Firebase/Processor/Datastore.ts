@@ -4,6 +4,7 @@ import {
   JobDocument,
   JobId,
   JobScheduleArgs,
+  ProjectId,
   RegisteredAt,
   ScheduledAt,
   Shard,
@@ -49,7 +50,8 @@ export type GetJobsInQueueArgs = {
 export interface Datastore {
   schedule(
     args: JobScheduleArgs,
-    shardingAlgorithm?: ShardingAlgorithm
+    shardingAlgorithm?: ShardingAlgorithm,
+    projectId?: ProjectId
   ): TE.TaskEither<any, JobId>;
   cancel(jobId: JobId): TE.TaskEither<any, void>;
 

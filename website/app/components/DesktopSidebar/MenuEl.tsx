@@ -84,13 +84,19 @@ export const MenuElements = ({
                 selectedProjectSlug={selectedProjectSlug}
               />
             )}
-            <NavItem navSize={navSize} title="Api Keys" icon={BsKey} active />
+            <NavItem
+              navSize={navSize}
+              title="Api Keys"
+              icon={BsKey}
+              active={currentProjectPath === "api_keys"}
+              href="api_keys"
+            />
             <NavItem
               navSize={navSize}
               title="Triggers"
               icon={BsCollectionPlayFill}
-              disabled
-              comingSoon
+              active={currentProjectPath === "triggers"}
+              href="triggers"
             />
             <NavItem
               navSize={navSize}

@@ -12,6 +12,7 @@ import {
   JobId,
   JobScheduleArgs,
   JobStatus,
+  ProjectId,
   RegisteredAt,
   SystemClock,
 } from "@timetriggers/domain";
@@ -65,7 +66,8 @@ export class FirestoreDatastore implements Datastore {
 
   schedule(
     args: JobScheduleArgs,
-    shardingAlgorithm?: ShardingAlgorithm | undefined
+    shardingAlgorithm?: ShardingAlgorithm | undefined,
+    projectId?: ProjectId
   ) {
     return TE.tryCatch(
       async () => {
@@ -80,6 +82,7 @@ export class FirestoreDatastore implements Datastore {
           ...JobDocument.codec("firestore").encode(
             new JobDocument({
               jobDefinition,
+              projectId,
               shards: shardingAlgorithm
                 ? shardingAlgorithm(id).map((s) => s.toString())
                 : [],

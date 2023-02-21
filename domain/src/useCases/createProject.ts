@@ -1,11 +1,13 @@
 import { MonthlyUsage } from "@/MonthlyUsage";
 import { FirebaseUserId, Project, ProjectId, ProjectSlug } from "@/project";
+import { Auth } from "firebase-admin/auth";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 
 type Dependencies = {
   firestore: FirebaseFirestore.Firestore;
+  auth: Auth;
   namespace: string;
 };
 
@@ -18,7 +20,7 @@ export const createProject = ({
 }) =>
   pipe(
     RTE.ask<Dependencies>(),
-    RTE.bindW("project", ({ firestore, namespace }) =>
+    RTE.bindW("project", ({ firestore, namespace, auth }) =>
       pipe(
         TE.tryCatchK(
           async () => {
@@ -45,6 +47,11 @@ export const createProject = ({
                 MonthlyUsage.codec.encode(monthlyUsage)
               );
               t.set(projectRef, Project.codec("firestore").encode(project));
+            });
+            const owner_projects = ((await auth.getUser(creator.id))
+              .customClaims?.owner_projects || "") as string;
+            await auth.setCustomUserClaims(creator.id, {
+              owner_projects: `${owner_projects},${projectId}`,
             });
           },
           (reason) => {

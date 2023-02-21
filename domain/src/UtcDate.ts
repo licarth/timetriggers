@@ -43,6 +43,9 @@ const isFirebaseTimesamp = function (i: unknown): i is Timestamp {
       typeof i === "object" &&
       i.hasOwnProperty("_seconds") &&
       i.hasOwnProperty("_nanoseconds")) ||
-    false
+    (i !== null &&
+      typeof i === "object" &&
+      i.hasOwnProperty("seconds") &&
+      i.hasOwnProperty("nanoseconds"))
   );
 };
