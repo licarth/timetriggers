@@ -48,7 +48,7 @@ export const initializeEndpoints = ({
           pipe(
             req.headers["x-timetriggers-at"] as string,
             ScheduledAt.parseISOString,
-            E.map((d) => max([d.date, clock.now()])),
+            E.map((d) => max([d, clock.now()])),
             E.map(ScheduledAt.fromDate),
             RTE.fromEither
           )

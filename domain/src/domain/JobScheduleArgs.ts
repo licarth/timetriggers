@@ -1,3 +1,4 @@
+import { CodecType } from "@/project";
 import { fromClassCodec } from "@iots";
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
@@ -13,21 +14,23 @@ export class JobScheduleArgs {
     this.http = props.http;
   }
 
-  static propsCodec = pipe(
-    Codec.struct({
-      scheduledAt: ScheduledAt.codec,
-    }),
-    Codec.intersect(
-      Codec.partial({
-        http: Http.codec,
-      })
-    )
-  );
+  static propsCodec = (codecType: CodecType) =>
+    pipe(
+      Codec.struct({
+        scheduledAt: ScheduledAt.codec(codecType),
+      }),
+      Codec.intersect(
+        Codec.partial({
+          http: Http.codec,
+        })
+      )
+    );
 
-  static codec = pipe(
-    JobScheduleArgs.propsCodec,
-    Codec.compose(fromClassCodec(JobScheduleArgs))
-  );
+  static codec = (codecType: CodecType) =>
+    pipe(
+      JobScheduleArgs.propsCodec(codecType),
+      Codec.compose(fromClassCodec(JobScheduleArgs))
+    );
 
   static factory = (props: Partial<JobScheduleHttpArgsProps> = {}) => {
     return new JobScheduleArgs({
@@ -42,5 +45,5 @@ export class JobScheduleArgs {
 }
 
 export type JobScheduleHttpArgsProps = Codec.TypeOf<
-  typeof JobScheduleArgs.propsCodec
+  ReturnType<typeof JobScheduleArgs.propsCodec>
 >;

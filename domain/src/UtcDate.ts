@@ -1,9 +1,13 @@
 import { pipe } from "fp-ts/lib/function.js";
 import * as C from "io-ts/lib/Codec.js";
 import * as D from "io-ts/lib/Decoder.js";
-import type { Timestamp } from "firebase-admin/firestore";
+import { Timestamp } from "firebase-admin/firestore";
+import { CodecType } from "./project";
 
 export namespace UtcDate {
+  export const codec = (codecType: CodecType) =>
+    codecType == "string" ? stringCodec : firestoreDateCodec;
+
   export const stringCodec = C.make(
     pipe(
       C.string,
@@ -26,10 +30,12 @@ export namespace UtcDate {
       },
     },
     {
-      encode: (i: Date) => i,
+      encode: (d: Date) => Timestamp.fromDate(d),
     }
   );
 }
+
+export type UtcDate = C.TypeOf<ReturnType<typeof UtcDate.codec>>;
 
 const isFirebaseTimesamp = function (i: unknown): i is Timestamp {
   return (

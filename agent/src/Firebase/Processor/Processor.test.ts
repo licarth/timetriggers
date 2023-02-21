@@ -1,5 +1,5 @@
 import { AxiosWorkerPool } from "@/AxiosWorkerPool";
-import { TestClock } from "@timetriggers/domain";
+import { Http, TestClock } from "@timetriggers/domain";
 import { JobDefinition } from "@timetriggers/domain";
 import { JobId } from "@timetriggers/domain";
 import { externallyResolvablePromise } from "@/externallyResolvablePromise";
@@ -52,7 +52,9 @@ describe("Processor (not sharded)", () => {
           queuedJobs: [
             JobDefinition.factory({
               id: jobId,
-              url: `http://localhost:${callbackReceiver.port}`,
+              http: Http.factory({
+                url: `http://localhost:${callbackReceiver.port}`,
+              }),
               clock,
             }),
           ],
@@ -91,7 +93,9 @@ describe("Processor (not sharded)", () => {
           clock,
           queuedJobs: [
             JobDefinition.factory({
-              url: `http://localhost:${callbackReceiver.port}`,
+              http: Http.factory({
+                url: `http://localhost:${callbackReceiver.port}`,
+              }),
               clock,
             }),
           ],

@@ -1,4 +1,4 @@
-import { Clock } from "@timetriggers/domain";
+import { Clock, JobDocument, RegisteredAt } from "@timetriggers/domain";
 import {
   ClusterNodeInformation,
   CoordinationClient,
@@ -9,7 +9,7 @@ import { te } from "@/fp-ts";
 import { withTimeout } from "@/fp-ts/withTimeout";
 import { getOrReportToSentry } from "@/Sentry/getOrReportToSentry";
 import chalk from "chalk";
-import { addMilliseconds } from "date-fns";
+import { addMilliseconds, max } from "date-fns";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
@@ -42,11 +42,19 @@ export class Scheduler extends ClusterTopologyDatastoreAware {
   listeningToNewJobUnsubscribeHooks: UnsubsribeHook[] = [];
   schedulingNextPeriodUnsubscribeHooks: UnsubsribeHook[] = [];
 
+  private lastKnownRegisteredAt: Date = new Date(0);
+
   scheduleAdvanceMs: number;
   scheduleBatch: number;
   schedulePeriodMs: number;
 
   private isScheduling = false;
+
+  private markKnownRegisteredAt = (jobDocuments: JobDocument[]) => {
+    this.lastKnownRegisteredAt = max(
+      _.compact(jobDocuments.map((j) => j.status.registeredAt))
+    );
+  };
 
   private constructor(props: SchedulerProps) {
     super(props);
@@ -158,24 +166,16 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         this.shardsToListenTo
       ),
       TE.map((observable) => {
-        const subscription = observable
-          .pipe(debounceTime(500))
-          .pipe(
-            distinctArray(
-              (JobDefinition) => JobDefinition.id,
-              interval(10 * 60 * 1000) // 10 minutes
+        const subscription = observable.subscribe((jobs) => {
+          // Trigger a check for new jobs
+          getOrReportToSentry(
+            pipe(
+              this.scheduleNextPeriod(),
+              // this._scheduleNewJobs(jobs), // Wait for the jobs to be scheduled, then schedule the next period
+              TE.chainW(() => this.waitForNewJobs()) // Not needed with firestore...
             )
-          )
-          .subscribe((jobs) => {
-            // Trigger a check for new jobs
-            getOrReportToSentry(
-              pipe(
-                this.scheduleNextPeriod()
-                // this._scheduleNewJobs(jobs), // Wait for the jobs to be scheduled, then schedule the next period
-                // TE.chain(() => this.scheduleNextPeriod()) // Not needed with firestore...
-              )
-            );
-          });
+          );
+        });
 
         this.listeningToNewJobUnsubscribeHooks.push(() =>
           subscription.unsubscribe()
@@ -189,7 +189,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     // Here we should get into a loop until
     // we have a result that returns no jobs
     return pipe(
-      this.datastore.getJobsScheduledBefore(
+      this.datastore.getScheduledJobs(
         {
           offset,
           limit: this.scheduleBatch,
@@ -215,12 +215,12 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
   private _scheduleNewJobs(jobs: JobDefinition[]) {
     const jobsWithinTimeRange = jobs.filter(
       (job) =>
-        job.scheduledAt.date <
+        job.scheduledAt <
         addMilliseconds(this.clock.now(), this.scheduleAdvanceMs)
     );
     const [jobsInThePast, jobsIntheFuture] = _.partition(
       jobsWithinTimeRange,
-      (job) => job.scheduledAt.date < this.clock.now()
+      (job) => job.scheduledAt < this.clock.now()
     );
 
     console.log(
@@ -302,14 +302,14 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       `[Scheduler] Scheduling job ${
         jobDefinition.id
       } for in ${humanReadibleDifferenceWithDateFns(
-        jobDefinition.scheduledAt.date,
+        jobDefinition.scheduledAt,
         this.clock.now()
       )}`
     );
     const timeoutId = this.clock.setTimeout(() => {
       getOrReportToSentry(this.datastore.queueJobs([jobDefinition]));
       this.plannedTimeouts.delete(jobDefinition.id);
-    }, Math.max(0, jobDefinition.scheduledAt.date.getTime() - this.clock.now().getTime()));
+    }, Math.max(0, jobDefinition.scheduledAt.getTime() - this.clock.now().getTime()));
     this.plannedTimeouts.set(jobDefinition.id, timeoutId);
   }
 

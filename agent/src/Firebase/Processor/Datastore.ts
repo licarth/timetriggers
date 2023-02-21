@@ -1,4 +1,4 @@
-import { JobDefinition } from "@timetriggers/domain";
+import { JobDefinition, RegisteredAt } from "@timetriggers/domain";
 import { Observable } from "rxjs";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { HttpCallLastStatus } from "@/HttpCallStatusUpdate";
@@ -15,6 +15,10 @@ export type GetJobsScheduledBeforeArgs = {
   offset?: number;
   millisecondsFromNow: number;
   limit: number;
+  lastKnownJob?: {
+    id: JobId;
+    registeredAt: RegisteredAt;
+  };
 };
 
 export type GetJobsInQueueArgs = {
@@ -66,6 +70,7 @@ export interface Datastore {
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<
     "too many previous jobs" | "not implemented",
+    // Observable<{ def: JobDefinition } & { registeredAt: RegisteredAt }[]>
     Observable<JobDefinition[]>
   >;
 
@@ -74,7 +79,7 @@ export interface Datastore {
    * They must be ordered by scheduledAt.
    *
    */
-  getJobsScheduledBefore(
+  getScheduledJobs(
     args: GetJobsScheduledBeforeArgs,
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<any, JobDefinition[]>;

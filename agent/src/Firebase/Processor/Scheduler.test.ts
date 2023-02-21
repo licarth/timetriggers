@@ -24,9 +24,7 @@ describe("Scheduler", () => {
         registeredJobs: _.times(200, () =>
           JobDefinition.factory({
             clock,
-            scheduledAt: ScheduledAt.factory({
-              date: addHours(clock.now(), -1),
-            }),
+            scheduledAt: ScheduledAt.factory(addHours(clock.now(), -1)),
           })
         ),
       });
@@ -50,9 +48,7 @@ describe("Scheduler", () => {
         registeredJobs: _.times(1, () =>
           JobDefinition.factory({
             clock,
-            scheduledAt: ScheduledAt.factory({
-              date: addMilliseconds(clock.now(), 500),
-            }),
+            scheduledAt: ScheduledAt.factory(addMilliseconds(clock.now(), 500)),
           })
         ),
       });
@@ -78,9 +74,7 @@ describe("Scheduler", () => {
         clock,
         registeredJobs: _.times(1, () =>
           JobDefinition.factory({
-            scheduledAt: ScheduledAt.factory({
-              date: addSeconds(clock.now(), 130),
-            }),
+            scheduledAt: ScheduledAt.factory(addSeconds(clock.now(), 130)),
           })
         ),
       });

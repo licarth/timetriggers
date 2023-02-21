@@ -1,71 +1,32 @@
-import { pipe } from "fp-ts/lib/function.js";
-import * as Codec from "io-ts/lib/Codec.js";
-import { fromClassCodec } from "@iots";
-import { UtcDate } from "../";
-import * as D from "io-ts/lib/Decoder.js";
+import * as C from "io-ts/lib/Codec.js";
+import { anyOpaqueCodec, CodecType, e, UtcDate } from "../";
 import * as E from "fp-ts/lib/Either.js";
 
-export class ScheduledAt {
-  date;
+export namespace ScheduledAt {
+  export const codec = (codecType: CodecType) =>
+    codecType === "firestore"
+      ? anyOpaqueCodec(UtcDate.firestoreDateCodec, "ScheduledAt")
+      : anyOpaqueCodec(UtcDate.stringCodec, "ScheduledAt");
 
-  constructor(props: ScheduledAtProps) {
-    this.date = props.date;
-  }
-
-  static propsCodec = Codec.struct({
-    date: UtcDate.stringCodec,
-  });
-
-  static firestoreCodec = pipe(
-    UtcDate.firestoreDateCodec,
-    Codec.compose(
-      Codec.make(
-        { decode: (d: Date) => D.success({ date: d }) },
-        { encode: (s) => s.date }
-      )
-    ),
-    Codec.compose(fromClassCodec(ScheduledAt))
-  );
-
-  static codec = pipe(
-    Codec.string,
-    Codec.compose(
-      Codec.make(
-        { decode: (s: string) => D.success({ date: s }) },
-        { encode: (s) => s.date }
-      )
-    ),
-    Codec.compose(ScheduledAt.propsCodec),
-    Codec.compose(fromClassCodec(ScheduledAt))
-  );
-
-  static fromUTCString(date: string): ScheduledAt {
-    return new ScheduledAt({ date: new Date(date) });
-  }
-
-  static factory = (props: Partial<ScheduledAtProps> = {}) => {
-    return new ScheduledAt({
-      date: props.date ?? new Date(),
-    });
+  export const fromUTCString = (date: string): ScheduledAt => {
+    return e.unsafeGetOrThrow(codec("string").decode(date));
   };
 
-  static parseISOString = (
+  export const fromDate = (date: Date): ScheduledAt => {
+    return e.unsafeGetOrThrow(codec("string").decode(date.toISOString()));
+  };
+  export const factory = (date?: Date): ScheduledAt => {
+    return date ? fromDate(date) : fromDate(new Date());
+  };
+
+  export const parseISOString = (
     date: unknown
   ): E.Either<"Invalid Date", ScheduledAt> => {
     if (typeof date !== "string") {
       return E.left("Invalid Date");
     }
     const d = new Date(date);
-    return isNaN(d.getTime())
-      ? E.left("Invalid Date")
-      : E.right(new ScheduledAt({ date: d }));
+    return isNaN(d.getTime()) ? E.left("Invalid Date") : E.right(fromDate(d));
   };
-
-  static fromDate(date: Date): ScheduledAt {
-    return new ScheduledAt({ date });
-  }
 }
-
-export type ScheduledAtProps = Codec.TypeOf<typeof ScheduledAt.propsCodec>;
-
-// const mapProps = (map: Record<string, any>) => {};
+export type ScheduledAt = C.TypeOf<ReturnType<typeof ScheduledAt.codec>>;

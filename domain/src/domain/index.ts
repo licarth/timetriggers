@@ -1,5 +1,5 @@
 export * from "./Body";
-export * from "./FirebaseJobDocument";
+export * from "./JobDocument";
 export * from "./GraphQLBody";
 export * from "./Header";
 export * from "./Headers";

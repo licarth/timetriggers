@@ -57,7 +57,7 @@ export class InMemoryDataStore implements Datastore {
   ): TE.TaskEither<any, JobDefinition[]> {
     const jobs = _.sortBy(
       this.jobsMatchingShard(this.queuedJobs, shardsToListenTo),
-      (i) => i.scheduledAt.date.getTime()
+      (i) => i.scheduledAt.getTime()
     ).splice(0, args.limit);
 
     return TE.right(jobs);
@@ -119,7 +119,7 @@ export class InMemoryDataStore implements Datastore {
               this.registeredJobs,
               shardsToListenTo
             ).filter((job) => {
-              const scheduledAt = job.scheduledAt.date.getTime();
+              const scheduledAt = job.scheduledAt.getTime();
               const now = this.clock.now().getTime();
               // return scheduledAt <= now + args.millisecondsFromNow;
             });
@@ -215,7 +215,7 @@ export class InMemoryDataStore implements Datastore {
     return TE.of(jobId);
   }
 
-  getJobsScheduledBefore(
+  getScheduledJobs(
     { millisecondsFromNow, limit, offset }: GetJobsScheduledBeforeArgs,
     shardsToListenTo?: ShardsToListenTo
   ) {
@@ -223,7 +223,7 @@ export class InMemoryDataStore implements Datastore {
       _.take(
         this.jobsMatchingShard(this.registeredJobs, shardsToListenTo)
           .filter((job) => {
-            const scheduledAt = job.scheduledAt.date.getTime();
+            const scheduledAt = job.scheduledAt.getTime();
             const now = this.clock.now().getTime();
             return scheduledAt <= now + millisecondsFromNow;
           })
@@ -258,7 +258,7 @@ export class InMemoryDataStore implements Datastore {
   ) {
     const jobs = _.sortBy(
       this.jobsMatchingShard(this.queuedJobs, shardsToListenTo),
-      (i) => i.scheduledAt.date.getTime()
+      (i) => i.scheduledAt.getTime()
     ).splice(0, args.limit);
 
     if (jobs.length > 0) {

@@ -1,7 +1,7 @@
 import { Clock } from "@timetriggers/domain";
 import { SystemClock } from "@timetriggers/domain";
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
-import { FirestoreJobDocument } from "@timetriggers/domain";
+import { JobDocument } from "@timetriggers/domain";
 import { JobDefinition } from "@timetriggers/domain";
 import { JobId } from "@timetriggers/domain";
 import { JobScheduleArgs } from "@timetriggers/domain";
@@ -29,6 +29,7 @@ import {
   ShardingAlgorithm,
 } from "./Datastore";
 import { ShardsToListenTo, toShards } from "./ShardsToListenTo";
+import { JobStatus } from "@timetriggers/domain/built/cjs/domain/JobStatus";
 
 const REGISTERED_JOBS_COLL_PATH = `/registered`;
 const QUEUED_JOBS_COLL_PATH = `/queued`;
@@ -73,13 +74,18 @@ export class FirestoreDatastore implements Datastore {
           .collection(`${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`)
           .doc(id);
         await jobDocumentRef.set(
-          FirestoreJobDocument.codec.encode({
-            jobDefinition,
-            shards: shardingAlgorithm
-              ? shardingAlgorithm(id).map((s) => s.toString())
-              : [],
-            registeredAt: RegisteredAt.fromDate(this.clock.now()),
-          })
+          JobDocument.codec("firestore").encode(
+            new JobDocument({
+              jobDefinition,
+              shards: shardingAlgorithm
+                ? shardingAlgorithm(id).map((s) => s.toString())
+                : [],
+              status: new JobStatus({
+                value: "registered",
+                registeredAt: RegisteredAt.fromDate(this.clock.now()),
+              }),
+            })
+          )
         );
         return id;
       },
@@ -99,7 +105,10 @@ export class FirestoreDatastore implements Datastore {
     });
   }
 
-  getJobsScheduledBefore(
+  // order by registeredAt, jobDefinition.id asc
+  // where jobDefinition.id > lastKnownJob.id
+  // where registeredAt >= lastKnownJob.registeredAt
+  getScheduledJobs(
     { millisecondsFromNow, offset, limit }: GetJobsScheduledBeforeArgs,
     shardsToListenTo?: ShardsToListenTo
   ) {
@@ -130,7 +139,7 @@ export class FirestoreDatastore implements Datastore {
           snapshot.docs.map((doc) =>
             pipe(
               doc.data(),
-              FirestoreJobDocument.codec.decode,
+              JobDocument.codec("firestore").decode,
               E.map((x) => x.jobDefinition)
             )
           ),
@@ -175,7 +184,7 @@ export class FirestoreDatastore implements Datastore {
                 changes.map((change) =>
                   pipe(
                     change.doc.data(),
-                    FirestoreJobDocument.codec.decode,
+                    JobDocument.codec("firestore").decode,
                     E.map((x) => x.jobDefinition)
                   )
                 ),
@@ -189,7 +198,16 @@ export class FirestoreDatastore implements Datastore {
                   }
                   return successes;
                 },
-                (jobs) => subscriber.next(jobs)
+                (jobs) => {
+                  if (jobs.length > 0) {
+                    subscriber.next(jobs);
+                    subscriber.complete();
+                    unsubscribe();
+                    console.log(
+                      `[Datastore] 🔇 unsubscribing from registered jobs`
+                    );
+                  }
+                }
               );
             });
           return () => {
@@ -334,12 +352,12 @@ export class FirestoreDatastore implements Datastore {
                 ),
                 {
                   jobDefinition:
-                    JobDefinition.firestoreCodec.encode(jobDefinition),
+                    JobDefinition.codec("firestore").encode(jobDefinition),
                   lastStatusUpdate:
                     HttpCallLastStatus.codec.encode(lastStatusUpdate),
                   executionLagMs:
                     executionStartDate.getTime() -
-                    jobDefinition.scheduledAt.date.getTime(),
+                    jobDefinition.scheduledAt.getTime(),
                   durationMs,
                 }
               );
@@ -373,6 +391,9 @@ export class FirestoreDatastore implements Datastore {
     );
   }
 
+  /**
+   * Returns immediately if there is at least one job to run, otherwise waits for the next job(s) to be queued.
+   */
   waitForNextJobsInQueue(
     {
       limit,
@@ -392,8 +413,10 @@ export class FirestoreDatastore implements Datastore {
               );
             };
             let next: (value: JobDefinition[] | undefined) => void;
+            let complete: () => void;
             const observable = new Observable<JobDefinition[]>((observer) => {
               next = observer.next.bind(observer); // bind necessary ?
+              complete = observer.complete.bind(observer);
               return unsubscribe;
             });
             resolve(observable);
@@ -409,7 +432,7 @@ export class FirestoreDatastore implements Datastore {
                 console.log(`[Datastore] found ${snapshot.size} docs...`);
                 const { errors, successes } = pipe(
                   snapshot.docs.map((doc) =>
-                    FirestoreJobDocument.codec.decode(doc.data())
+                    JobDocument.codec("firestore").decode(doc.data())
                   ),
                   e.split
                 );
@@ -422,6 +445,7 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
                   );
                 }
                 if (successes.length !== 0) {
+                  unsubscribe();
                   console.log(
                     `[Datastore] got next ${successes.length} valid next jobs...`
                   );
@@ -431,6 +455,7 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
                     (doc) => doc.jobDefinition
                   );
                   next(jobdefinitions);
+                  complete();
                 } else {
                   // Just wait
                 }
@@ -483,7 +508,7 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
           snapshot.docs.map((doc) =>
             pipe(
               doc.data(),
-              FirestoreJobDocument.codec.decode,
+              JobDocument.codec("firestore").decode,
               E.map((x) => x.jobDefinition)
             )
           ),

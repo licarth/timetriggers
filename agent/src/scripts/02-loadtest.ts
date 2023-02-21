@@ -30,7 +30,7 @@ const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(5);
     te.unsafeGetOrThrow(
       datastore.schedule(
         new JobScheduleArgs({
-          scheduledAt: ScheduledAt.fromDate(addSeconds(now, 1)),
+          scheduledAt: ScheduledAt.fromDate(addSeconds(now, 10)),
           http: {
             options: undefined,
             url: "https://api.timetriggers.io/1",
@@ -49,7 +49,7 @@ const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(5);
       )
     );
 
-  const jobId = await Promise.all(_.times(10, () => jobSchedulePromise()));
+  const jobId = await Promise.all(_.times(100, () => jobSchedulePromise()));
 
   console.log("jobId", jobId);
   console.log("✅ done");

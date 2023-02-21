@@ -43,7 +43,7 @@ export class AxiosWorker implements Worker {
     const startedAt = this.clock.now();
     try {
       subscriber?.next(new HttpCallStarted({ startedAt }));
-      const url = jobDefinition.url || jobDefinition.http?.url;
+      const url = jobDefinition.http?.url;
       if (!url) {
         throw new Error("No url or http.resource provided");
       }

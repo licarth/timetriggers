@@ -6,51 +6,31 @@ import { JobId } from "./JobId";
 import { Clock } from "../Clock";
 import { Http } from "./Http";
 import { JobScheduleArgs } from "./JobScheduleArgs";
+import { CodecType } from "@/project";
 
 export class JobDefinition {
   id;
   scheduledAt;
-  url;
   http;
 
   constructor(props: JobDefinitionProps) {
     this.id = props.id;
     this.scheduledAt = props.scheduledAt;
-    this.url = props.url;
     this.http = props.http;
   }
 
-  static propsCodec = pipe(
-    JobScheduleArgs.propsCodec,
-    Codec.intersect(
-      Codec.struct({
-        id: JobId.codec,
-      })
-    )
-  );
+  static propsCodec = (codecType: CodecType) =>
+    pipe(
+      JobScheduleArgs.propsCodec(codecType),
+      Codec.intersect(
+        Codec.struct({
+          id: JobId.codec,
+        })
+      )
+    );
 
-  static firestorePropsCodec = pipe(
-    Codec.struct({
-      id: JobId.codec,
-      scheduledAt: ScheduledAt.firestoreCodec,
-    }),
-    Codec.intersect(
-      Codec.partial({
-        url: Codec.string,
-        http: Http.codec,
-      })
-    )
-  );
-
-  static firestoreCodec = pipe(
-    JobDefinition.firestorePropsCodec,
-    Codec.compose(fromClassCodec(JobDefinition))
-  );
-
-  static codec = pipe(
-    JobDefinition.propsCodec,
-    Codec.compose(fromClassCodec(JobDefinition))
-  );
+  static codec = (codecType: CodecType) =>
+    pipe(this.propsCodec(codecType), Codec.compose(fromClassCodec(this)));
 
   static factory = (
     props:
@@ -62,15 +42,11 @@ export class JobDefinition {
       scheduledAt:
         "scheduledAt" in props
           ? props.scheduledAt
-          : ScheduledAt.factory({ date: props.clock.now() }),
-      http:
-        props.http ??
-        Http.factory({
-          url: props.url ?? "http://localhost:3000",
-        }),
+          : ScheduledAt.factory(props.clock.now()),
+      http: props.http ?? Http.factory({}),
     });
 }
 
 export type JobDefinitionProps = Codec.TypeOf<
-  typeof JobDefinition.firestorePropsCodec
+  ReturnType<typeof JobDefinition.propsCodec>
 >;

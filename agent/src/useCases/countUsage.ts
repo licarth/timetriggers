@@ -34,7 +34,7 @@ export const countUsage = ({ project, apiKeyValue, jobScheduleArgs }: Args) =>
       pipe(
         TE.tryCatchK(
           async () => {
-            const scheduledAt = jobScheduleArgs.scheduledAt.date;
+            const scheduledAt = jobScheduleArgs.scheduledAt;
             const nowUtc = zonedTimeToUtc(clock.now(), "UTC");
             const projectUsageDoc = firestore.doc(
               `/namespaces/${namespace}/projects/${project.id}/usage/all-forever:month`

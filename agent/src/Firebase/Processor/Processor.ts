@@ -116,7 +116,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
       ),
       TE.map(() => {
         if (totalJobs === 0) {
-          console.log(`[Processor] - No jobs to schedule.`);
+          console.log(`[Processor] - No jobs to process.`);
         } else {
           console.log(`[Processor] ✅ Processed ${totalJobs} jobs`);
         }
@@ -167,18 +167,20 @@ export class Processor extends ClusterTopologyDatastoreAware {
     console.log(`[Processor] waiting for next job in queue...`);
     // this.unsubscribeNextJob = unsubscribe;
     const self = this;
-    const limit = 100;
+    const limit = 1;
     return pipe(
       this.datastore.waitForNextJobsInQueue({ limit }, this.shardsToListenTo),
       TE.map((o) => {
-        const subscription = o.pipe(debounceTime(500)).subscribe((jobs) => {
+        const subscription = o.subscribe((jobs) => {
+          console.log("🔸🔸🔸🔸");
           getOrReportToSentry(
             pipe(
               self._processJobs(jobs),
               TE.chainW(() =>
                 // Only reschedule if we have more jobs to process
-                jobs.length < limit ? TE.right(undefined) : self.processQueue()
-              )
+                self.processQueue()
+              ),
+              TE.chainW(() => self.waitForNextJobInQueue())
             )
           );
         });
@@ -208,7 +210,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
             //   console.log(e);
             //   return e;
             // })
-            te.executeAllInArray({ parallelism: 100 }),
+            te.executeAllInArray({ parallelism: 30 }),
             (x) => x,
             T.map(({ successes, errors }) => {
               console.log(`[Processor] ${successes.length} jobs processed`);
