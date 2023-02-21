@@ -11,7 +11,39 @@ const firestore = initializeApp({
   serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
 }).firestore;
 
-describe("Firestore", () => {
+describe("test", () => {
+  it("should work", async () => {
+    let query = firestore
+      .collection(`namespaces/doi-production/jobs`)
+      .where("status.value", "==", "registered")
+      .where("scheduledWithin.1h", "==", true)
+      .orderBy("status.registeredAt", "asc")
+      .orderBy("jobDefinition.id", "asc");
+    // query = query;
+    const unsubscribe = await query.get().then((snapshot) => {
+      // const changes = snapshot
+      //   .docChanges()
+      //   .filter(({ type }, i) => type === "added"); // New jobs only
+      // console.log(
+      //   `[Datastore] Received ${snapshot.size} new jobs with ${changes.length} changes!`
+      // );
+
+      console.log(
+        snapshot.docs
+          .map(
+            (doc) =>
+              `${format(
+                doc.data().status.registeredAt.toDate() as Date,
+                "yyyy-MM-ddTHH:mm:ss.SSSxxx"
+              )} => ${doc.data().jobDefinition.id}`
+          )
+          .join("\n")
+      );
+    });
+  });
+});
+
+describe.skip("Firestore", () => {
   describe("Store a day by minute", () => {
     it.skip("With {'HHmm': <count>}", async () => {
       const hours = _.range(0, 24).flatMap((hour) =>

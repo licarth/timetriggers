@@ -1,5 +1,5 @@
 import { AxiosWorkerPool } from "@/AxiosWorkerPool";
-import { Http, TestClock } from "@timetriggers/domain";
+import { Http, JobDocument, TestClock } from "@timetriggers/domain";
 import { JobDefinition } from "@timetriggers/domain";
 import { JobId } from "@timetriggers/domain";
 import { externallyResolvablePromise } from "@/externallyResolvablePromise";
@@ -50,13 +50,16 @@ describe("Processor (not sharded)", () => {
         datastore: InMemoryDataStore.factory({
           clock,
           queuedJobs: [
-            JobDefinition.factory({
-              id: jobId,
-              http: Http.factory({
-                url: `http://localhost:${callbackReceiver.port}`,
+            JobDocument.registeredNowWithoutShards(
+              JobDefinition.factory({
+                id: jobId,
+                http: Http.factory({
+                  url: `http://localhost:${callbackReceiver.port}`,
+                }),
+                clock,
               }),
-              clock,
-            }),
+              clock
+            ),
           ],
         }),
       })
@@ -92,12 +95,15 @@ describe("Processor (not sharded)", () => {
         datastore: InMemoryDataStore.factory({
           clock,
           queuedJobs: [
-            JobDefinition.factory({
-              http: Http.factory({
-                url: `http://localhost:${callbackReceiver.port}`,
+            JobDocument.registeredNowWithoutShards(
+              JobDefinition.factory({
+                http: Http.factory({
+                  url: `http://localhost:${callbackReceiver.port}`,
+                }),
+                clock,
               }),
-              clock,
-            }),
+              clock
+            ),
           ],
         }),
       })

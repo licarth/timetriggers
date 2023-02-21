@@ -1,4 +1,4 @@
-import { TestClock } from "@timetriggers/domain";
+import { JobDocument, TestClock } from "@timetriggers/domain";
 import { JobDefinition } from "@timetriggers/domain";
 import { ScheduledAt } from "@timetriggers/domain";
 import { te } from "@/fp-ts";
@@ -22,10 +22,13 @@ describe("Scheduler", () => {
       const datastore = InMemoryDataStore.factory({
         clock,
         registeredJobs: _.times(200, () =>
-          JobDefinition.factory({
-            clock,
-            scheduledAt: ScheduledAt.factory(addHours(clock.now(), -1)),
-          })
+          JobDocument.registeredNowWithoutShards(
+            JobDefinition.factory({
+              clock,
+              scheduledAt: ScheduledAt.factory(addHours(clock.now(), -1)),
+            }),
+            clock
+          )
         ),
       });
       scheduler = await te.unsafeGetOrThrow(
@@ -46,10 +49,15 @@ describe("Scheduler", () => {
       const datastore = InMemoryDataStore.factory({
         clock,
         registeredJobs: _.times(1, () =>
-          JobDefinition.factory({
-            clock,
-            scheduledAt: ScheduledAt.factory(addMilliseconds(clock.now(), 500)),
-          })
+          JobDocument.registeredNowWithoutShards(
+            JobDefinition.factory({
+              clock,
+              scheduledAt: ScheduledAt.factory(
+                addMilliseconds(clock.now(), 500)
+              ),
+            }),
+            clock
+          )
         ),
       });
       scheduler = await te.unsafeGetOrThrow(
@@ -73,9 +81,12 @@ describe("Scheduler", () => {
       const datastore = InMemoryDataStore.factory({
         clock,
         registeredJobs: _.times(1, () =>
-          JobDefinition.factory({
-            scheduledAt: ScheduledAt.factory(addSeconds(clock.now(), 130)),
-          })
+          JobDocument.registeredNowWithoutShards(
+            JobDefinition.factory({
+              scheduledAt: ScheduledAt.factory(addSeconds(clock.now(), 130)),
+            }),
+            clock
+          )
         ),
       });
       scheduler = await te.unsafeGetOrThrow(

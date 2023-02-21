@@ -1,4 +1,9 @@
-import { Clock, JobDocument, RegisteredAt } from "@timetriggers/domain";
+import {
+  Clock,
+  JobDocument,
+  RegisteredAt,
+  ScheduledAt,
+} from "@timetriggers/domain";
 import {
   ClusterNodeInformation,
   CoordinationClient,
@@ -9,13 +14,17 @@ import { te } from "@/fp-ts";
 import { withTimeout } from "@/fp-ts/withTimeout";
 import { getOrReportToSentry } from "@/Sentry/getOrReportToSentry";
 import chalk from "chalk";
-import { addMilliseconds, max } from "date-fns";
+import { addMilliseconds, addMinutes, addSeconds, max } from "date-fns";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
-import { Datastore } from "./Datastore";
+import {
+  Datastore,
+  LastKnownRegisteredJob,
+  LastKnownScheduledJob,
+} from "./Datastore";
 import { humanReadibleMs } from "./humanReadibleMs";
 import { debounceTime, distinct, interval, pipe as pipeObs } from "rxjs";
 import { distinctArray } from "./distinctArray";
@@ -42,18 +51,38 @@ export class Scheduler extends ClusterTopologyDatastoreAware {
   listeningToNewJobUnsubscribeHooks: UnsubsribeHook[] = [];
   schedulingNextPeriodUnsubscribeHooks: UnsubsribeHook[] = [];
 
-  private lastKnownRegisteredAt: Date = new Date(0);
-
   scheduleAdvanceMs: number;
   scheduleBatch: number;
   schedulePeriodMs: number;
 
   private isScheduling = false;
+  private lastKnownRegisteredJob?: LastKnownRegisteredJob;
+  private lastKnownScheduledJob?: LastKnownScheduledJob;
+
+  private scheduleStartDate = addSeconds(this.clock.now(), -10);
 
   private markKnownRegisteredAt = (jobDocuments: JobDocument[]) => {
-    this.lastKnownRegisteredAt = max(
-      _.compact(jobDocuments.map((j) => j.status.registeredAt))
+    const jd = _.maxBy(jobDocuments, (jobDocument) =>
+      jobDocument.status.registeredAt.getTime()
     );
+    if (jd) {
+      this.lastKnownRegisteredJob = {
+        id: jd.jobDefinition.id,
+        registeredAt: jd.status.registeredAt,
+      };
+    }
+  };
+
+  private markKnownScheduledAt = (jobDocuments: JobDocument[]) => {
+    const jd = _.maxBy(jobDocuments, (jobDocument) =>
+      jobDocument.status.registeredAt.getTime()
+    );
+    if (jd) {
+      this.lastKnownScheduledJob = {
+        id: jd.jobDefinition.id,
+        scheduledAt: jd.jobDefinition.scheduledAt,
+      };
+    }
   };
 
   private constructor(props: SchedulerProps) {
@@ -136,46 +165,48 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
             this.clock.clearTimeout(timeoutId);
           });
         })
-      ),
-      TE.chainFirstW(() =>
-        pipe(
-          this.waitForNewJobs(),
-          TE.orElse((reason) => {
-            if (reason === "not implemented") {
-              console.log(
-                "[Scheduler] 🔸 Not listening to new jobs, not implemented."
-              );
-            } else if (reason === "too many previous jobs") {
-              console.log(
-                "[Scheduler] ❗️ Not listening to new jobs, too many previous jobs."
-              );
-            }
-            return TE.right(undefined);
-          })
-        )
       )
     );
   }
 
   private waitForNewJobs() {
     return pipe(
-      this.datastore.listenToNewlyRegisteredJobs(
+      this.datastore.waitForRegisteredJobsByRegisteredAt(
         {
-          millisecondsFromNow: this.scheduleAdvanceMs,
+          lastKnownJob: this.lastKnownRegisteredJob,
+          registeredAfter: RegisteredAt.fromDate(this.scheduleStartDate),
+          scheduledBefore: ScheduledAt.fromDate(
+            addMilliseconds(this.clock.now(), this.schedulePeriodMs)
+          ),
         },
         this.shardsToListenTo
       ),
       TE.map((observable) => {
-        const subscription = observable.subscribe((jobs) => {
-          // Trigger a check for new jobs
-          getOrReportToSentry(
-            pipe(
-              this.scheduleNextPeriod(),
-              // this._scheduleNewJobs(jobs), // Wait for the jobs to be scheduled, then schedule the next period
-              TE.chainW(() => this.waitForNewJobs()) // Not needed with firestore...
-            )
-          );
-        });
+        const subscription = observable.subscribe(
+          (jobs) => {
+            // Trigger a check for new jobs
+            getOrReportToSentry(
+              pipe(
+                // this.scheduleNextPeriod(),
+                this._scheduleNewJobs(jobs),
+                te.sideEffect(() => {
+                  if (jobs.length > 0) {
+                    const lastKnownJob = jobs[jobs.length - 1];
+                    this.lastKnownRegisteredJob = {
+                      id: lastKnownJob.jobDefinition.id,
+                      registeredAt: lastKnownJob.status.registeredAt,
+                    };
+                  }
+
+                  // this.markKnownRegisteredAt(jobs);
+                }), // Wait for the jobs to be scheduled, then schedule the next period
+                TE.chainW(() => this.waitForNewJobs()) // Not needed with firestore...
+              )
+            );
+          },
+          () => {},
+          () => {}
+        );
 
         this.listeningToNewJobUnsubscribeHooks.push(() =>
           subscription.unsubscribe()
@@ -189,11 +220,12 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     // Here we should get into a loop until
     // we have a result that returns no jobs
     return pipe(
-      this.datastore.getScheduledJobs(
+      this.datastore.getScheduledJobsByScheduledAt(
         {
-          offset,
+          // offset,
           limit: this.scheduleBatch,
           millisecondsFromNow: this.scheduleAdvanceMs,
+          lastKnownJob: this.lastKnownScheduledJob,
         },
         this.shardsToListenTo
       ),
@@ -202,6 +234,9 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         // in a single transaction
         return pipe(
           this._scheduleNewJobs(jobs),
+          te.sideEffect(() => {
+            this.markKnownScheduledAt(jobs);
+          }),
           TE.map(() => ({
             resultCount: jobs.length,
           }))
@@ -212,15 +247,15 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     );
   }
 
-  private _scheduleNewJobs(jobs: JobDefinition[]) {
+  private _scheduleNewJobs(jobs: JobDocument[]) {
     const jobsWithinTimeRange = jobs.filter(
       (job) =>
-        job.scheduledAt <
+        job.jobDefinition.scheduledAt <
         addMilliseconds(this.clock.now(), this.scheduleAdvanceMs)
     );
     const [jobsInThePast, jobsIntheFuture] = _.partition(
       jobsWithinTimeRange,
-      (job) => job.scheduledAt < this.clock.now()
+      (job) => job.jobDefinition.scheduledAt < this.clock.now()
     );
 
     console.log(
@@ -230,11 +265,13 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     // should be scheduled in a single transaction, but this requires changes
     // in the way we track setTimeouts
     jobsIntheFuture.forEach((job) => {
-      this.scheduleSetTimeout(job);
+      this.scheduleSetTimeout(job.jobDefinition);
     });
 
     if (jobsInThePast.length > 0) {
-      return this.datastore.queueJobs(jobsInThePast);
+      return this.datastore.queueJobs(
+        jobsInThePast.map((j) => j.jobDefinition)
+      );
     } else {
       return TE.right(undefined);
     }
@@ -244,6 +281,9 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
    * This method should be called regularily, at least twice per period (if period = 2h, then once an hour)
    * */
   scheduleNextPeriod(): TE.TaskEither<Error, void> {
+    this.scheduleStartDate = addSeconds(this.clock.now(), -10);
+    this.unsubscribeNewJobsListening();
+
     if (this.isScheduling) {
       console.log("Already scheduling, skipping this one...");
       return TE.right(undefined);
@@ -286,7 +326,24 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         }
         this.isScheduling = false;
         return void 0;
-      })
+      }),
+      TE.chainFirstW(() =>
+        pipe(
+          this.waitForNewJobs(),
+          TE.orElse((reason) => {
+            if (reason === "not implemented") {
+              console.log(
+                "[Scheduler] 🔸 Not listening to new jobs, not implemented."
+              );
+            } else if (reason === "too many previous jobs") {
+              console.log(
+                "[Scheduler] ❗️ Not listening to new jobs, too many previous jobs."
+              );
+            }
+            return TE.right(undefined);
+          })
+        )
+      )
     );
   }
 

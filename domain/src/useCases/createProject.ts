@@ -1,3 +1,4 @@
+import { MonthlyUsage } from "@/MonthlyUsage";
 import { FirebaseUserId, Project, ProjectId, ProjectSlug } from "@/project";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
@@ -38,6 +39,11 @@ export const createProject = ({
                 editorIds: [],
                 readerIds: [],
               });
+              const monthlyUsage = MonthlyUsage.empty;
+              t.set(
+                projectRef.collection("usage").doc("all-forever:month"),
+                MonthlyUsage.codec.encode(monthlyUsage)
+              );
               t.set(projectRef, Project.codec("firestore").encode(project));
             });
           },

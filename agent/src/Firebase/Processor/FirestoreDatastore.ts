@@ -1,24 +1,27 @@
-import { Clock } from "@timetriggers/domain";
-import { SystemClock } from "@timetriggers/domain";
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
-import { JobDocument } from "@timetriggers/domain";
-import { JobDefinition } from "@timetriggers/domain";
-import { JobId } from "@timetriggers/domain";
-import { JobScheduleArgs } from "@timetriggers/domain";
-import { RegisteredAt } from "@timetriggers/domain";
-import * as Codec from "io-ts/lib/Codec.js";
 import { e } from "@/fp-ts";
 import {
   HttpCallCompleted,
   HttpCallErrored,
   HttpCallLastStatus,
 } from "@/HttpCallStatusUpdate";
-import { addMilliseconds } from "date-fns";
+import {
+  Clock,
+  JobDefinition,
+  JobDocument,
+  JobId,
+  JobScheduleArgs,
+  JobStatus,
+  RegisteredAt,
+  SystemClock,
+} from "@timetriggers/domain";
+import { addMilliseconds, addSeconds, format } from "date-fns";
 import type { Firestore } from "firebase-admin/firestore";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { draw } from "io-ts/lib/Decoder.js";
+import _ from "lodash";
 import { Observable } from "rxjs";
 import { emulatorFirestore } from "../emulatorFirestore";
 import { isFirebaseError } from "../isFirebaseError";
@@ -26,15 +29,13 @@ import { shardedFirestoreQuery } from "../shardedFirestoreQuery";
 import {
   Datastore,
   GetJobsScheduledBeforeArgs,
+  LastKnownRegisteredJob,
   ShardingAlgorithm,
+  WaitForRegisteredJobsByRegisteredAtArgs,
 } from "./Datastore";
 import { ShardsToListenTo, toShards } from "./ShardsToListenTo";
-import { JobStatus } from "@timetriggers/domain/built/cjs/domain/JobStatus";
-
-const REGISTERED_JOBS_COLL_PATH = `/registered`;
-const QUEUED_JOBS_COLL_PATH = `/queued`;
-const RUNNING_JOBS_COLL_PATH = `/running`;
-const COMPLETED_JOBS_COLL_PATH = `/completed`;
+import { FieldValue } from "firebase-admin/firestore";
+import { Timestamp } from "@google-cloud/firestore";
 
 type State = "starting" | "running" | "stopped";
 
@@ -71,10 +72,12 @@ export class FirestoreDatastore implements Datastore {
         const id = JobId.factory();
         const jobDefinition = new JobDefinition({ ...args, id });
         const jobDocumentRef = this.firestore
-          .collection(`${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`)
+          .collection(`${this.rootDocumentPath}`)
           .doc(id);
-        await jobDocumentRef.set(
-          JobDocument.codec("firestore").encode(
+        const scheduledWithin =
+          jobDefinition.scheduledAt.getTime() - this.clock.now().getTime();
+        const doc = {
+          ...JobDocument.codec("firestore").encode(
             new JobDocument({
               jobDefinition,
               shards: shardingAlgorithm
@@ -82,11 +85,25 @@ export class FirestoreDatastore implements Datastore {
                 : [],
               status: new JobStatus({
                 value: "registered",
-                registeredAt: RegisteredAt.fromDate(this.clock.now()),
+                registeredAt: RegisteredAt.fromDate(this.clock.now()), // Will be overriden by server timestamp !
               }),
             })
-          )
-        );
+          ),
+          scheduledWithin: {
+            "1s": scheduledWithin < 1000,
+            "1m": scheduledWithin < 1000 * 60,
+            "10m": scheduledWithin < 1000 * 60 * 10,
+            "1h": scheduledWithin < 1000 * 60 * 60,
+            "2h": scheduledWithin < 1000 * 60 * 60 * 2,
+          },
+        };
+        const newLocal = {
+          ..._.merge(doc, {
+            status: { registeredAt: FieldValue.serverTimestamp() },
+          }),
+        };
+        await jobDocumentRef.set(newLocal);
+        console.log(newLocal);
         return id;
       },
       (reason) => `Failed to schedule job: ${reason}`
@@ -107,9 +124,14 @@ export class FirestoreDatastore implements Datastore {
 
   // order by registeredAt, jobDefinition.id asc
   // where jobDefinition.id > lastKnownJob.id
-  // where registeredAt >= lastKnownJob.registeredAt
-  getScheduledJobs(
-    { millisecondsFromNow, offset, limit }: GetJobsScheduledBeforeArgs,
+  // where status.registeredAt >= lastKnownJob.registeredAt
+  getScheduledJobsByScheduledAt(
+    {
+      millisecondsFromNow,
+      offset,
+      limit,
+      lastKnownJob,
+    }: GetJobsScheduledBeforeArgs,
     shardsToListenTo?: ShardsToListenTo
   ) {
     return TE.tryCatch(
@@ -120,15 +142,20 @@ export class FirestoreDatastore implements Datastore {
         );
         console.log("[Datastore] Fetching jobs until " + periodFromNow);
         let query = shardedFirestoreQuery(
-          this.firestore.collection(
-            `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`
-          ),
+          this.firestore.collection(`${this.rootDocumentPath}`),
           toShards(shardsToListenTo)
         )
           .where("jobDefinition.scheduledAt", "<=", periodFromNow)
-          // .where("registeredAt", ">",  ) // After last known registeredAt
+          .where("status.value", "==", "registered")
+          .orderBy("jobDefinition.scheduledAt", "asc")
+          .orderBy("jobDefinition.id", "asc")
+          .orderBy("status.registeredAt", "asc")
           .limit(limit);
-
+        if (lastKnownJob) {
+          query = query;
+          // .where("jobDefinition.id", ">", lastKnownJob.id)
+          // .where("status.registeredAt", ">=", lastKnownJob.registeredAt);
+        }
         if (offset) {
           query = query.offset(offset);
         }
@@ -137,11 +164,7 @@ export class FirestoreDatastore implements Datastore {
 
         return pipe(
           snapshot.docs.map((doc) =>
-            pipe(
-              doc.data(),
-              JobDocument.codec("firestore").decode,
-              E.map((x) => x.jobDefinition)
-            )
+            pipe(doc.data(), JobDocument.codec("firestore").decode)
           ),
           e.split,
           ({ successes }) => successes
@@ -151,10 +174,14 @@ export class FirestoreDatastore implements Datastore {
     );
   }
 
-  listenToNewlyRegisteredJobs(
-    {}: {},
+  waitForRegisteredJobsByRegisteredAt(
+    args: WaitForRegisteredJobsByRegisteredAtArgs,
     shardsToListenTo?: ShardsToListenTo
-  ): TE.TaskEither<"too many previous jobs", Observable<JobDefinition[]>> {
+  ): TE.TaskEither<"too many previous jobs", Observable<JobDocument[]>> {
+    const { registeredAfter, offset, limit, lastKnownJob } = args;
+    console.log(
+      `[Scheduler] 🕐 Waiting for new jobs... ${JSON.stringify(args, null, 2)}`
+    );
     return TE.tryCatch(
       async () => {
         return new Observable((subscriber) => {
@@ -164,52 +191,75 @@ export class FirestoreDatastore implements Datastore {
             )}`
           );
 
-          const unsubscribe = shardedFirestoreQuery(
-            this.firestore.collection(
-              `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`
-            ),
+          let query = shardedFirestoreQuery(
+            this.firestore.collection(`${this.rootDocumentPath}`),
             toShards(shardsToListenTo)
           )
-            .where("registeredAt", ">", this.clock.now())
-            .limitToLast(1)
-            .orderBy("registeredAt", "asc")
-            .onSnapshot((snapshot) => {
-              const changes = snapshot
-                .docChanges()
-                .filter(({ type }, i) => type === "added"); // New jobs only
-              console.log(
-                `[Datastore] Received ${snapshot.size} new jobs with ${changes.length} changes!`
-              );
-              pipe(
-                changes.map((change) =>
-                  pipe(
-                    change.doc.data(),
-                    JobDocument.codec("firestore").decode,
-                    E.map((x) => x.jobDefinition)
-                  )
-                ),
-                e.split,
-                ({ successes, errors }) => {
-                  if (errors.length > 0) {
-                    console.log(
-                      `❌ Could not decode ${errors.length} documents !`
-                    );
-                    console.log(errors.map((e) => draw(e)));
-                  }
-                  return successes;
-                },
-                (jobs) => {
-                  if (jobs.length > 0) {
-                    subscriber.next(jobs);
-                    subscriber.complete();
-                    unsubscribe();
-                    console.log(
-                      `[Datastore] 🔇 unsubscribing from registered jobs`
-                    );
-                  }
+            .where("status.registeredAt", ">=", registeredAfter)
+            .where("status.value", "==", "registered")
+            .where("scheduledWithin.1h", "==", true)
+            .orderBy("status.registeredAt", "asc")
+            .orderBy("jobDefinition.id", "asc");
+          if (offset) {
+            query = query.offset(offset);
+          }
+          if (limit) {
+            query = query.limit(limit);
+          }
+          if (lastKnownJob) {
+            query = query.startAfter(
+              lastKnownJob.registeredAt,
+              lastKnownJob.id
+            );
+          }
+          // query = query;
+          const unsubscribe = query.limit(1).onSnapshot(async () => {
+            // const changes = snapshot
+            //   .docChanges()
+            //   .filter(({ type }, i) => type === "added"); // New jobs only
+            // console.log(
+            //   `[Datastore] Received ${snapshot.size} new jobs with ${changes.length} changes!`
+            // );
+
+            const snapshot = await query.get();
+
+            console.log(
+              snapshot.docs
+                .map(
+                  (doc) =>
+                    `${format(
+                      doc.data().status.registeredAt.toDate() as Date,
+                      "yyyy-MM-ddTHH:mm:ss.SSSxxx"
+                    )} => ${doc.data().jobDefinition.id}`
+                )
+                .join("\n")
+            );
+            pipe(
+              snapshot.docs.map((doc) =>
+                pipe(doc.data(), JobDocument.codec("firestore").decode)
+              ),
+              e.split,
+              ({ successes, errors }) => {
+                if (errors.length > 0) {
+                  console.log(
+                    `❌ Could not decode ${errors.length} documents !`
+                  );
+                  console.log(errors.map((e) => draw(e)));
                 }
-              );
-            });
+                return successes;
+              },
+              (jobs) => {
+                if (jobs.length > 0) {
+                  subscriber.next(jobs);
+                  subscriber.complete();
+                  unsubscribe();
+                  console.log(
+                    `[Datastore] 🔇 unsubscribing from registered jobs`
+                  );
+                }
+              }
+            );
+          });
           return () => {
             console.log("Unsubscribing from new jobs");
             subscriber.complete();
@@ -244,8 +294,7 @@ export class FirestoreDatastore implements Datastore {
             return await moveJobDefinitions({
               firestore: this.firestore,
               jobDefinitions,
-              fromCollectionPath: `${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`,
-              toCollectionPath: `${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`,
+              fromCollectionPath: this.rootDocumentPath,
             });
           } catch (reason) {
             // If code is 5 (NOT_FOUND), then the job was already moved by another instance
@@ -292,12 +341,11 @@ export class FirestoreDatastore implements Datastore {
           if (this.state !== "running") {
             throw new Error("Datastore is not running anymore, not taking job");
           }
-          await moveJobDefinition({
-            firestore: this.firestore,
-            jobDefinition,
-            fromCollectionPath: `${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`,
-            toCollectionPath: `${this.rootDocumentPath}${RUNNING_JOBS_COLL_PATH}`,
-          });
+          await this.firestore
+            .doc(`${this.rootDocumentPath}/${jobDefinition.id}`)
+            .update({
+              "status.value": "running",
+            });
         } catch (reason) {
           // If code is 5 (NOT_FOUND), then the job was already moved by another instance
           if (isFirebaseError(reason) && Number(reason.code) === 5) {
@@ -309,6 +357,7 @@ export class FirestoreDatastore implements Datastore {
             String(reason).includes("The client has already been terminated") &&
             this.state === "stopped" // This is expected if we're stopping
           ) {
+            console.error(reason);
             return undefined;
           } else {
             // Report this error somehow to the user !
@@ -336,38 +385,29 @@ export class FirestoreDatastore implements Datastore {
     lastStatusUpdate: HttpCallCompleted | HttpCallErrored;
     durationMs: number;
     executionStartDate: Date;
-  }): TE.TaskEither<any, void> {
+  }) {
     return pipe(
       TE.of(lastStatusUpdate),
       TE.chainW(
         TE.tryCatchK(
           () => {
-            return this.firestore.runTransaction(async (transaction) => {
-              console.log(
-                `[Datastore] Marking job ${jobDefinition.id} as complete`
-              );
-              transaction.create(
-                this.firestore.doc(
-                  `${this.rootDocumentPath}${COMPLETED_JOBS_COLL_PATH}/${jobDefinition.id}`
-                ),
-                {
-                  jobDefinition:
-                    JobDefinition.codec("firestore").encode(jobDefinition),
-                  lastStatusUpdate:
-                    HttpCallLastStatus.codec.encode(lastStatusUpdate),
-                  executionLagMs:
-                    executionStartDate.getTime() -
-                    jobDefinition.scheduledAt.getTime(),
-                  durationMs,
-                }
-              );
-              transaction.delete(
-                this.firestore.doc(
-                  `${this.rootDocumentPath}${RUNNING_JOBS_COLL_PATH}/${jobDefinition.id}`
-                ),
-                { exists: true }
-              );
-            });
+            console.log(
+              `[Datastore] Marking job ${jobDefinition.id} as complete`
+            );
+
+            return this.firestore
+              .doc(`${this.rootDocumentPath}/${jobDefinition.id}`)
+              .update({
+                jobDefinition:
+                  JobDefinition.codec("firestore").encode(jobDefinition),
+                lastStatusUpdate:
+                  HttpCallLastStatus.codec.encode(lastStatusUpdate),
+                executionLagMs:
+                  executionStartDate.getTime() -
+                  jobDefinition.scheduledAt.getTime(),
+                durationMs,
+                "status.value": "completed",
+              });
           },
           (e) => {
             return new Error(
@@ -375,7 +415,8 @@ export class FirestoreDatastore implements Datastore {
             );
           }
         )
-      )
+      ),
+      TE.map(() => void 0)
     );
   }
 
@@ -383,9 +424,17 @@ export class FirestoreDatastore implements Datastore {
     return TE.tryCatch(
       async () => {
         const jobDefinitionRef = this.firestore
-          .collection(`${this.rootDocumentPath}${REGISTERED_JOBS_COLL_PATH}`)
+          .collection(`${this.rootDocumentPath}`)
           .doc(jobId);
-        await jobDefinitionRef.delete();
+        await this.firestore.runTransaction(async (transaction) => {
+          const jobDefinitionDoc = await transaction.get(jobDefinitionRef);
+          if (!jobDefinitionDoc.exists) {
+            throw new Error(`Job ${jobId} does not exist`);
+          } else if (jobDefinitionDoc.data()?.status.value !== "registered") {
+            throw new Error(`Job ${jobId} is not registered anymore`);
+          }
+          transaction.delete(jobDefinitionRef, { exists: true });
+        });
       },
       (reason) => new Error(`Failed to cancel job: ${reason}`)
     );
@@ -401,9 +450,9 @@ export class FirestoreDatastore implements Datastore {
       limit: number;
     },
     shardsToListenTo?: ShardsToListenTo
-  ): TE.TaskEither<Error, Observable<JobDefinition[]>> {
+  ): TE.TaskEither<Error, Observable<JobDocument[]>> {
     return pipe(
-      TE.tryCatch<Error, Observable<JobDefinition[]>>(
+      TE.tryCatch<Error, Observable<JobDocument[]>>(
         // Listen to the queue and check if there is a job to run
         () =>
           new Promise((resolve, reject) => {
@@ -412,24 +461,25 @@ export class FirestoreDatastore implements Datastore {
                 `[Datastore] ❌ unsubscribe called but no listener was set`
               );
             };
-            let next: (value: JobDefinition[] | undefined) => void;
+            let next: (value: JobDocument[] | undefined) => void;
             let complete: () => void;
-            const observable = new Observable<JobDefinition[]>((observer) => {
+            const observable = new Observable<JobDocument[]>((observer) => {
               next = observer.next.bind(observer); // bind necessary ?
               complete = observer.complete.bind(observer);
               return unsubscribe;
             });
             resolve(observable);
             const u = shardedFirestoreQuery(
-              this.firestore.collection(
-                `${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`
-              ),
+              this.firestore.collection(`${this.rootDocumentPath}`),
               toShards(shardsToListenTo)
             )
+              .where("status.value", "==", "queued")
               .orderBy("jobDefinition.scheduledAt", "asc")
               .limit(limit)
               .onSnapshot((snapshot) => {
-                console.log(`[Datastore] found ${snapshot.size} docs...`);
+                console.log(
+                  `[Datastore] found ${snapshot.size} docs in queue...`
+                );
                 const { errors, successes } = pipe(
                   snapshot.docs.map((doc) =>
                     JobDocument.codec("firestore").decode(doc.data())
@@ -451,9 +501,7 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
                   );
                   // Check here if jobs are valid. If not, just wait.
                   // unsubscribe && unsubscribe(); // Stop listening if the job can run
-                  const jobdefinitions = successes.map(
-                    (doc) => doc.jobDefinition
-                  );
+                  const jobdefinitions = successes;
                   next(jobdefinitions);
                   complete();
                 } else {
@@ -461,7 +509,7 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
                 }
               }, reject);
             unsubscribe = () => {
-              console.log(`[Datastore] ✅ unsubscribe called...`);
+              console.log(`[Datastore] ✅ queue unsubscribe called...`);
               u();
             };
           }),
@@ -492,11 +540,11 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
       async () => {
         console.log("[Datastore] Fetching queued jobs ");
         let query = shardedFirestoreQuery(
-          this.firestore.collection(
-            `${this.rootDocumentPath}${QUEUED_JOBS_COLL_PATH}`
-          ),
+          this.firestore.collection(`${this.rootDocumentPath}`),
           toShards(shardsToListenTo)
-        ).limit(limit);
+        )
+          .where("status.value", "==", "queued")
+          .limit(limit);
 
         if (offset) {
           query = query.offset(offset);
@@ -506,11 +554,7 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
 
         return pipe(
           snapshot.docs.map((doc) =>
-            pipe(
-              doc.data(),
-              JobDocument.codec("firestore").decode,
-              E.map((x) => x.jobDefinition)
-            )
+            pipe(doc.data(), JobDocument.codec("firestore").decode)
           ),
           e.split,
           ({ successes }) => successes
@@ -526,12 +570,10 @@ export const moveJobDefinitions = ({
   firestore,
   jobDefinitions,
   fromCollectionPath,
-  toCollectionPath,
 }: {
   firestore: FirebaseFirestore.Firestore;
   jobDefinitions: JobDefinition[];
   fromCollectionPath: string;
-  toCollectionPath: string;
 }) => {
   return firestore.runTransaction(async (transaction) => {
     const jobDocuments = await transaction.getAll(
@@ -549,15 +591,13 @@ export const moveJobDefinitions = ({
     );
 
     existingJobDocuments.forEach((existingJobDocument) => {
-      transaction.delete(
+      transaction.update(
         firestore
           .collection(fromCollectionPath)
           .doc(`${existingJobDocument.id}`),
-        { exists: true }
-      );
-      transaction.set(
-        firestore.collection(toCollectionPath).doc(existingJobDocument.id),
-        existingJobDocument.data()
+        {
+          "status.value": "queued",
+        }
       );
     });
 

@@ -153,7 +153,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
         // Optimization: all jobs that are scheduled in the past should be scheduled immediately
         // in a single transaction
         return pipe(
-          this._processJobs(jobs),
+          this._processJobs(jobs.map((j) => j.jobDefinition)),
           TE.map(() => ({
             resultCount: jobs.length,
           }))
@@ -172,10 +172,10 @@ export class Processor extends ClusterTopologyDatastoreAware {
       this.datastore.waitForNextJobsInQueue({ limit }, this.shardsToListenTo),
       TE.map((o) => {
         const subscription = o.subscribe((jobs) => {
-          console.log("🔸🔸🔸🔸");
+          console.log(`[Processor] new jobs from queue ${jobs.length}`);
           getOrReportToSentry(
             pipe(
-              self._processJobs(jobs),
+              self._processJobs(jobs.map((j) => j.jobDefinition)),
               TE.chainW(() =>
                 // Only reschedule if we have more jobs to process
                 self.processQueue()

@@ -1,8 +1,10 @@
+import { Clock } from "@/Clock";
 import { taggedVersionedClassCodec } from "@/iots/taggedVersionClassCodec/taggedVersionedClassCodec";
 import { CodecType } from "@/project";
 import * as Codec from "io-ts/lib/Codec.js";
 import { JobDefinition } from "./JobDefinition";
 import { JobStatus } from "./JobStatus";
+import { RegisteredAt } from "./RegisteredAt";
 
 export class JobDocument {
   _tag = "JobDocument" as const;
@@ -29,6 +31,20 @@ export class JobDocument {
 
   static codec = (codecType: CodecType) =>
     taggedVersionedClassCodec(this.propsCodec(codecType), this);
+
+  static registeredNowWithoutShards(
+    jobDefinition: JobDefinition,
+    clock: Clock
+  ) {
+    return new JobDocument({
+      jobDefinition,
+      status: new JobStatus({
+        value: "registered",
+        registeredAt: RegisteredAt.fromDate(clock.now()),
+      }),
+      shards: [],
+    });
+  }
 }
 
 export type JobDocumentProps = Codec.TypeOf<

@@ -13,3 +13,4 @@ export * from "./RawBody";
 export * from "./RegisteredAt";
 export * from "./ScheduledAt";
 export * from "./Shard";
+export * from "./JobStatus";

@@ -23,14 +23,14 @@ const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(5);
   // create a FirestoreDatastore
   const datastore = new FirestoreDatastore({
     firestore,
-    rootDocumentPath: `/namespaces/doi-production/jobs/by-status`,
+    rootDocumentPath: `/namespaces/doi-production/jobs`,
   });
 
   const jobSchedulePromise = () =>
     te.unsafeGetOrThrow(
       datastore.schedule(
         new JobScheduleArgs({
-          scheduledAt: ScheduledAt.fromDate(addSeconds(now, 10)),
+          scheduledAt: ScheduledAt.fromDate(addSeconds(now, 3)),
           http: {
             options: undefined,
             url: "https://api.timetriggers.io/1",

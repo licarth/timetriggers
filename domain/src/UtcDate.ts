@@ -30,7 +30,7 @@ export namespace UtcDate {
       },
     },
     {
-      encode: (d: Date) => Timestamp.fromDate(d),
+      encode: (d: Date) => d,
     }
   );
 }

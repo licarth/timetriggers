@@ -1,13 +1,36 @@
-import { JobDefinition, RegisteredAt } from "@timetriggers/domain";
-import { Observable } from "rxjs";
-import * as TE from "fp-ts/lib/TaskEither.js";
 import { HttpCallLastStatus } from "@/HttpCallStatusUpdate";
-import { JobScheduleArgs } from "@timetriggers/domain";
-import { JobId } from "@timetriggers/domain";
-import { Shard } from "@timetriggers/domain";
+import {
+  JobDefinition,
+  JobDocument,
+  JobId,
+  JobScheduleArgs,
+  RegisteredAt,
+  ScheduledAt,
+  Shard,
+} from "@timetriggers/domain";
+import * as TE from "fp-ts/lib/TaskEither.js";
+import { Observable } from "rxjs";
 import { ShardsToListenTo } from "./ShardsToListenTo";
 
 export type ShardingAlgorithm = (job: JobId) => Shard[];
+export type LastKnownScheduledJob = {
+  scheduledAt: ScheduledAt;
+  id: JobId;
+};
+
+export type LastKnownRegisteredJob = {
+  registeredAt: RegisteredAt;
+  id: JobId;
+};
+
+export type WaitForRegisteredJobsByRegisteredAtArgs = {
+  registeredAfter: RegisteredAt;
+  scheduledBefore: ScheduledAt;
+  offset?: number;
+  limit?: number;
+  lastKnownJob?: LastKnownRegisteredJob;
+};
+
 // For firestore, we'll just pretend that we have more nodes than we actually have.
 // Each processor will take more than one shard.
 
@@ -15,10 +38,7 @@ export type GetJobsScheduledBeforeArgs = {
   offset?: number;
   millisecondsFromNow: number;
   limit: number;
-  lastKnownJob?: {
-    id: JobId;
-    registeredAt: RegisteredAt;
-  };
+  lastKnownJob?: LastKnownScheduledJob;
 };
 
 export type GetJobsInQueueArgs = {
@@ -65,13 +85,13 @@ export interface Datastore {
    * If you don't want to implement this, you can just return TE.left("not implemented").
    *
    */
-  listenToNewlyRegisteredJobs(
-    args?: {},
+  waitForRegisteredJobsByRegisteredAt(
+    args: WaitForRegisteredJobsByRegisteredAtArgs,
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<
     "too many previous jobs" | "not implemented",
     // Observable<{ def: JobDefinition } & { registeredAt: RegisteredAt }[]>
-    Observable<JobDefinition[]>
+    Observable<JobDocument[]>
   >;
 
   /**
@@ -79,10 +99,10 @@ export interface Datastore {
    * They must be ordered by scheduledAt.
    *
    */
-  getScheduledJobs(
+  getScheduledJobsByScheduledAt(
     args: GetJobsScheduledBeforeArgs,
     shardsToListenTo?: ShardsToListenTo
-  ): TE.TaskEither<any, JobDefinition[]>;
+  ): TE.TaskEither<any, JobDocument[]>;
 
   // Some datastoressupport watching for added / modified jobs. For these, we can avoid high-frequency polling.
   // => 1. listen to jobs newly (re-)scheduled within a given time range from now (and in the past).
@@ -108,12 +128,12 @@ export interface Datastore {
       limit: number;
     },
     shardsToListenTo?: ShardsToListenTo
-  ): TE.TaskEither<Error, Observable<JobDefinition[]>>;
+  ): TE.TaskEither<Error, Observable<JobDocument[]>>;
 
   getJobsInQueue(
     args: GetJobsInQueueArgs,
     shardsToListenTo?: ShardsToListenTo
-  ): TE.TaskEither<any, JobDefinition[]>;
+  ): TE.TaskEither<any, JobDocument[]>;
 
   /**
    * Moves this job to the queue so that it's immediately picked up by the processor(s).
