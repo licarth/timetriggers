@@ -36,11 +36,11 @@ type InMemoryDataStoreProps = {
 export class InMemoryDataStore implements Datastore {
   private clock;
   private pollingInterval;
-  private registeredJobs;
-  private queuedJobs;
-  private runningJobs;
+  registeredJobs;
+  queuedJobs;
+  runningJobs;
   private queuesJobByShardIndex = new Multimap<string, JobId>(); // shardIndex "${nodeCount}-${nodeId}" -> jobId
-  private completedJobs;
+  completedJobs;
   private shardsByJobId = new Map<JobId, Shard[]>();
 
   constructor(props: InMemoryDataStoreProps) {
