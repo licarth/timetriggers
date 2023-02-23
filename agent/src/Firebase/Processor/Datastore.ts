@@ -39,16 +39,6 @@ export type GetJobsScheduledBeforeArgs = {
   maxScheduledAt: ScheduledAt;
 };
 
-export type GetJobsInQueue = {
-  offset?: number;
-  limit: number;
-};
-
-export type GetJobsInQueueArgs = {
-  offset?: number;
-  limit: number;
-};
-
 export interface Datastore {
   schedule(
     args: JobScheduleArgs,
@@ -130,11 +120,6 @@ export interface Datastore {
   waitForNextJobsInQueue(
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<Error, Observable<JobDocument[]>>;
-
-  getJobsInQueue(
-    args: GetJobsInQueueArgs,
-    shardsToListenTo?: ShardsToListenTo
-  ): TE.TaskEither<any, JobDocument[]>;
 
   /**
    * Moves this job to the queue so that it's immediately picked up by the processor(s).

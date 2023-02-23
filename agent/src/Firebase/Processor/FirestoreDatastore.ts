@@ -16,7 +16,7 @@ import {
   RegisteredAt,
   SystemClock,
 } from "@timetriggers/domain";
-import { addSeconds, differenceInSeconds, format } from "date-fns";
+import { format } from "date-fns";
 import type { Firestore } from "firebase-admin/firestore";
 import { FieldValue } from "firebase-admin/firestore";
 import { pipe } from "fp-ts/lib/function.js";
@@ -29,7 +29,6 @@ import { isFirebaseError } from "../isFirebaseError";
 import { shardedFirestoreQuery } from "../shardedFirestoreQuery";
 import {
   Datastore,
-  GetJobsInQueueArgs,
   GetJobsScheduledBeforeArgs as GetJobsScheduledBetweenArgs,
   ShardingAlgorithm,
   WaitForRegisteredJobsByRegisteredAtArgs,
@@ -549,39 +548,6 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
       //     })
       //   )
       // )
-    );
-  }
-
-  getJobsInQueue(
-    { offset, limit }: GetJobsInQueueArgs,
-    shardsToListenTo?: ShardsToListenTo
-  ) {
-    return TE.tryCatch(
-      async () => {
-        console.log("[Datastore] Fetching queued jobs ");
-        let query = shardedFirestoreQuery(
-          this.firestore.collection(`${this.rootDocumentPath}`),
-          toShards(shardsToListenTo)
-        )
-          .where("status.value", "==", "queued")
-          .limit(limit);
-
-        if (offset) {
-          query = query.offset(offset);
-        }
-
-        const snapshot = await query.get();
-
-        return pipe(
-          snapshot.docs.map((doc) =>
-            pipe(doc.data(), JobDocument.codec("firestore").decode)
-          ),
-          e.split,
-          ({ successes }) => successes
-        );
-      },
-      (reason) =>
-        new Error(`[Datastore] Failed to get next jobs from queue: ${reason}`)
     );
   }
 }

@@ -17,9 +17,9 @@ import Multimap from "multimap";
 import { interval, Observable, Subscriber } from "rxjs";
 import {
   Datastore,
-  GetJobsInQueueArgs,
   GetJobsScheduledBeforeArgs,
   ShardingAlgorithm,
+  WaitForRegisteredJobsByRegisteredAtArgs,
 } from "./Datastore";
 import { distinctArray } from "./distinctArray";
 import { ShardsToListenTo } from "./ShardsToListenTo";
@@ -36,11 +36,11 @@ type InMemoryDataStoreProps = {
 export class InMemoryDataStore implements Datastore {
   private clock;
   private pollingInterval;
-  registeredJobs;
-  queuedJobs;
-  runningJobs;
+  private registeredJobs;
+  private queuedJobs;
+  private runningJobs;
   private queuesJobByShardIndex = new Multimap<string, JobId>(); // shardIndex "${nodeCount}-${nodeId}" -> jobId
-  completedJobs;
+  private completedJobs;
   private shardsByJobId = new Map<JobId, Shard[]>();
 
   constructor(props: InMemoryDataStoreProps) {
@@ -56,17 +56,6 @@ export class InMemoryDataStore implements Datastore {
     this.completedJobs = new Map<JobId, JobDocument>(
       toEntries(props.completedJobs)
     );
-  }
-  getJobsInQueue(
-    args: GetJobsInQueueArgs,
-    shardsToListenTo?: ShardsToListenTo | undefined
-  ): TE.TaskEither<any, JobDocument[]> {
-    const jobs = _.sortBy(
-      this.jobsMatchingShard(this.queuedJobs, shardsToListenTo),
-      (i) => i.jobDefinition.scheduledAt.getTime()
-    ).splice(0, args.limit);
-
-    return TE.right(jobs);
   }
 
   close(): TE.TaskEither<any, void> {
@@ -115,7 +104,7 @@ export class InMemoryDataStore implements Datastore {
   }
 
   waitForRegisteredJobsByRegisteredAt(
-    args: {} = {},
+    { maxNoticePeriodMs }: WaitForRegisteredJobsByRegisteredAtArgs,
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<never, Observable<JobDocument[]>> {
     return TE.of(
@@ -128,7 +117,7 @@ export class InMemoryDataStore implements Datastore {
             ).filter((job) => {
               const scheduledAt = job.jobDefinition.scheduledAt.getTime();
               const now = this.clock.now().getTime();
-              // return scheduledAt <= now + args.millisecondsFromNow;
+              return scheduledAt <= now + maxNoticePeriodMs;
             });
 
             subscriber.next(jobs);
