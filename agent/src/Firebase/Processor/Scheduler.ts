@@ -173,6 +173,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     return pipe(
       this.datastore.waitForRegisteredJobsByRegisteredAt(
         {
+          limit: 500, // To avoid issues with Firestore writes
           lastKnownJob: this.lastKnownRegisteredJob,
           registeredAfter: RegisteredAt.fromDate(this.scheduleStartDate),
           scheduledBefore: ScheduledAt.fromDate(

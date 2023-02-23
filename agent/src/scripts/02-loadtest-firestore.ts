@@ -49,7 +49,7 @@ const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(5);
       )
     );
 
-  const jobId = await Promise.all(_.times(100, () => jobSchedulePromise()));
+  const jobId = await Promise.all(_.times(10000, () => jobSchedulePromise()));
 
   console.log("jobId", jobId);
   console.log("✅ done");

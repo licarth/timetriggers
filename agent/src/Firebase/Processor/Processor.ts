@@ -206,15 +206,12 @@ export class Processor extends ClusterTopologyDatastoreAware {
             // We should rather execute them sequentially and fail at the first one
             (s) => s,
             // failAtFirst,
-            // TE.mapLeft((e) => {
-            //   console.log(e);
-            //   return e;
-            // })
             te.executeAllInArray({ parallelism: 30 }),
             (x) => x,
             T.map(({ successes, errors }) => {
               console.log(`[Processor] ${successes.length} jobs processed`);
               console.log(`[Processor] ${errors.length} jobs errored`);
+              console.error(errors.map((e) => console.error(e)));
               return void 0;
             }),
             TE.fromTask

@@ -216,7 +216,21 @@ export class FirestoreDatastore implements Datastore {
             );
           }
           // query = query;
-          const unsubscribe = query.limit(1).onSnapshot(async () => {
+          const unsubscribe = query.limit(1).onSnapshot(async (s) => {
+            console.log(
+              `Snapshot with ${s.docs.length} docs received: `,
+              s.readTime.toDate().toISOString()
+            );
+
+            s.docs.length > 0 &&
+              console.log(
+                `Jobs : \n`,
+                s.docs
+                  .map((doc) =>
+                    doc.data().jobDefinition.scheduledAt.toDate().toISOString()
+                  )
+                  .join("\n")
+              );
             // const changes = snapshot
             //   .docChanges()
             //   .filter(({ type }, i) => type === "added"); // New jobs only
@@ -224,6 +238,14 @@ export class FirestoreDatastore implements Datastore {
             //   `[Datastore] Received ${snapshot.size} new jobs with ${changes.length} changes!`
             // );
 
+            // If paginated, wait until 1 second after lastKnownJob.registeredAt to let Firestore distribute documents (we won't come back)
+            // TODO : add a mechanism that checks from time to time if we did not miss any jobs (in case Firestore takes more than 1 second to distribute jobs)
+
+            // if (lastKnownJob?.registeredAt) {
+            await waitUntil(
+              addSeconds(lastKnownJob?.registeredAt || this.clock.now(), 10)
+            );
+            // }
             const snapshot = await query.get();
 
             console.log(
@@ -344,11 +366,29 @@ export class FirestoreDatastore implements Datastore {
           if (this.state !== "running") {
             throw new Error("Datastore is not running anymore, not taking job");
           }
-          await this.firestore
-            .doc(`${this.rootDocumentPath}/${jobDefinition.id}`)
-            .update({
+          // Make sure it's not already marked as running
+          return this.firestore.runTransaction(async (transaction) => {
+            const docRef = this.firestore.doc(
+              `${this.rootDocumentPath}/${jobDefinition.id}`
+            );
+            const doc = await transaction.get(docRef);
+
+            if (!doc.exists) {
+              throw new Error(`Job ${jobDefinition.id} does not exist !`);
+            }
+            if (doc.exists && doc.data()?.status.value !== "queued") {
+              throw new Error(
+                `🔸 Job ${
+                  jobDefinition.id
+                } is not queued, cannot mark as running ! Status: ${
+                  doc.data()?.status.value
+                }. job has probably been taken by another instance.`
+              );
+            }
+            transaction.update(docRef, {
               "status.value": "running",
             });
+          });
         } catch (reason) {
           // If code is 5 (NOT_FOUND), then the job was already moved by another instance
           if (isFirebaseError(reason) && Number(reason.code) === 5) {
@@ -398,9 +438,25 @@ export class FirestoreDatastore implements Datastore {
               `[Datastore] Marking job ${jobDefinition.id} as complete`
             );
 
-            return this.firestore
-              .doc(`${this.rootDocumentPath}/${jobDefinition.id}`)
-              .update({
+            const docRef = this.firestore.doc(
+              `${this.rootDocumentPath}/${jobDefinition.id}`
+            );
+            // Make sure it's not already marked as completed
+            return this.firestore.runTransaction(async (transaction) => {
+              const doc = await transaction.get(docRef);
+              if (!doc.exists) {
+                throw new Error(`Job ${jobDefinition.id} does not exist !`);
+              }
+              if (doc.exists && doc.data()?.status.value !== "running") {
+                throw new Error(
+                  `🔴 Job ${
+                    jobDefinition.id
+                  } is not running, cannot mark as completed ! Status: ${
+                    doc.data()?.status.value
+                  }. Job may have got executed twice !`
+                );
+              }
+              transaction.update(docRef, {
                 jobDefinition:
                   JobDefinition.codec("firestore").encode(jobDefinition),
                 lastStatusUpdate:
@@ -411,6 +467,7 @@ export class FirestoreDatastore implements Datastore {
                 durationMs,
                 "status.value": "completed",
               });
+            });
           },
           (e) => {
             return new Error(
@@ -644,4 +701,11 @@ const indent = (str: string, spaces = 2) => {
     .split("\n")
     .map((line) => " ".repeat(spaces) + line)
     .join("\n");
+};
+
+const waitUntil = (date: Date) => {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(resolve, date.getTime() - Date.now());
+    return () => clearTimeout(timeout);
+  });
 };
