@@ -478,44 +478,30 @@ export class FirestoreDatastore implements Datastore {
    * Returns immediately if there is at least one job to run, otherwise waits for the next job(s) to be queued.
    */
   waitForNextJobsInQueue(
-    {
-      limit,
-    }: {
-      limit: number;
-    },
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<Error, Observable<JobDocument[]>> {
     return pipe(
-      TE.tryCatch<Error, Observable<JobDocument[]>>(
-        // Listen to the queue and check if there is a job to run
-        () =>
-          new Promise((resolve, reject) => {
-            let unsubscribe: () => void = () => {
-              console.error(
-                `[Datastore] ❌ unsubscribe called but no listener was set`
-              );
-            };
-            let next: (value: JobDocument[] | undefined) => void;
-            let complete: () => void;
-            const observable = new Observable<JobDocument[]>((observer) => {
-              next = observer.next.bind(observer); // bind necessary ?
-              complete = observer.complete.bind(observer);
-              return unsubscribe;
-            });
-            resolve(observable);
+      TE.tryCatch(
+        async () => {
+          return new Observable<JobDocument[]>((observer) => {
             const u = shardedFirestoreQuery(
               this.firestore.collection(`${this.rootDocumentPath}`),
               toShards(shardsToListenTo)
             )
               .where("status.value", "==", "queued")
               .orderBy("jobDefinition.scheduledAt", "asc")
-              .limit(limit)
               .onSnapshot((snapshot) => {
-                console.log(
-                  `[Datastore] found ${snapshot.size} docs in queue...`
-                );
+                const newDocs = snapshot
+                  .docChanges()
+                  .filter((change) => change.type === "added")
+                  .map((change) => change.doc);
+
+                newDocs.length > 0 &&
+                  console.log(
+                    `[Datastore] found ${snapshot.size} docs in queue...`
+                  );
                 const { errors, successes } = pipe(
-                  snapshot.docs.map((doc) =>
+                  newDocs.map((doc) =>
                     JobDocument.codec("firestore").decode(doc.data())
                   ),
                   e.split
@@ -529,24 +515,24 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
                   );
                 }
                 if (successes.length !== 0) {
-                  unsubscribe();
                   console.log(
                     `[Datastore] got next ${successes.length} valid next jobs...`
                   );
                   // Check here if jobs are valid. If not, just wait.
-                  // unsubscribe && unsubscribe(); // Stop listening if the job can run
                   const jobdefinitions = successes;
-                  next(jobdefinitions);
-                  complete();
+                  observer.next(jobdefinitions);
                 } else {
                   // Just wait
                 }
-              }, reject);
-            unsubscribe = () => {
-              console.log(`[Datastore] ✅ queue unsubscribe called...`);
+              });
+
+            return () => {
+              console.log(`[Datastore] 🔇 unsubscribing from queued jobs`);
               u();
+              observer.complete();
             };
-          }),
+          });
+        },
         (e) => new Error(`Could not get next job to run: ${e}`)
       )
       // Todo execute only one update at a time ?

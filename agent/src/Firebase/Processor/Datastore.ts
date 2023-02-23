@@ -128,9 +128,6 @@ export interface Datastore {
    *
    */
   waitForNextJobsInQueue(
-    args: {
-      limit: number;
-    },
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<Error, Observable<JobDocument[]>>;
 

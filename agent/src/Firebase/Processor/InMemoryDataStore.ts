@@ -268,35 +268,33 @@ export class InMemoryDataStore implements Datastore {
   }
 
   waitForNextJobsInQueue(
-    args: {
-      limit: number;
-    },
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<Error, Observable<JobDocument[]>> {
     return TE.of(
       new Observable<JobDocument[]>((observer) => {
-        this._waitForNextJobsInQueue(args, observer, shardsToListenTo);
+        this._waitForNextJobsInQueue(observer, shardsToListenTo);
       })
     );
   }
 
   private _waitForNextJobsInQueue(
-    args: {
-      limit: number;
-    },
     observer: Subscriber<JobDocument[]>,
     shardsToListenTo?: ShardsToListenTo
   ) {
     const jobs = _.sortBy(
       this.jobsMatchingShard(this.queuedJobs, shardsToListenTo),
       (i) => i.jobDefinition.scheduledAt.getTime()
-    ).splice(0, args.limit);
+    );
+    // remove these from the queue
+    jobs.forEach((job) => {
+      this.queuedJobs.delete(job.jobDefinition.id);
+    });
 
     if (jobs.length > 0) {
       observer.next(jobs);
     } else {
       setTimeout(() => {
-        this._waitForNextJobsInQueue(args, observer, shardsToListenTo);
+        this._waitForNextJobsInQueue(observer, shardsToListenTo);
       }, 100);
     }
   }

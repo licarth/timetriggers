@@ -63,7 +63,6 @@ export class Scheduler extends ClusterTopologyDatastoreAware {
   scheduleBatch: number;
   schedulePeriodMs: number;
 
-  private lastKnownRegisteredJob?: LastKnownRegisteredJob;
   private currentPeriod: SchedulingPeriod;
 
   private constructor(props: SchedulerProps) {
@@ -227,6 +226,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       this.datastore.getRegisteredJobsByScheduledAt(
         {
           limit: this.scheduleBatch,
+          offset,
           minScheduledAt: this.currentPeriod.minScheduledAt,
           maxScheduledAt: this.currentPeriod.maxScheduledAt,
         },
