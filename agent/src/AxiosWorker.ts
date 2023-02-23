@@ -47,10 +47,10 @@ export class AxiosWorker implements Worker {
       if (!url) {
         throw new Error("No url or http.resource provided");
       }
-      console.log("url: ", url);
+      // console.log("url: ", url);
       const userHeaders =
         jobDefinition.http?.options?.headers?.toBeSent() || {};
-      console.log("userHeaders: ", userHeaders);
+      // console.log("userHeaders: ", userHeaders);
       const axiosResponse = await axios.request({
         url,
         method: jobDefinition.http?.options?.method || "GET",

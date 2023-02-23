@@ -16,7 +16,12 @@ import {
   RegisteredAt,
   SystemClock,
 } from "@timetriggers/domain";
-import { addMilliseconds, addSeconds, format } from "date-fns";
+import {
+  addMilliseconds,
+  addSeconds,
+  differenceInSeconds,
+  format,
+} from "date-fns";
 import type { Firestore } from "firebase-admin/firestore";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
@@ -194,7 +199,7 @@ export class FirestoreDatastore implements Datastore {
             )}`
           );
 
-          let query = shardedFirestoreQuery(
+          let queryRoot = shardedFirestoreQuery(
             this.firestore.collection(`${this.rootDocumentPath}`),
             toShards(shardsToListenTo)
           )
@@ -203,20 +208,26 @@ export class FirestoreDatastore implements Datastore {
             .where("scheduledWithin.1h", "==", true)
             .orderBy("status.registeredAt", "asc")
             .orderBy("jobDefinition.id", "asc");
+
           if (offset) {
-            query = query.offset(offset);
+            queryRoot = queryRoot.offset(offset);
           }
           if (limit) {
-            query = query.limit(limit);
+            queryRoot = queryRoot.limit(limit);
           }
+
+          let paginatedQuery = queryRoot;
+
           if (lastKnownJob) {
-            query = query.startAfter(
+            paginatedQuery = queryRoot.startAfter(
               lastKnownJob.registeredAt,
               lastKnownJob.id
             );
           }
-          // query = query;
-          const unsubscribe = query.limit(1).onSnapshot(async (s) => {
+          const unsubscribe = paginatedQuery.limit(1).onSnapshot(async (s) => {
+            // Unsubsribe only if there are some results
+            s.docs.length > 0 && unsubscribe();
+
             console.log(
               `Snapshot with ${s.docs.length} docs received: `,
               s.readTime.toDate().toISOString()
@@ -241,12 +252,28 @@ export class FirestoreDatastore implements Datastore {
             // If paginated, wait until 1 second after lastKnownJob.registeredAt to let Firestore distribute documents (we won't come back)
             // TODO : add a mechanism that checks from time to time if we did not miss any jobs (in case Firestore takes more than 1 second to distribute jobs)
 
-            // if (lastKnownJob?.registeredAt) {
-            await waitUntil(
-              addSeconds(lastKnownJob?.registeredAt || this.clock.now(), 10)
+            const t0 = this.clock.now();
+            const t1 = addSeconds(
+              addSeconds(t0, 10),
+              -differenceInSeconds(t0, lastKnownJob?.registeredAt || t0)
             );
+            console.log(
+              "lastKnownJob",
+              lastKnownJob?.registeredAt?.toISOString()
+            );
+            console.log("t0", t0.toISOString());
+            console.log("t1", t1.toISOString());
+            // if (lastKnownJob?.registeredAt) {
+            await waitUntil(t1);
             // }
-            const snapshot = await query.get();
+            let pQuery = queryRoot.where("status.registeredAt", "<", t0);
+            if (lastKnownJob) {
+              paginatedQuery = queryRoot.startAfter(
+                lastKnownJob.registeredAt,
+                lastKnownJob.id
+              );
+            }
+            const snapshot = await pQuery.get();
 
             console.log(
               snapshot.docs
@@ -277,7 +304,6 @@ export class FirestoreDatastore implements Datastore {
                 if (jobs.length > 0) {
                   subscriber.next(jobs);
                   subscriber.complete();
-                  unsubscribe();
                   console.log(
                     `[Datastore] 🔇 unsubscribing from registered jobs`
                   );

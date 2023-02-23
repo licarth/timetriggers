@@ -38,7 +38,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
   isProcessing = false;
   isReadingQueue = false;
   hasToReadAgain = false;
-  readFromQueueBatch = 100;
+  readFromQueueBatch = 500;
   state: "not_started" | "running" | "closing" | "closed" = "not_started";
   closedHook = () => {};
 
@@ -206,7 +206,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
             // We should rather execute them sequentially and fail at the first one
             (s) => s,
             // failAtFirst,
-            te.executeAllInArray({ parallelism: 30 }),
+            te.executeAllInArray({ parallelism: 500 }),
             (x) => x,
             T.map(({ successes, errors }) => {
               console.log(`[Processor] ${successes.length} jobs processed`);
