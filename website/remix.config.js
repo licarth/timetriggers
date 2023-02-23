@@ -6,6 +6,7 @@ module.exports = {
   ignoredRouteFiles: ["**/.*", "**/*.css", "**/*.test.{js,jsx,ts,tsx}"],
   watchPaths: ["../domain/built"],
   serverDependenciesToBundle: [
-    "@timetriggers/domain", // This is essential for FieldValue to work properly in @timetriggers/domain
+    "@timetriggers/domain", // This is essential for FieldValue to work properly in @timetriggers/domain,
+    "p-queue",
   ],
 };

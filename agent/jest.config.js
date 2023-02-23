@@ -16,7 +16,9 @@ const pathsEntries = pathsToModuleNameMapper(compilerOptions.paths, {
   prefix: "<rootDir>/",
 });
 
-const esModules = ["get-port", "chalk", "@timetriggers/domain"].join("|");
+const esModules = ["get-port", "chalk", "@timetriggers/domain", "p-queue"].join(
+  "|"
+);
 
 export default {
   preset: "ts-jest",
