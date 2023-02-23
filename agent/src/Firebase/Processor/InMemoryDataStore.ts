@@ -247,8 +247,8 @@ export class InMemoryDataStore implements Datastore {
     return TE.of(jobId);
   }
 
-  getScheduledJobsByScheduledAt(
-    { millisecondsFromNow, limit, offset }: GetJobsScheduledBeforeArgs,
+  getRegisteredJobsByScheduledAt(
+    { maxScheduledAt, limit, offset }: GetJobsScheduledBeforeArgs,
     shardsToListenTo?: ShardsToListenTo
   ) {
     return TE.of(
@@ -256,8 +256,7 @@ export class InMemoryDataStore implements Datastore {
         this.jobsMatchingShard(this.registeredJobs, shardsToListenTo)
           .filter((job) => {
             const scheduledAt = job.jobDefinition.scheduledAt.getTime();
-            const now = this.clock.now().getTime();
-            return scheduledAt <= now + millisecondsFromNow;
+            return scheduledAt <= maxScheduledAt.getTime();
           })
           .map((job) => {
             return job;

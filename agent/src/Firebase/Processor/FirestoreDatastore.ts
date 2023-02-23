@@ -16,14 +16,9 @@ import {
   RegisteredAt,
   SystemClock,
 } from "@timetriggers/domain";
-import {
-  addMilliseconds,
-  addSeconds,
-  differenceInSeconds,
-  format,
-} from "date-fns";
+import { addSeconds, differenceInSeconds, format } from "date-fns";
 import type { Firestore } from "firebase-admin/firestore";
-import * as E from "fp-ts/lib/Either.js";
+import { FieldValue } from "firebase-admin/firestore";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { draw } from "io-ts/lib/Decoder.js";
@@ -34,14 +29,12 @@ import { isFirebaseError } from "../isFirebaseError";
 import { shardedFirestoreQuery } from "../shardedFirestoreQuery";
 import {
   Datastore,
-  GetJobsScheduledBeforeArgs,
-  LastKnownRegisteredJob,
+  GetJobsInQueueArgs,
+  GetJobsScheduledBeforeArgs as GetJobsScheduledBetweenArgs,
   ShardingAlgorithm,
   WaitForRegisteredJobsByRegisteredAtArgs,
 } from "./Datastore";
 import { ShardsToListenTo, toShards } from "./ShardsToListenTo";
-import { FieldValue } from "firebase-admin/firestore";
-import { Timestamp } from "@google-cloud/firestore";
 
 type State = "starting" | "running" | "stopped";
 
@@ -132,38 +125,33 @@ export class FirestoreDatastore implements Datastore {
 
   // order by registeredAt, jobDefinition.id asc
   // where jobDefinition.id > lastKnownJob.id
-  // where status.registeredAt >= lastKnownJob.registeredAt
-  getScheduledJobsByScheduledAt(
+
+  getRegisteredJobsByScheduledAt(
     {
-      millisecondsFromNow,
+      minScheduledAt,
+      maxScheduledAt,
       offset,
       limit,
-      lastKnownJob,
-    }: GetJobsScheduledBeforeArgs,
+    }: GetJobsScheduledBetweenArgs,
     shardsToListenTo?: ShardsToListenTo
   ) {
     return TE.tryCatch(
       async () => {
-        const periodFromNow = addMilliseconds(
-          this.clock.now(),
-          millisecondsFromNow
-        );
-        console.log("[Datastore] Fetching jobs until " + periodFromNow);
+        console.log("[Datastore] Fetching jobs until " + maxScheduledAt);
         let query = shardedFirestoreQuery(
           this.firestore.collection(`${this.rootDocumentPath}`),
           toShards(shardsToListenTo)
-        )
-          .where("jobDefinition.scheduledAt", "<=", periodFromNow)
+        );
+        if (minScheduledAt) {
+          query = query.where("jobDefinition.scheduledAt", ">", minScheduledAt);
+        }
+        query = query
+          .where("jobDefinition.scheduledAt", "<=", maxScheduledAt)
           .where("status.value", "==", "registered")
           .orderBy("jobDefinition.scheduledAt", "asc")
           .orderBy("jobDefinition.id", "asc")
           .orderBy("status.registeredAt", "asc")
           .limit(limit);
-        if (lastKnownJob) {
-          query = query;
-          // .where("jobDefinition.id", ">", lastKnownJob.id)
-          // .where("status.registeredAt", ">=", lastKnownJob.registeredAt);
-        }
         if (offset) {
           query = query.offset(offset);
         }
@@ -186,7 +174,7 @@ export class FirestoreDatastore implements Datastore {
     args: WaitForRegisteredJobsByRegisteredAtArgs,
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<"too many previous jobs", Observable<JobDocument[]>> {
-    const { registeredAfter, offset, limit, lastKnownJob } = args;
+    const { registeredAfter, maxNoticePeriodMs } = args;
     console.log(
       `[Scheduler] 🕐 Waiting for new jobs... ${JSON.stringify(args, null, 2)}`
     );
@@ -202,81 +190,44 @@ export class FirestoreDatastore implements Datastore {
           let queryRoot = shardedFirestoreQuery(
             this.firestore.collection(`${this.rootDocumentPath}`),
             toShards(shardsToListenTo)
-          )
-            .where("status.registeredAt", ">=", registeredAfter)
+          );
+          if (registeredAfter) {
+            queryRoot = queryRoot.where(
+              "status.registeredAt",
+              ">=",
+              registeredAfter
+            );
+          }
+          if (maxNoticePeriodMs > 60 * 60 * 1000) {
+            throw new Error(
+              `maxNoticePeriodMs must be less than 1h for Firestore, got ${maxNoticePeriodMs} ms`
+            );
+          }
+
+          queryRoot = queryRoot
             .where("status.value", "==", "registered")
-            .where("scheduledWithin.1h", "==", true)
+            .where("scheduledWithin.1h", "==", true) // TODO change this depending on maxNoticePeriodMs arg
             .orderBy("status.registeredAt", "asc")
             .orderBy("jobDefinition.id", "asc");
 
-          if (offset) {
-            queryRoot = queryRoot.offset(offset);
-          }
-          if (limit) {
-            queryRoot = queryRoot.limit(limit);
-          }
+          const unsubscribe = queryRoot.onSnapshot(async (snapshot) => {
+            const addedDocs = snapshot
+              .docChanges()
+              .filter(({ type }, i) => type === "added")
+              .map(({ doc }) => doc);
 
-          let paginatedQuery = queryRoot;
-
-          if (lastKnownJob) {
-            paginatedQuery = queryRoot.startAfter(
-              lastKnownJob.registeredAt,
-              lastKnownJob.id
-            );
-          }
-          const unsubscribe = paginatedQuery.limit(1).onSnapshot(async (s) => {
-            // Unsubsribe only if there are some results
-            s.docs.length > 0 && unsubscribe();
-
-            console.log(
-              `Snapshot with ${s.docs.length} docs received: `,
-              s.readTime.toDate().toISOString()
-            );
-
-            s.docs.length > 0 &&
+            addedDocs.length > 0 &&
               console.log(
                 `Jobs : \n`,
-                s.docs
+                addedDocs
                   .map((doc) =>
                     doc.data().jobDefinition.scheduledAt.toDate().toISOString()
                   )
                   .join("\n")
               );
-            // const changes = snapshot
-            //   .docChanges()
-            //   .filter(({ type }, i) => type === "added"); // New jobs only
-            // console.log(
-            //   `[Datastore] Received ${snapshot.size} new jobs with ${changes.length} changes!`
-            // );
-
-            // If paginated, wait until 1 second after lastKnownJob.registeredAt to let Firestore distribute documents (we won't come back)
-            // TODO : add a mechanism that checks from time to time if we did not miss any jobs (in case Firestore takes more than 1 second to distribute jobs)
-
-            const t0 = this.clock.now();
-            const t1 = addSeconds(
-              addSeconds(t0, 10),
-              -differenceInSeconds(t0, lastKnownJob?.registeredAt || t0)
-            );
-            console.log(
-              "lastKnownJob",
-              lastKnownJob?.registeredAt?.toISOString()
-            );
-            console.log("t0", t0.toISOString());
-            console.log("t1", t1.toISOString());
-            // if (lastKnownJob?.registeredAt) {
-            await waitUntil(t1);
-            // }
-            let pQuery = queryRoot.where("status.registeredAt", "<", t0);
-            if (lastKnownJob) {
-              paginatedQuery = queryRoot.startAfter(
-                lastKnownJob.registeredAt,
-                lastKnownJob.id
-              );
-            }
-            const snapshot = await pQuery.get();
 
             console.log(
-              snapshot.docs
+              addedDocs
                 .map(
                   (doc) =>
                     `${format(
@@ -287,7 +238,7 @@ export class FirestoreDatastore implements Datastore {
                 .join("\n")
             );
             pipe(
-              snapshot.docs.map((doc) =>
+              addedDocs.map((doc) =>
                 pipe(doc.data(), JobDocument.codec("firestore").decode)
               ),
               e.split,
@@ -303,10 +254,6 @@ export class FirestoreDatastore implements Datastore {
               (jobs) => {
                 if (jobs.length > 0) {
                   subscriber.next(jobs);
-                  subscriber.complete();
-                  console.log(
-                    `[Datastore] 🔇 unsubscribing from registered jobs`
-                  );
                 }
               }
             );
@@ -314,6 +261,7 @@ export class FirestoreDatastore implements Datastore {
           return () => {
             console.log("Unsubscribing from new jobs");
             subscriber.complete();
+            console.log(`[Datastore] 🔇 unsubscribing from registered jobs`);
             unsubscribe();
           };
         });
@@ -619,7 +567,7 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
   }
 
   getJobsInQueue(
-    { offset, limit }: GetJobsScheduledBeforeArgs,
+    { offset, limit }: GetJobsInQueueArgs,
     shardsToListenTo?: ShardsToListenTo
   ) {
     return TE.tryCatch(

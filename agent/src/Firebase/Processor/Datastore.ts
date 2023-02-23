@@ -25,11 +25,8 @@ export type LastKnownRegisteredJob = {
 };
 
 export type WaitForRegisteredJobsByRegisteredAtArgs = {
-  registeredAfter: RegisteredAt;
-  scheduledBefore: ScheduledAt;
-  offset?: number;
-  limit?: number;
-  lastKnownJob?: LastKnownRegisteredJob;
+  registeredAfter?: RegisteredAt;
+  maxNoticePeriodMs: number; // Max Notice period for the job (ScheduledAt - RegisteredAt) in milliseconds
 };
 
 // For firestore, we'll just pretend that we have more nodes than we actually have.
@@ -37,9 +34,14 @@ export type WaitForRegisteredJobsByRegisteredAtArgs = {
 
 export type GetJobsScheduledBeforeArgs = {
   offset?: number;
-  millisecondsFromNow: number;
   limit: number;
-  lastKnownJob?: LastKnownScheduledJob;
+  minScheduledAt?: ScheduledAt;
+  maxScheduledAt: ScheduledAt;
+};
+
+export type GetJobsInQueue = {
+  offset?: number;
+  limit: number;
 };
 
 export type GetJobsInQueueArgs = {
@@ -101,7 +103,7 @@ export interface Datastore {
    * They must be ordered by scheduledAt.
    *
    */
-  getScheduledJobsByScheduledAt(
+  getRegisteredJobsByScheduledAt(
     args: GetJobsScheduledBeforeArgs,
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<any, JobDocument[]>;
