@@ -11,4 +11,4 @@ tasks:
     cmd: |
       cat firestore.rules.gotmpl | gomplate > firestore.rules
       firebase deploy --only firestore:rules
-      firebase deploy --only firestore:indexes
+      # firebase deploy --only firestore:indexes
