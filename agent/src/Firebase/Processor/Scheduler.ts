@@ -145,11 +145,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         this.schedulePeriod(originPeriod),
         TE.chainFirstW(() =>
           pipe(
-            this.listenToShortNoticeJobs({
-              registeredAfter: RegisteredAt.fromDate(
-                addSeconds(this.clock.now(), -10)
-              ),
-            }),
+            this.listenToShortNoticeJobs({}),
             TE.orElse((reason) => {
               if (reason === "not implemented") {
                 console.log(
@@ -197,7 +193,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
   private listenToShortNoticeJobs({
     registeredAfter,
   }: {
-    registeredAfter: RegisteredAt;
+    registeredAfter?: RegisteredAt;
   }) {
     return pipe(
       this.datastore.waitForRegisteredJobsByRegisteredAt(

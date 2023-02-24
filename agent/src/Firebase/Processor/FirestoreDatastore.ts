@@ -103,7 +103,6 @@ export class FirestoreDatastore implements Datastore {
           }),
         };
         await jobDocumentRef.set(newLocal);
-        console.log(newLocal);
         return id;
       },
       (reason) => `Failed to schedule job: ${reason}`
@@ -148,6 +147,7 @@ export class FirestoreDatastore implements Datastore {
         query = query
           .where("jobDefinition.scheduledAt", "<=", maxScheduledAt)
           .where("status.value", "==", "registered")
+          .where("scheduledWithin.1h", "==", false)
           .orderBy("jobDefinition.scheduledAt", "asc")
           .orderBy("jobDefinition.id", "asc")
           .orderBy("status.registeredAt", "asc")
