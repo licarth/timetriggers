@@ -270,11 +270,7 @@ export class FirestoreDatastore implements Datastore {
   }
 
   queueJobs(jobDefinitions: JobDefinition[]): TE.TaskEither<any, void> {
-    console.log(
-      `[Datastore] Queueing job(s) ${jobDefinitions
-        .map((s) => s.id)
-        .join(", ")}...`
-    );
+    console.log(`[Datastore] Queueing job(s) ${jobDefinitions.length} jobs...`);
     if (jobDefinitions.length === 0) {
       return TE.right(undefined);
     }
@@ -289,7 +285,7 @@ export class FirestoreDatastore implements Datastore {
                 "Datastore is not running anymore, not queuing job"
               );
             }
-            return await moveJobDefinitions({
+            return await queueJobDocuments({
               firestore: this.firestore,
               jobDefinitions,
               fromCollectionPath: this.rootDocumentPath,
@@ -534,25 +530,11 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
         },
         (e) => new Error(`Could not get next job to run: ${e}`)
       )
-      // Todo execute only one update at a time ?
-      // TE.chainW((snapshot) =>
-      //   pipe(
-      //     TE.of(snapshot),
-      //     TE.chainW((snapshot) => {
-      //       console.log(`Found ${snapshot.size} jobs in the queue`);
-      //       if (snapshot.size === 0) {
-      //         // continue to wait for the next job
-      //         return this.waitForNextJob();
-      //       }
-      //       return this.takeFirstValidAvailableJob(_.shuffle(snapshot.docs), 0);
-      //     })
-      //   )
-      // )
     );
   }
 }
 
-export const moveJobDefinitions = ({
+export const queueJobDocuments = ({
   firestore,
   jobDefinitions,
   fromCollectionPath,
@@ -593,37 +575,6 @@ export const moveJobDefinitions = ({
       nonExistingJobIds: nonExistingJobDocuments.map(({ id }) => id),
       notRegisteredJobIds: notRegisteredJobDocuments.map(({ id }) => id),
     };
-  });
-};
-
-export const moveJobDefinition = ({
-  firestore,
-  jobDefinition,
-  fromCollectionPath,
-  toCollectionPath,
-}: {
-  firestore: FirebaseFirestore.Firestore;
-  jobDefinition: JobDefinition;
-  fromCollectionPath: string;
-  toCollectionPath: string;
-}) => {
-  return firestore.runTransaction(async (transaction) => {
-    const existingJobDocument = await transaction.get(
-      firestore.collection(fromCollectionPath).doc(jobDefinition.id)
-    );
-    if (!existingJobDocument.exists) {
-      throw new Error(
-        `Document ${jobDefinition.id} does not exist in ${fromCollectionPath}`
-      );
-    }
-    transaction.delete(
-      firestore.collection(fromCollectionPath).doc(`${jobDefinition.id}`),
-      { exists: true }
-    );
-    transaction.set(
-      firestore.collection(toCollectionPath).doc(jobDefinition.id),
-      existingJobDocument.data()
-    );
   });
 };
 
