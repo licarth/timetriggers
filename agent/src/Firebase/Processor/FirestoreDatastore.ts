@@ -270,7 +270,11 @@ export class FirestoreDatastore implements Datastore {
   }
 
   queueJobs(jobDefinitions: JobDefinition[]): TE.TaskEither<any, void> {
-    console.log(`[Datastore] Queueing job(s) ${jobDefinitions.length} jobs...`);
+    console.log(
+      `[Datastore] Queueing job(s) ${jobDefinitions
+        .map(({ id }) => id)
+        .join(", ")}`
+    );
     if (jobDefinitions.length === 0) {
       return TE.right(undefined);
     }
