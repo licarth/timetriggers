@@ -10,6 +10,7 @@ import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { Datastore } from "./Datastore";
 import { ShardsToListenTo } from "./ShardsToListenTo";
+import { debounceTime } from "rxjs";
 
 export type ClusterTopologyDatastoreAwareProps = {
   clock?: Clock;
@@ -36,6 +37,7 @@ export abstract class ClusterTopologyDatastoreAware {
     if (this.coordinationClient) {
       this.coordinationClientSubscription = this.coordinationClient
         .getClusterNodeInformation()
+        .pipe(debounceTime(1000))
         .subscribe(({ currentNodeId, clusterSize }) => {
           this.shardsToListenTo =
             getShardsToListenToObject(currentNodeId, clusterSize) || undefined;
