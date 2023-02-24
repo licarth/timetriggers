@@ -142,7 +142,7 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
         await checkThatFirstValue(
           datastore.waitForRegisteredJobsByRegisteredAt(
             { maxNoticePeriodMs: HOUR_IN_MS },
-            { nodeCount: 2, nodeIds: [1] }
+            { prefix: 2, nodeIds: [1] }
           ),
           (jobs) => {
             expect(jobs.length).toBe(1);
@@ -169,7 +169,7 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
             {
               maxNoticePeriodMs: HOUR_IN_MS,
             },
-            { nodeCount: 1, nodeIds: [] }
+            { prefix: 1, nodeIds: [] }
           ),
           (jobs) => {
             expect(jobs.length).toBe(2);

@@ -87,13 +87,16 @@ export const getShardsToListenToObject = (
   serverIndex: number,
   serverCount: number
 ): ShardsToListenTo | null => {
-  const nodeIds = getShardsToListenTo(serverIndex, serverCount)?.map(
-    (s) => s.nodeId
-  );
+  const maxArrayInQuery = 10; // Default Firebase value
+  const nodeIds = getShardsToListenTo(
+    serverIndex,
+    serverCount,
+    maxArrayInQuery
+  )?.map((s) => s.nodeId);
   return nodeIds
     ? {
         nodeIds,
-        nodeCount: serverCount,
+        prefix: Math.min(maxArrayInQuery + 1, serverCount),
       }
     : null;
 };

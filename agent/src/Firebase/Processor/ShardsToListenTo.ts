@@ -1,10 +1,10 @@
 export type ShardsToListenTo = {
-  nodeCount: number;
+  prefix: number;
   nodeIds: number[];
 };
 
 export const toShards = (shardsToListenTo?: ShardsToListenTo) => {
   if (!shardsToListenTo) return undefined;
-  const { nodeCount, nodeIds } = shardsToListenTo;
-  return nodeIds.map((nodeId) => `${nodeCount}-${nodeId}`);
+  const { prefix, nodeIds } = shardsToListenTo;
+  return nodeIds.map((nodeId) => `${prefix}-${nodeId}`);
 };

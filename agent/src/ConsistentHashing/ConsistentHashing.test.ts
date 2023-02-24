@@ -3,6 +3,7 @@ import {
   consistentHashing,
   consistentHashingFirebaseArray,
   consistentHashingFirebaseArrayPreloaded,
+  getShardsToListenToObject,
   getShardsToListenToString,
 } from "./ConsistentHashing";
 import { randomString } from "../test/randomString";

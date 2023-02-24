@@ -1,5 +1,5 @@
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
-import { e } from "@/fp-ts";
+import { e, te } from "@/fp-ts";
 import {
   HttpCallCompleted,
   HttpCallErrored,
@@ -270,6 +270,21 @@ export class FirestoreDatastore implements Datastore {
   }
 
   queueJobs(jobDefinitions: JobDefinition[]): TE.TaskEither<any, void> {
+    const batchSize = 500;
+    const batches = _.chunk(jobDefinitions, batchSize).map((batch) =>
+      this._queueJobsBatch(batch)
+    );
+    return pipe(
+      batches,
+      te.executeAllInArray(),
+      TE.fromTask,
+      TE.map(() => undefined)
+    );
+  }
+
+  private _queueJobsBatch(
+    jobDefinitions: JobDefinition[]
+  ): TE.TaskEither<any, void> {
     console.log(
       `[Datastore] Queueing job(s) ${jobDefinitions
         .map(({ id }) => id)
@@ -307,9 +322,9 @@ export class FirestoreDatastore implements Datastore {
               // Report this error somehow to the user !
               // This will not be caught by the caller of this function as it's running in a setTimeout !
               console.log(
-                `[state=${
-                  this.state
-                }] Failed to queue jobs ${jobDefinitions.join(", ")}: ${reason}`
+                `[state=${this.state}] Failed to queue jobs ${jobDefinitions
+                  .map(({ id }) => id)
+                  .join(", ")}: ${reason}`
               );
               throw reason;
             }

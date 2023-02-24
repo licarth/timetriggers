@@ -103,7 +103,7 @@ describe("Sharded InMemoryDatastore", () => {
           {
             maxNoticePeriodMs: 1000,
           },
-          { nodeCount: 2, nodeIds: [1] }
+          { prefix: 2, nodeIds: [1] }
         )
       );
       const jobsPromise = firstValueFrom(obs);
@@ -136,7 +136,7 @@ describe("Sharded InMemoryDatastore", () => {
           {
             maxNoticePeriodMs: 1000,
           },
-          { nodeCount: 1, nodeIds: [] }
+          { prefix: 1, nodeIds: [] }
         )
       );
 

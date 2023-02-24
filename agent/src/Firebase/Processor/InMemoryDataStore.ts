@@ -81,11 +81,11 @@ export class InMemoryDataStore implements Datastore {
       all(jobMap).filter((job) => {
         if (
           shardsToListenTo &&
-          shardsToListenTo.nodeCount > 1 &&
+          shardsToListenTo.prefix > 1 &&
           this.shardsByJobId.has(job.jobDefinition.id)
         ) {
           const matchingShard = this.shardsByJobId.get(job.jobDefinition.id)?.[
-            shardsToListenTo.nodeCount - 2
+            shardsToListenTo.prefix - 2
           ];
           if (
             matchingShard &&
