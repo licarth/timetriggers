@@ -140,7 +140,6 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
   startListening() {
     const originPeriod = this.originPeriod(); // Cathup until now +
     const firstPeriod = this.nextPeriod(originPeriod);
-    const secondPeriod = this.nextPeriod(firstPeriod);
     return pipe(
       pipe(
         this.schedulePeriod(originPeriod),
@@ -327,10 +326,17 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         })
       ),
       te.repeatUntil(
-        ({ resultCount, lastKnownJob }) => {
+        ({ resultCount, lastKnownJob: lkj }) => {
           const isOver = resultCount < this.scheduleBatch;
-          lastKnownJob = lastKnownJob;
           totalJobs += resultCount;
+          if (isOver) {
+            return isOver;
+          } else {
+            lastKnownJob = {
+              id: lkj.jobDefinition.id,
+              scheduledAt: lkj.jobDefinition.scheduledAt,
+            };
+          }
           return isOver;
         },
         {
