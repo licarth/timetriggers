@@ -50,6 +50,7 @@ WORKDIR /app
 
 COPY --from=production-deps /app/node_modules /app/node_modules
 COPY --from=build /app/built /app/built
+ADD copy-of-domain ./copy-of-domain
 
 ADD package.json ./
 
