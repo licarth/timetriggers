@@ -259,7 +259,6 @@ export class FirestoreDatastore implements Datastore {
             );
           });
           return () => {
-            console.log("Unsubscribing from new jobs");
             subscriber.complete();
             console.log(`[Datastore] 🔇 unsubscribing from registered jobs`);
             unsubscribe();
@@ -569,15 +568,17 @@ export const moveJobDefinitions = ({
       )
     );
 
-    const existingJobDocuments = jobDocuments.filter(
+    const [existingJobDocuments, nonExistingJobDocuments] = _.partition(
+      jobDocuments,
       (jobDocument) => jobDocument.exists
     );
 
-    const nonExistingJobDocuments = jobDocuments.filter(
-      (jobDocument) => !jobDocument.exists
+    const [registeredJobDocuments, notRegisteredJobDocuments] = _.partition(
+      existingJobDocuments,
+      (jobDocument) => jobDocument.data()?.status.value === "registered"
     );
 
-    existingJobDocuments.forEach((existingJobDocument) => {
+    registeredJobDocuments.forEach((existingJobDocument) => {
       transaction.update(
         firestore
           .collection(fromCollectionPath)
@@ -588,7 +589,10 @@ export const moveJobDefinitions = ({
       );
     });
 
-    return { nonExistingJobIds: nonExistingJobDocuments.map(({ id }) => id) };
+    return {
+      nonExistingJobIds: nonExistingJobDocuments.map(({ id }) => id),
+      notRegisteredJobIds: notRegisteredJobDocuments.map(({ id }) => id),
+    };
   });
 };
 
