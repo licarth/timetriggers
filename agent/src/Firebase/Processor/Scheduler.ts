@@ -1,39 +1,34 @@
 import {
-  Clock,
-  JobDocument,
-  RegisteredAt,
-  ScheduledAt,
-} from "@timetriggers/domain";
-import {
   ClusterNodeInformation,
   CoordinationClient,
 } from "@/Coordination/CoordinationClient";
-import { JobDefinition } from "@timetriggers/domain";
-import { JobId } from "@timetriggers/domain";
 import { te } from "@/fp-ts";
 import { withTimeout } from "@/fp-ts/withTimeout";
 import { getOrReportToSentry } from "@/Sentry/getOrReportToSentry";
+import {
+  Clock,
+  JobDefinition,
+  JobDocument,
+  JobId,
+  RegisteredAt,
+  ScheduledAt,
+} from "@timetriggers/domain";
 import chalk from "chalk";
-import { addMilliseconds, addMinutes, addSeconds, max } from "date-fns";
+import { addMilliseconds, addMinutes, addSeconds } from "date-fns";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
-import {
-  Datastore,
-  LastKnownRegisteredJob,
-  LastKnownScheduledJob,
-} from "./Datastore";
+import { Datastore, LastKnownScheduledJob } from "./Datastore";
 import {
   humanReadibleCountdownBetween2Dates,
   humanReadibleMs,
 } from "./humanReadibleMs";
-import { debounceTime, distinct, interval, pipe as pipeObs } from "rxjs";
-import { distinctArray } from "./distinctArray";
+import { unsubscribeAll } from "./unsubscribeAll";
 
 const MINUTE = 1000 * 60;
-const HOUR = 1000 * 60 * 60;
+const SECOND = 1000;
 
 type SchedulerProps = {
   clock?: Clock;
@@ -49,48 +44,49 @@ type SchedulerProps = {
 
 type UnsubsribeHook = () => void;
 
+type OriginPeriod = {
+  minScheduledAt: undefined;
+  maxScheduledAt: ScheduledAt;
+};
+
 type SchedulingPeriod = {
-  minScheduledAt: ScheduledAt | undefined;
+  minScheduledAt: ScheduledAt;
   maxScheduledAt: ScheduledAt;
 };
 
 export class Scheduler extends ClusterTopologyDatastoreAware {
   plannedTimeouts = new Map<JobId, NodeJS.Timeout>();
-  listeningToNewJobUnsubscribeHooks: UnsubsribeHook[] = [];
-  schedulingNextPeriodUnsubscribeHooks: UnsubsribeHook[] = [];
+  datastoreNewJobsHooks: UnsubsribeHook[] = [];
+  nextPeriodSchedulingHooks: UnsubsribeHook[] = [];
 
-  scheduleAdvanceMs: number;
-  scheduleBatch: number;
   schedulePeriodMs: number;
-
-  private currentPeriod: SchedulingPeriod;
+  scheduleBatch: number;
 
   private constructor(props: SchedulerProps) {
     super(props);
-    this.scheduleAdvanceMs = props.scheduleAdvanceMs || 10 * MINUTE;
+    this.schedulePeriodMs = props.scheduleAdvanceMs || 10 * MINUTE;
     this.scheduleBatch = props.scheduleBatch || 100;
-    this.schedulePeriodMs =
-      props.schedulePeriodMs || Math.ceil(this.scheduleAdvanceMs / 2);
     // Initialize current period to now
-    this.currentPeriod = {
+  }
+
+  private originPeriod() {
+    return {
       minScheduledAt: undefined,
       maxScheduledAt: ScheduledAt.fromDate(
-        addMilliseconds(this.clock.now(), this.scheduleAdvanceMs)
+        addMilliseconds(this.clock.now(), this.schedulePeriodMs)
       ),
     };
   }
 
-  private switchToNextPeriod() {
-    this.currentPeriod = {
-      minScheduledAt: this.currentPeriod.maxScheduledAt,
+  private nextPeriod(
+    period: SchedulingPeriod | OriginPeriod
+  ): SchedulingPeriod {
+    return {
+      minScheduledAt: period.maxScheduledAt,
       maxScheduledAt: ScheduledAt.fromDate(
-        addMilliseconds(
-          this.currentPeriod.maxScheduledAt,
-          this.scheduleAdvanceMs
-        )
+        addMilliseconds(period.maxScheduledAt, this.schedulePeriodMs)
       ),
     };
-    return this.currentPeriod;
   }
 
   onClusterTopologyChange(clusterTopology: ClusterNodeInformation) {
@@ -99,16 +95,6 @@ export class Scheduler extends ClusterTopologyDatastoreAware {
 Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     );
     getOrReportToSentry(this.restart());
-  }
-
-  unsubscribeNewJobsListening() {
-    this.listeningToNewJobUnsubscribeHooks.forEach((u) => u());
-    this.listeningToNewJobUnsubscribeHooks = [];
-  }
-
-  unsubscribeSchedulingNextPeriod() {
-    this.schedulingNextPeriodUnsubscribeHooks.forEach((u) => u());
-    this.schedulingNextPeriodUnsubscribeHooks = [];
   }
 
   clearAllPlannedTimeouts() {
@@ -120,8 +106,8 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
 
   close() {
     this.clearAllPlannedTimeouts();
-    this.unsubscribeSchedulingNextPeriod();
-    this.unsubscribeNewJobsListening();
+    unsubscribeAll(this.datastoreNewJobsHooks);
+    unsubscribeAll(this.nextPeriodSchedulingHooks);
     return super.close();
   }
 
@@ -143,23 +129,28 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
   restart() {
     return pipe(
       async () => {
-        this.unsubscribeSchedulingNextPeriod();
+        unsubscribeAll(this.nextPeriodSchedulingHooks);
+        unsubscribeAll(this.datastoreNewJobsHooks);
       },
       TE.fromTask,
-      TE.chainFirstW(() => {
-        this.unsubscribeNewJobsListening();
-        return this.startListening();
-      })
+      TE.chainFirstW(() => this.startListening())
     );
   }
 
   startListening() {
+    const originPeriod = this.originPeriod(); // Cathup until now +
+    const firstPeriod = this.nextPeriod(originPeriod);
+    const secondPeriod = this.nextPeriod(firstPeriod);
     return pipe(
       pipe(
-        this.scheduleNextPeriod(),
+        this.schedulePeriod(originPeriod),
         TE.chainFirstW(() =>
           pipe(
-            this.waitForNewJobs(),
+            this.listenToShortNoticeJobs({
+              registeredAfter: RegisteredAt.fromDate(
+                addSeconds(this.clock.now(), -10)
+              ),
+            }),
             TE.orElse((reason) => {
               if (reason === "not implemented") {
                 console.log(
@@ -174,29 +165,45 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
             })
           )
         ),
-        te.sideEffect(() => {
-          const timeoutId = this.clock.setTimeout(() => {
-            this.switchToNextPeriod();
-            getOrReportToSentry(this.scheduleNextPeriod());
-          }, this.currentPeriod.maxScheduledAt.getTime() - this.clock.now().getTime());
-
-          this.schedulingNextPeriodUnsubscribeHooks.push(() => {
-            this.clock.clearTimeout(timeoutId);
-          });
-        })
+        TE.chainFirstW(() => this.schedulePeriodRecursively(firstPeriod))
       )
     );
   }
 
-  private waitForNewJobs() {
+  private schedulePeriodRecursively(period: SchedulingPeriod) {
+    unsubscribeAll(this.nextPeriodSchedulingHooks);
+    return pipe(
+      this.schedulePeriod(period),
+      te.sideEffect(() => {
+        //Plan next sceduling
+        const timeoutId = this.clock.setTimeout(() => {
+          getOrReportToSentry(
+            this.schedulePeriodRecursively(this.nextPeriod(period))
+          );
+        }, period.minScheduledAt.getTime() - this.clock.now().getTime());
+
+        this.nextPeriodSchedulingHooks.push(() => {
+          this.clock.clearTimeout(timeoutId);
+        });
+      })
+    );
+  }
+
+  /**
+   * This listens to jobs that have a short notice period where notice period is the time between the job's registeredAt and its scheduledAt properties.
+   *
+   * These jobs are not caught by long polling, so we need to listen to them somehow.
+   *
+   */
+  private listenToShortNoticeJobs({
+    registeredAfter,
+  }: {
+    registeredAfter: RegisteredAt;
+  }) {
     return pipe(
       this.datastore.waitForRegisteredJobsByRegisteredAt(
         {
-          registeredAfter: RegisteredAt.fromDate(
-            this.currentPeriod.minScheduledAt
-              ? this.currentPeriod.minScheduledAt
-              : this.clock.now()
-          ),
+          registeredAfter,
           maxNoticePeriodMs: 60 * 1000, // 1 minute
         },
         this.shardsToListenTo
@@ -211,24 +218,32 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
           () => {}
         );
 
-        this.listeningToNewJobUnsubscribeHooks.push(() =>
-          subscription.unsubscribe()
-        );
+        this.datastoreNewJobsHooks.push(() => subscription.unsubscribe());
         return undefined;
       })
     );
   }
 
-  private _scheduleNextPeriod({ offset }: { offset: number }) {
+  private _scheduleJobsAfter({
+    lastKnownJob,
+    limit,
+    minScheduledAt,
+    maxScheduledAt,
+  }: {
+    lastKnownJob?: LastKnownScheduledJob;
+    limit: number;
+    minScheduledAt?: ScheduledAt;
+    maxScheduledAt: ScheduledAt;
+  }) {
     // Here we should get into a loop until
     // we have a result that returns no jobs
     return pipe(
       this.datastore.getRegisteredJobsByScheduledAt(
         {
-          limit: this.scheduleBatch,
-          offset,
-          minScheduledAt: this.currentPeriod.minScheduledAt,
-          maxScheduledAt: this.currentPeriod.maxScheduledAt,
+          limit,
+          minScheduledAt,
+          maxScheduledAt,
+          lastKnownJob,
         },
         this.shardsToListenTo
       ),
@@ -239,20 +254,20 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
           this._scheduleNewJobs(jobs),
           TE.map(() => ({
             resultCount: jobs.length,
+            lastKnownJob: jobs[jobs.length - 1],
           }))
         );
-        // jobs that are to schedule before a certain date & with an offset ?
-        // return { resultCount: jobs.length };
       })
     );
   }
 
   private _scheduleNewJobs(jobs: JobDocument[]) {
-    const jobsWithinTimeRange = jobs.filter(
-      (job) =>
-        job.jobDefinition.scheduledAt <
-        addMilliseconds(this.clock.now(), this.scheduleAdvanceMs)
-    );
+    const jobsWithinTimeRange = jobs;
+    // .filter(
+    //   (job) =>
+    //     job.jobDefinition.scheduledAt <
+    //     addMilliseconds(this.clock.now(), this.scheduleAdvanceMs)
+    // );
     const [jobsInThePast, jobsIntheFuture] = _.partition(
       jobsWithinTimeRange,
       (job) => job.jobDefinition.scheduledAt < this.clock.now()
@@ -277,44 +292,45 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     }
   }
 
-  /**
-   * This method should be called regularily, at least twice per period (if period = 2h, then once an hour)
-   * */
-  scheduleNextPeriod(): TE.TaskEither<Error, void> {
-    this.unsubscribeNewJobsListening();
+  schedulePeriod({
+    minScheduledAt,
+    maxScheduledAt,
+  }: {
+    minScheduledAt?: ScheduledAt;
+    maxScheduledAt: ScheduledAt;
+  }): TE.TaskEither<Error, void> {
+    unsubscribeAll(this.nextPeriodSchedulingHooks);
 
     console.log(
       `[Scheduler] 🕞 Scheduling jobs for period between ${
-        this.currentPeriod.minScheduledAt
+        minScheduledAt
           ? humanReadibleCountdownBetween2Dates(
-              this.currentPeriod.minScheduledAt,
+              minScheduledAt,
               this.clock.now()
             )
           : "forever in the past"
       } from now and ${chalk.green(
-        humanReadibleCountdownBetween2Dates(
-          this.currentPeriod.maxScheduledAt,
-          this.clock.now()
-        )
+        humanReadibleCountdownBetween2Dates(maxScheduledAt, this.clock.now())
       )} from now.`
     );
-    let offset = 0;
+    let lastKnownJob: LastKnownScheduledJob;
     let totalJobs = 0;
     return pipe(
-      async () => offset,
+      async () => lastKnownJob,
       TE.fromTask,
-      TE.chain((offset) => this._scheduleNextPeriod({ offset })),
+      TE.chain((lastKnownJob) =>
+        this._scheduleJobsAfter({
+          limit: this.scheduleBatch,
+          lastKnownJob,
+          minScheduledAt,
+          maxScheduledAt,
+        })
+      ),
       te.repeatUntil(
-        ({ resultCount }) => {
-          const isOver = offset === 0 && resultCount < this.scheduleBatch;
-          if (!isOver) {
-            totalJobs += resultCount;
-            if (resultCount === this.scheduleBatch) {
-              offset += resultCount;
-            } else {
-              offset = 0;
-            }
-          }
+        ({ resultCount, lastKnownJob }) => {
+          const isOver = resultCount < this.scheduleBatch;
+          lastKnownJob = lastKnownJob;
+          totalJobs += resultCount;
           return isOver;
         },
         {

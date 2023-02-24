@@ -18,6 +18,7 @@ import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 import { Datastore } from "./Datastore";
 import { InMemoryDataStore } from "./InMemoryDataStore";
 import PQueue from "p-queue";
+import { unsubscribeAll } from "./unsubscribeAll";
 
 type ProcessorProps = {
   clock?: Clock;
@@ -25,6 +26,7 @@ type ProcessorProps = {
   datastore: Datastore;
   coordinationClient?: CoordinationClient;
 };
+export type UnsubsribeHook = () => void;
 
 export class Processor extends ClusterTopologyDatastoreAware {
   workerPool;
@@ -32,9 +34,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
   state: "not_started" | "running" | "closing" | "closed" = "not_started";
   closedHook = () => {};
 
-  unsubscribeQueue: () => void = () => {};
-
-  firstTopologyChange: boolean;
+  private queueUnsubscribeHooks: UnsubsribeHook[] = [];
 
   queue;
 
@@ -42,18 +42,12 @@ export class Processor extends ClusterTopologyDatastoreAware {
     super(props);
     this.workerPool = props.workerPool;
     this.datastore = props.datastore;
-    this.firstTopologyChange = true;
     this.queue = new PQueue({ concurrency: 300 });
   }
 
   onClusterTopologyChange(clusterTopology: ClusterNodeInformation) {
     console.log(`[Processor] reconfiguring cluster topology`);
-    if (this.firstTopologyChange) {
-      console.log(`[Processor] first topology change, not unsubscribing...`);
-      this.firstTopologyChange = false;
-    } else {
-    }
-    this.unsubscribeQueue && this.unsubscribeQueue();
+    this.queueUnsubscribeHooks && unsubscribeAll(this.queueUnsubscribeHooks);
 
     getOrReportToSentry(this.listenToQueue());
   }
@@ -71,7 +65,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
             );
           });
         });
-        this.unsubscribeQueue = () => s.unsubscribe();
+        this.queueUnsubscribeHooks.push(() => s.unsubscribe());
       })
     );
   }
@@ -139,7 +133,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
     let t: TE.TaskEither<Error, void>;
     this.state = "closing";
     this.coordinationClientSubscription?.unsubscribe();
-    this.unsubscribeQueue();
+    unsubscribeAll(this.queueUnsubscribeHooks);
 
     this.queue.clear(); // do not execute jobs in the queue
     t = TE.tryCatch(

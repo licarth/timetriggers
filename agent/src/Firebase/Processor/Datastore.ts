@@ -37,6 +37,7 @@ export type GetJobsScheduledBeforeArgs = {
   limit: number;
   minScheduledAt?: ScheduledAt;
   maxScheduledAt: ScheduledAt;
+  lastKnownJob?: LastKnownScheduledJob;
 };
 
 export interface Datastore {

@@ -131,6 +131,7 @@ export class FirestoreDatastore implements Datastore {
       maxScheduledAt,
       offset,
       limit,
+      lastKnownJob,
     }: GetJobsScheduledBetweenArgs,
     shardsToListenTo?: ShardsToListenTo
   ) {
@@ -154,6 +155,9 @@ export class FirestoreDatastore implements Datastore {
         if (offset) {
           query = query.offset(offset);
         }
+        if (lastKnownJob) {
+          query = query.startAfter(lastKnownJob.scheduledAt, lastKnownJob.id);
+        }
 
         const snapshot = await query.get();
 
@@ -174,16 +178,13 @@ export class FirestoreDatastore implements Datastore {
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<"too many previous jobs", Observable<JobDocument[]>> {
     const { registeredAfter, maxNoticePeriodMs } = args;
-    console.log(
-      `[Scheduler] 🕐 Waiting for new jobs... ${JSON.stringify(args, null, 2)}`
-    );
     return TE.tryCatch(
       async () => {
         return new Observable((subscriber) => {
           console.log(
-            `[Datastore] Listening to jobs for shards ${toShards(
-              shardsToListenTo
-            )}`
+            `[Datastore] 🕐 Waiting for new jobs to schedule (${
+              shardsToListenTo ? `${toShards(shardsToListenTo)}` : "all shards"
+            }) \n Args ${JSON.stringify(args, null, 2)}`
           );
 
           let queryRoot = shardedFirestoreQuery(
@@ -527,8 +528,8 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
 
             return () => {
               console.log(`[Datastore] 🔇 unsubscribing from queued jobs`);
-              u();
               observer.complete();
+              u();
             };
           });
         },
