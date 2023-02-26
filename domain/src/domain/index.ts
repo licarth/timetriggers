@@ -17,3 +17,4 @@ export * from "./JobStatus";
 export * from "./CompletedAt";
 export * from "./QueuedAt";
 export * from "./StartedAt";
+export * from "./HttpCallStatusUpdate";

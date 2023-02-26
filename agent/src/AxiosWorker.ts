@@ -1,15 +1,17 @@
+import {
+  Clock,
+  HttpCallCompleted,
+  HttpCallErrored,
+  HttpCallResponse,
+  HttpCallStarted,
+  HttpCallStatusUpdate,
+  JobDefinition,
+  SystemClock,
+} from "@timetriggers/domain";
 import axios from "axios";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { Observable, Subscriber } from "rxjs";
-import { Clock } from "@timetriggers/domain";
-import { SystemClock } from "@timetriggers/domain";
-import { JobDefinition } from "@timetriggers/domain";
-import { HttpCallCompleted } from "./HttpCallStatusUpdate/HttpCallCompleted";
-import { HttpCallErrored } from "./HttpCallStatusUpdate/HttpCallErrored";
-import { HttpCallResponse } from "./HttpCallStatusUpdate/HttpCallResponse";
-import { HttpCallStarted } from "./HttpCallStatusUpdate/HttpCallStarted";
-import { HttpCallStatusUpdate } from "./HttpCallStatusUpdate/HttpCallStatusUpdate";
 import { Worker } from "./Worker";
 
 type AxiosWorkerProps = {

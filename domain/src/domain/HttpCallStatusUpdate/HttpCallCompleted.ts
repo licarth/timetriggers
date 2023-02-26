@@ -1,7 +1,7 @@
-import { UtcDate } from "@timetriggers/domain";
-import { taggedUnionClassCodec } from "@timetriggers/domain";
+import { taggedUnionClassCodec } from "@/iots";
 import * as Codec from "io-ts/lib/Codec.js";
 import { HttpCallResponse } from "./HttpCallResponse";
+import { UtcDate } from "@/UtcDate";
 
 export class HttpCallCompleted {
   _tag = "HttpCallCompleted" as const;

@@ -3,6 +3,7 @@ import { taggedVersionedClassCodec } from "@/iots/taggedVersionClassCodec/tagged
 import { CodecType, ProjectId } from "@/project";
 import { pipe } from "fp-ts/lib/function";
 import * as Codec from "io-ts/lib/Codec.js";
+import { HttpCallLastStatus } from "./HttpCallStatusUpdate";
 import { JobDefinition } from "./JobDefinition";
 import { JobStatus } from "./JobStatus";
 import { RegisteredAt } from "./RegisteredAt";
@@ -33,6 +34,7 @@ export class JobDocument {
       Codec.intersect(
         Codec.partial({
           projectId: ProjectId.codec,
+          lastStatusUpdate: HttpCallLastStatus.codec,
         })
       )
     );

@@ -69,6 +69,8 @@ const JobsList = () => {
   const { jobs } = useProjectJobs();
   return (
     <Stack alignItems="flex-start">
+      <JobLine key={job.jobDefinition.id} job={job} />
+
       {jobs.map((job) => (
         <JobLine key={job.jobDefinition.id} job={job} />
       ))}
