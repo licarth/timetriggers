@@ -153,42 +153,36 @@ export class InMemoryDataStore implements Datastore {
     return TE.right(undefined);
   }
 
-  markJobAsRunning(jobDefinition: JobDefinition): TE.TaskEither<any, void> {
-    const jobDocument = this.queuedJobs.get(jobDefinition.id);
+  markJobAsRunning({
+    jobId,
+  }: {
+    jobId: JobId;
+    status: JobStatus;
+  }): TE.TaskEither<any, void> {
+    const jobDocument = this.queuedJobs.get(jobId);
     if (!jobDocument) {
-      return TE.left(
-        new Error(`Job ${jobDefinition.id} not found in queued jobs`)
-      );
+      return TE.left(new Error(`Job ${jobId} not found in queued jobs`));
     }
-    this.queuedJobs.delete(jobDefinition.id);
-    this.runningJobs.set(jobDefinition.id, jobDocument);
-    const shards = this.shardsByJobId.get(jobDefinition.id);
+    this.queuedJobs.delete(jobId);
+    this.runningJobs.set(jobId, jobDocument);
+    const shards = this.shardsByJobId.get(jobId);
     // If document was sharded, remove it from map queuesJobByShardIndex.
     if (shards) {
       for (const shard of shards) {
-        this.queuesJobByShardIndex.delete(shard.toString(), jobDefinition.id);
+        this.queuesJobByShardIndex.delete(shard.toString(), jobId);
       }
     }
     return TE.right(undefined);
   }
 
-  markJobAsComplete({
-    jobDefinition,
-  }: {
-    jobDefinition: JobDefinition;
-    lastStatusUpdate: HttpCallCompleted | HttpCallErrored;
-    durationMs: number;
-    executionStartDate: Date;
-  }): TE.TaskEither<any, void> {
-    const jobDocument = this.runningJobs.get(jobDefinition.id);
+  markJobAsComplete({ jobId }: { jobId: JobId }): TE.TaskEither<any, void> {
+    const jobDocument = this.runningJobs.get(jobId);
     if (!jobDocument) {
-      return TE.left(
-        new Error(`Job ${jobDefinition.id} not found in running jobs`)
-      );
+      return TE.left(new Error(`Job ${jobId} not found in running jobs`));
     }
-    this.completedJobs.set(jobDefinition.id, jobDocument);
-    this.queuedJobs.delete(jobDefinition.id);
-    this.shardsByJobId.delete(jobDefinition.id);
+    this.completedJobs.set(jobId, jobDocument);
+    this.queuedJobs.delete(jobId);
+    this.shardsByJobId.delete(jobId);
     return TE.right(undefined);
   }
 

@@ -11,7 +11,14 @@ import { getOrReportToSentry } from "@/Sentry/getOrReportToSentry";
 import { WorkerPool } from "@/WorkerPool";
 import * as Sentry from "@sentry/node";
 import "@sentry/tracing";
-import { Clock, JobDefinition, TestClock } from "@timetriggers/domain";
+import {
+  Clock,
+  JobDefinition,
+  JobDocument,
+  StartedAt,
+  te,
+  TestClock,
+} from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
@@ -19,6 +26,7 @@ import { Datastore } from "./Datastore";
 import { InMemoryDataStore } from "./InMemoryDataStore";
 import PQueue from "p-queue";
 import { unsubscribeAll } from "./unsubscribeAll";
+import { CompletedAt } from "@timetriggers/domain";
 
 type ProcessorProps = {
   clock?: Clock;
@@ -59,8 +67,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
         const s = jobDocuments.subscribe((jobDocuments) => {
           jobDocuments.forEach((jobDocument) => {
             this.queue.add(
-              () =>
-                getOrReportToSentry(this.processJob(jobDocument.jobDefinition)),
+              () => getOrReportToSentry(this.processJob(jobDocument)),
               { priority: -jobDocument.jobDefinition.scheduledAt.getTime() }
             );
           });
@@ -79,7 +86,8 @@ export class Processor extends ClusterTopologyDatastoreAware {
       })
     );
 
-  processJob(jobDefinition: JobDefinition) {
+  processJob({ jobDefinition, status }: JobDocument) {
+    const jobId = jobDefinition.id;
     return pipe(
       TE.of({
         executionStartDate: this.clock.now(),
@@ -88,13 +96,17 @@ export class Processor extends ClusterTopologyDatastoreAware {
           op: "processJob",
           name: "Process Job",
           data: {
-            jobId: jobDefinition.id,
+            jobId,
             url: jobDefinition.http?.url,
           },
         }),
       }),
       TE.bindW("worker", () => this.workerPool.nextWorker()),
-      TE.chainFirstW(() => this.datastore.markJobAsRunning(jobDefinition)),
+      // TODO mark job as running
+      TE.chainFirstEitherKW(() =>
+        status.markAsRunning(StartedAt.fromDate(this.clock.now()))
+      ),
+      TE.chainFirstW(() => this.datastore.markJobAsRunning({ jobId, status })),
       TE.bindW(
         "lastStatusUpdate",
         // send job to worker (local or remote) and listen to result stream.
@@ -115,16 +127,16 @@ export class Processor extends ClusterTopologyDatastoreAware {
             (e) => new Error("Could not execute job")
           )
       ),
-      TE.map(({ lastStatusUpdate, executionStartDate, transaction }) => ({
-        transaction,
-        lastStatusUpdate,
-        durationMs: this.clock.now().getTime() - executionStartDate.getTime(),
-        executionStartDate,
-      })),
-      TE.chainW((args) => {
-        args.transaction.setMeasurement("durationMs", 10, "millisecond");
-        args.transaction.finish();
-        return this.datastore.markJobAsComplete({ jobDefinition, ...args });
+      TE.chainFirstEitherK(() =>
+        status.markAsCompleted(CompletedAt.fromDate(this.clock.now()))
+      ),
+      TE.chainW(({ transaction, lastStatusUpdate }) => {
+        transaction.finish();
+        return this.datastore.markJobAsComplete({
+          jobId,
+          status,
+          lastStatusUpdate,
+        });
       })
     );
   }

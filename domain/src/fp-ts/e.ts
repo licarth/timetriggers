@@ -25,6 +25,12 @@ export namespace e {
   export const split = <E, A>(arrayOfE: Array<E.Either<E, A>>) => {
     return pipe(arrayOfE, mergeFn);
   };
+
+  export const sideEffect = <T>(sideEffect: (o: T) => void) =>
+    E.chainFirstW((o: T) => {
+      sideEffect(o);
+      return E.of(void 0);
+    });
 }
 
 const mergeFn = <E, A>(eithers: E.Either<E, A>[]) => {

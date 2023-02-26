@@ -14,3 +14,6 @@ export * from "./RegisteredAt";
 export * from "./ScheduledAt";
 export * from "./Shard";
 export * from "./JobStatus";
+export * from "./CompletedAt";
+export * from "./QueuedAt";
+export * from "./StartedAt";

@@ -34,6 +34,7 @@ import {
   WaitForRegisteredJobsByRegisteredAtArgs,
 } from "./Datastore";
 import { ShardsToListenTo, toShards } from "./ShardsToListenTo";
+import * as E from "fp-ts/lib/Either.js";
 
 type State = "starting" | "running" | "stopped";
 
@@ -346,7 +347,13 @@ export class FirestoreDatastore implements Datastore {
     );
   }
 
-  markJobAsRunning(jobDefinition: JobDefinition): TE.TaskEither<any, void> {
+  markJobAsRunning({
+    jobId,
+    status,
+  }: {
+    jobId: JobId;
+    status: JobStatus;
+  }): TE.TaskEither<any, void> {
     return TE.tryCatch<Error, void>(
       async () => {
         try {
@@ -357,24 +364,22 @@ export class FirestoreDatastore implements Datastore {
           // Make sure it's not already marked as running
           return this.firestore.runTransaction(async (transaction) => {
             const docRef = this.firestore.doc(
-              `${this.rootDocumentPath}/${jobDefinition.id}`
+              `${this.rootDocumentPath}/${jobId}`
             );
             const doc = await transaction.get(docRef);
 
             if (!doc.exists) {
-              throw new Error(`Job ${jobDefinition.id} does not exist !`);
+              throw new Error(`Job ${jobId} does not exist !`);
             }
             if (doc.exists && doc.data()?.status.value !== "queued") {
               throw new Error(
-                `🔸 Job ${
-                  jobDefinition.id
-                } is not queued, cannot mark as running ! Status: ${
+                `🔸 Job ${jobId} is not queued, cannot mark as running ! Status: ${
                   doc.data()?.status.value
                 }. job has probably been taken by another instance.`
               );
             }
             transaction.update(docRef, {
-              "status.value": "running",
+              status: JobStatus.codec("firestore").encode(status),
             });
           });
         } catch (reason) {
@@ -394,7 +399,7 @@ export class FirestoreDatastore implements Datastore {
             // Report this error somehow to the user !
             // This will not be caught by the caller of this function as it's running in a setTimeout !
             console.log(
-              `[state=${this.state}] Failed to mark job as running ${jobDefinition.id}: ${reason}`
+              `[state=${this.state}] Failed to mark job as running ${jobId}: ${reason}`
             );
             throw reason;
           }
@@ -407,59 +412,60 @@ export class FirestoreDatastore implements Datastore {
   }
 
   markJobAsComplete({
-    jobDefinition,
+    jobId,
     lastStatusUpdate,
-    durationMs,
-    executionStartDate,
+    status,
   }: {
-    jobDefinition: JobDefinition;
+    jobId: JobId;
     lastStatusUpdate: HttpCallCompleted | HttpCallErrored;
-    durationMs: number;
-    executionStartDate: Date;
+    status: JobStatus;
   }) {
     return pipe(
       TE.of(lastStatusUpdate),
       TE.chainW(
         TE.tryCatchK(
           () => {
-            console.log(
-              `[Datastore] Marking job ${jobDefinition.id} as complete`
-            );
+            console.log(`[Datastore] Marking job ${jobId} as complete`);
 
-            const docRef = this.firestore.doc(
-              `${this.rootDocumentPath}/${jobDefinition.id}`
-            );
             // Make sure it's not already marked as completed
             return this.firestore.runTransaction(async (transaction) => {
-              const doc = await transaction.get(docRef);
-              if (!doc.exists) {
-                throw new Error(`Job ${jobDefinition.id} does not exist !`);
-              }
-              if (doc.exists && doc.data()?.status.value !== "running") {
-                throw new Error(
-                  `🔴 Job ${
-                    jobDefinition.id
-                  } is not running, cannot mark as completed ! Status: ${
-                    doc.data()?.status.value
-                  }. Job may have got executed twice !`
-                );
-              }
-              transaction.update(docRef, {
-                jobDefinition:
-                  JobDefinition.codec("firestore").encode(jobDefinition),
-                lastStatusUpdate:
-                  HttpCallLastStatus.codec.encode(lastStatusUpdate),
-                executionLagMs:
-                  executionStartDate.getTime() -
-                  jobDefinition.scheduledAt.getTime(),
-                durationMs,
-                "status.value": "completed",
-              });
+              const docRef = this.firestore.doc(
+                `${this.rootDocumentPath}/${jobId}`
+              );
+              return te.unsafeGetOrThrow(
+                pipe(
+                  TE.Do,
+                  TE.chainFirstW(() =>
+                    checkPreconditions({
+                      docRef,
+                      transaction,
+                      preconditions: [
+                        (jobDocument) => jobDocument.status.value === "running",
+                      ],
+                    })
+                  ),
+                  TE.bindW("executionLagMs", ({}) =>
+                    pipe(status.executionLagMs(), TE.fromEither)
+                  ),
+                  TE.bindW("durationMs", ({}) =>
+                    pipe(status.durationMs(), TE.fromEither)
+                  ),
+                  TE.map(({ executionLagMs, durationMs }) => {
+                    transaction.update(docRef, {
+                      lastStatusUpdate:
+                        HttpCallLastStatus.codec.encode(lastStatusUpdate),
+                      executionLagMs,
+                      durationMs,
+                      status: JobStatus.codec("firestore").encode(status),
+                    });
+                  })
+                )
+              );
             });
           },
           (e) => {
             return new Error(
-              `🔴 Failed to mark job ${jobDefinition.id} as complete !: ${e}`
+              `🔴 Failed to mark job ${jobId} as complete !: ${e}`
             );
           }
         )
@@ -586,6 +592,7 @@ export const queueJobDocuments = ({
           .doc(`${existingJobDocument.id}`),
         {
           "status.value": "queued",
+          "status.queuedAt": FieldValue.serverTimestamp(),
         }
       );
     });
@@ -610,3 +617,52 @@ const waitUntil = (date: Date) => {
     return () => clearTimeout(timeout);
   });
 };
+
+const checkPreconditions = ({
+  docRef,
+  preconditions,
+  transaction,
+}: {
+  preconditions: Array<(jobDocument: JobDocument) => boolean>;
+  docRef: FirebaseFirestore.DocumentReference;
+  transaction: FirebaseFirestore.Transaction;
+}) =>
+  pipe(
+    TE.Do,
+    TE.bind("docData", () =>
+      TE.tryCatch(
+        () => transaction.get(docRef),
+        (e) => "failed to get job document" as const
+      )
+    ),
+    TE.filterOrElseW(
+      ({ docData }) => docData.exists,
+      () => "job document does not exist" as const
+    ),
+    TE.chainEitherKW(({ docData }) =>
+      JobDocument.codec("firestore").decode(docData.data())
+    ),
+    TE.filterOrElseW(
+      (jobDocument) =>
+        preconditions.every((precondition) => precondition(jobDocument)),
+      (jobDocument) =>
+        `job ${jobDocument.jobDefinition.id} does not satisfy preconditions` as const
+    ),
+    TE.map(() => void 0)
+  );
+
+// const docRef = this.firestore.doc(
+//   `${this.rootDocumentPath}/${jobId}`
+// );
+// const doc = await transaction.get(docRef);
+
+// if (!doc.exists) {
+//   throw new Error(`Job ${jobId} does not exist !`);
+// }
+// return pipe(
+//   JobDocument.codec("firestore").decode(doc.data()),
+//   E.filterOrElseW(
+//     (jobDocument) => jobDocument.status.value === "running",
+//     (jobDocument) =>
+//       `🔴 Job ${jobId} is not running, cannot mark as completed ! Status: ${jobDocument.status.value}. Job may have got executed twice !`
+//   ),

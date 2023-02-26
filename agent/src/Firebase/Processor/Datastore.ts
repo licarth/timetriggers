@@ -1,9 +1,10 @@
-import { HttpCallLastStatus } from "@/HttpCallStatusUpdate";
+import { HttpCallCompleted, HttpCallLastStatus } from "@/HttpCallStatusUpdate";
 import {
   JobDefinition,
   JobDocument,
   JobId,
   JobScheduleArgs,
+  JobStatus,
   ProjectId,
   RegisteredAt,
   ScheduledAt,
@@ -135,16 +136,18 @@ export interface Datastore {
    *   - is already running.
    *   - is already complete.
    */
-  markJobAsRunning(jobDefinition: JobDefinition): TE.TaskEither<any, void>;
+  markJobAsRunning(args: {
+    jobId: JobId;
+    status: JobStatus;
+  }): TE.TaskEither<any, void>;
 
   /**
    * Marks the job as complete.
    */
   markJobAsComplete(args: {
-    jobDefinition: JobDefinition;
+    jobId: JobId;
     lastStatusUpdate: HttpCallLastStatus;
-    durationMs: number;
-    executionStartDate: Date;
+    status: JobStatus;
   }): TE.TaskEither<any, void>;
 
   close(): TE.TaskEither<any, void>;
