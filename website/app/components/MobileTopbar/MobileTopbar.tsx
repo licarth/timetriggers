@@ -86,15 +86,13 @@ export const MobileTopbar = ({ user, projects }: MobileSidebarProps) => {
                       >
                         {projects?.map((p) => (
                           <option key={p.slug} value={p.slug}>
-                            <Code>{p.slug}</Code>
+                            {p.slug}
                           </option>
                         ))}
                       </Select>
                     </>
                   )}
-                  {/* <Heading mt={8} size="md" hidden={navSize === "small"}>
-            Project <code>{selectedProjectSlug}</code>
-          </Heading> */}
+
                   <Heading size={"md"} mt={4}>
                     Navigation
                   </Heading>

@@ -1,3 +1,5 @@
+import { extendTheme } from "@chakra-ui/react";
+import { mode } from "@chakra-ui/theme-tools";
 import {
   Links,
   LiveReload,
@@ -7,8 +9,6 @@ import {
   ScrollRestoration,
   useLoaderData,
 } from "@remix-run/react";
-import { extendTheme, theme as baseTheme } from "@chakra-ui/react";
-import { mode } from "@chakra-ui/theme-tools";
 
 import {
   ChakraProvider,
@@ -21,12 +21,12 @@ import type { LinksFunction, LoaderArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node"; // Depends on the runtime you choose
 import React, { useContext, useEffect } from "react";
 
+import styled from "@emotion/styled";
 import _ from "lodash";
 import { ClientStyleContext, ServerStyleContext } from "./context";
 import { FirebaseAuthProvider } from "./contexts/FirebaseAuthContext";
 import { environmentVariable } from "./environmentVariable";
 import { initializeFirebaseWeb } from "./initializeFirebaseWeb";
-import styled from "@emotion/styled";
 
 export let links: LinksFunction = () => {
   return [
@@ -78,12 +78,14 @@ const Document = withEmotionCache(
       clientStyleData?.reset();
     }, []);
 
-    if (typeof document !== "undefined") {
-      // Execute only on client
-      initializeFirebaseWeb({
-        useEmulators: environmentVariable("PUBLIC_USE_EMULATORS") === "true",
-      });
-    }
+    useEffect(() => {
+      if (typeof document !== "undefined") {
+        // Execute only on client
+        initializeFirebaseWeb({
+          useEmulators: environmentVariable("PUBLIC_USE_EMULATORS") === "true",
+        });
+      }
+    }, []);
 
     return (
       <Html lang="en">
@@ -97,6 +99,11 @@ const Document = withEmotionCache(
               dangerouslySetInnerHTML={{ __html: css }}
             />
           ))}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `window.ENV = ${JSON.stringify(data.ENV)}`,
+            }}
+          />
         </head>
         <Body>
           {children}
@@ -104,11 +111,6 @@ const Document = withEmotionCache(
           <Scripts />
           <LiveReload />
         </Body>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `window.ENV = ${JSON.stringify(data.ENV)}`,
-          }}
-        />
       </Html>
     );
   }

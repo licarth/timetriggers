@@ -22,6 +22,7 @@ export const ProjectUsage = ({
   useEffect(() => {
     firstRender || revalidator.revalidate();
   }, [selectedProjectSlug]);
+
   return (
     <Card p={2} variant="outline">
       <Heading mb={2} size={"xs"}>

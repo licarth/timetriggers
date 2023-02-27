@@ -8,6 +8,8 @@ export namespace UtcDate {
   export const codec = (codecType: CodecType) =>
     codecType == "string" ? stringCodec : firestoreDateCodec;
 
+  export const fromDate = (d: Date) => d as UtcDate;
+
   export const stringCodec = C.make(
     pipe(
       C.string,

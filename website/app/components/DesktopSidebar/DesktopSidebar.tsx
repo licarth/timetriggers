@@ -1,7 +1,7 @@
 import { Flex } from "@chakra-ui/react";
 import { useLocation } from "@remix-run/react";
 import type { FirebaseUser, MonthlyUsage, Project } from "@timetriggers/domain";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MenuElements } from "./MenuEl";
 import type { NavSize } from "./NavItemProps";
 import { SidebarBottom } from "./SidebarBottom";
@@ -18,7 +18,12 @@ export const DesktopSidebar = ({
   projectMonthlyUsage,
 }: SidebarProps) => {
   const { pathname } = useLocation();
-  const screenWidth = typeof window !== "undefined" && window.innerWidth;
+  const [screenWidth, setScreenWidth] = useState(0);
+
+  useEffect(() => {
+    typeof window !== "undefined" && setScreenWidth(window.innerWidth);
+  }, []);
+
   const [navSize, setNavSize] = useState<NavSize>(
     screenWidth > 600 ? "large" : "small"
   );

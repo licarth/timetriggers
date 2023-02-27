@@ -11,8 +11,6 @@ import * as React from "react";
 // import { FullStoryAPI } from "react-fullstory";
 import { initializeFirebaseWeb } from "../initializeFirebaseWeb";
 
-const auth = initializeFirebaseWeb().auth;
-
 const provider = new GoogleAuthProvider();
 
 type UserState = "loading" | User | null;
@@ -31,6 +29,7 @@ const FirebaseAuthProvider: React.FC<React.PropsWithChildren> = ({
   const [user, setUser] = React.useState<UserState>("loading");
 
   React.useEffect(() => {
+    const auth = initializeFirebaseWeb().auth;
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user && !user.isAnonymous) {
         // FullStoryAPI("identify", user.uid, {
@@ -76,6 +75,7 @@ type UseFirebaseAuth = {
 };
 
 function useFirebaseAuth(): UseFirebaseAuth {
+  const auth = initializeFirebaseWeb().auth;
   const context = React.useContext(FirebaseAuthContext);
   if (context === undefined) {
     throw new Error(

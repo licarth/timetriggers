@@ -1,21 +1,16 @@
 import {
-  Box,
-  CardHeader,
-  Heading,
-  ListItem,
-  ModalProps,
-  OrderedList,
-  UnorderedList,
-} from "@chakra-ui/react";
-import {
   Alert,
   AlertIcon,
+  Box,
   Button,
   Card,
   CardBody,
+  CardHeader,
   Code,
+  Heading,
   HStack,
   IconButton,
+  ListItem,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -23,6 +18,8 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  ModalProps,
+  OrderedList,
   Stack,
   Table,
   Tbody,
@@ -31,6 +28,7 @@ import {
   Th,
   Thead,
   Tr,
+  UnorderedList,
   useColorModeValue,
   useDisclosure,
   useToast,
@@ -45,23 +43,26 @@ import {
   FirebaseUser,
   Project,
   storeApiKey,
+  UtcDate,
 } from "@timetriggers/domain";
-import { addMinutes, format } from "date-fns";
+import { format } from "date-fns";
+import { flow } from "fp-ts/lib/function";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as C from "io-ts/lib/Codec";
 import { draw } from "io-ts/lib/Decoder";
+import _ from "lodash";
 import { useState } from "react";
 import { BsFillTrash2Fill } from "react-icons/bs";
 import { FaCopy } from "react-icons/fa";
 import { match } from "ts-pattern";
+import { CodeExample } from "~/components/CodeExample";
 import { CopyToClipboardButton } from "~/components/CopyToClipboardButton";
 import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte.server";
-import _ from "lodash";
-import { CodeExample } from "~/components/CodeExample";
+import * as E from "fp-ts/lib/Either";
 
 export const loader: LoaderFunction = async ({ params, request }) => {
   return loaderFromRte(
@@ -79,6 +80,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
           return {
             project: Project.codec("string").encode(project),
             user: FirebaseUser.codec.encode(user),
+            now: UtcDate.codec("string").encode(UtcDate.fromDate(new Date())),
           };
         } else {
           return redirect("..");
@@ -130,15 +132,18 @@ export const action: ActionFunction = ({ params, request }) =>
 
 const useIoTsLoaderDataOrThrow = <I, O, A>(codec: C.Codec<I, O, A>) => {
   const data = useLoaderData();
-  return e.unsafeGetOrThrow(pipe(data, codec.decode));
+  return e.unsafeGetOrThrow(
+    pipe(data, codec.decode, E.mapLeft(flow(draw, console.error)))
+  );
 };
 
 const ApiKeyUsageModal = ({
   onClose,
   isOpen,
   apiKey,
+  now,
 }: Pick<ModalProps, "isOpen"> &
-  Pick<ModalProps, "onClose"> & { apiKey: ApiKey }) => {
+  Pick<ModalProps, "onClose"> & { apiKey: ApiKey; now: Date }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size={{ base: "full", md: "6xl" }}>
       <ModalOverlay />
@@ -192,10 +197,11 @@ const ApiKeyUsageModal = ({
             )}
 
             <Heading size={"sm"}>Usage examples</Heading>
-            <CodeExample example="curl" apiKey={apiKey.value} />
+            <CodeExample example="curl" apiKey={apiKey.value} date={now} />
             <CodeExample
               example="node-fetch-typescript"
               apiKey={apiKey.value}
+              date={now}
             />
           </Stack>
         </ModalBody>
@@ -210,10 +216,11 @@ const ApiKeyUsageModal = ({
 
 const Document = () => {
   const bgColor = useColorModeValue("white", "gray.900");
-  const { project, user } = useIoTsLoaderDataOrThrow(
+  const { project, user, now } = useIoTsLoaderDataOrThrow(
     C.struct({
       project: Project.codec("string"),
       user: FirebaseUser.codec,
+      now: UtcDate.codec("string"),
     })
   );
   const [isCreatingKey, setIsCreatingKey] = useState(false);
@@ -340,7 +347,12 @@ const Document = () => {
         </Table>
       </Card>
       {apiKey && (
-        <ApiKeyUsageModal isOpen={isOpen} onClose={onClose} apiKey={apiKey} />
+        <ApiKeyUsageModal
+          isOpen={isOpen}
+          onClose={onClose}
+          apiKey={apiKey}
+          now={now}
+        />
       )}
       <Card>
         <CardHeader>
@@ -383,10 +395,15 @@ const Document = () => {
             <CodeExample
               example="node-fetch-typescript"
               apiKey={firstApiKey?.value}
+              date={now}
             />
           </Box>
           <Box mt={6}>
-            <CodeExample example="curl" apiKey={firstApiKey?.value} />
+            <CodeExample
+              example="curl"
+              apiKey={firstApiKey?.value}
+              date={now}
+            />
           </Box>
         </CardBody>
       </Card>

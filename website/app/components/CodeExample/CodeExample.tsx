@@ -5,9 +5,11 @@ import { CodeSample } from "./CodeSample";
 export const CodeExample = ({
   example,
   apiKey,
+  date,
 }: {
   example: "curl" | "node-fetch-typescript";
   apiKey?: string;
+  date: Date;
 }) => {
   return (
     <CodeSample
@@ -15,7 +17,7 @@ export const CodeExample = ({
         .c({
           apiKey: apiKey || "<YOUR_API_KEY>",
           formattedDate: format(
-            addMinutes(new Date(), 1),
+            addMinutes(date, 1),
             "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"
           ),
         })
