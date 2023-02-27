@@ -6,7 +6,7 @@ import { JobDefinition } from "@timetriggers/domain";
 import { JobId } from "@timetriggers/domain";
 import { Datastore } from "./Processor/Datastore";
 
-const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(15);
+const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(11);
 
 export type DatastoreApiProps = AbstractApiProps & {
   datastore: Datastore;

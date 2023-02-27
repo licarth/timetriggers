@@ -40,7 +40,7 @@ describe(`Firebase Distributed`, () => {
   });
 
   it(`should schedule ${NUM_JOBS} jobs and execute them one by one`, async () => {
-    const rootDocumentPath = `test/${testRunId}`;
+    const rootDocumentPath = `tests/test-${testRunId}/distributed`;
     const clock = new SystemClock();
     const datastore = FirestoreDatastore.factory({ clock, rootDocumentPath });
     const api = new DatastoreApi({

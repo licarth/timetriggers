@@ -12,7 +12,7 @@ export function emulatorFirestore({
   console.log("🔸 Using Emulators in the Agent");
   process.env["FIRESTORE_EMULATOR_HOST"] = "localhost:8080";
   const initializationOptions = {
-    projectId: "doi-test-2dc76",
+    projectId: "doi-production",
   };
   const app = firebaseInit(initializationOptions, appName || randomString());
   const firestore = getFirestore(app);
