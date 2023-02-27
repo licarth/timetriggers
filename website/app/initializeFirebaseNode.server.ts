@@ -62,5 +62,10 @@ export function initializeApp({
     });
   }
 
-  return { app, firestore, auth };
+  return {
+    app,
+    firestore,
+    auth,
+    namespace: environmentVariable("PUBLIC_NAMESPACE"),
+  };
 }

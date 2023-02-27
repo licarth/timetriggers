@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail as sendPasswordResetEmailFirebase,
+  reload,
 } from "@firebase/auth";
 import * as React from "react";
 // import { FullStoryAPI } from "react-fullstory";
@@ -63,6 +64,7 @@ type SendPasswordResetEmail = (args: { email: string }) => Promise<void>;
 
 type UseFirebaseAuth = {
   user: User | null;
+  reloadUserData: () => Promise<void>;
   googleSignIn: () => void;
   anonymousSignIn: () => void;
   emailPasswordSignIn: (args: {
@@ -82,6 +84,14 @@ function useFirebaseAuth(): UseFirebaseAuth {
       "useFirebaseAuth must be used within a FirebaseAuthProvider"
     );
   }
+
+  const reloadUserData = () => {
+    if (auth.currentUser) {
+      return auth.currentUser.getIdTokenResult(true);
+    } else {
+      throw new Error("Cannot reload user data when user is not logged in");
+    }
+  };
 
   const emailPasswordSignIn = ({
     email,
@@ -124,6 +134,7 @@ function useFirebaseAuth(): UseFirebaseAuth {
   const loading = context.user === "loading";
   return {
     user: loading ? null : (context.user as User),
+    reloadUserData,
     anonymousSignIn,
     googleSignIn,
     emailPasswordSignIn,

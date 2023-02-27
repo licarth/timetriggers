@@ -1,4 +1,15 @@
-import { HStack, Spinner, Stack, Tag, Text, Tooltip } from "@chakra-ui/react";
+import {
+  Alert,
+  AlertIcon,
+  Box,
+  Code,
+  HStack,
+  Spinner,
+  Stack,
+  Tag,
+  Text,
+  Tooltip,
+} from "@chakra-ui/react";
 import { useLoaderData } from "@remix-run/react";
 import type { LoaderFunction } from "@remix-run/server-runtime";
 import type { JobDocument } from "@timetriggers/domain";
@@ -15,6 +26,7 @@ import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { loaderFromRte } from "~/utils/loaderFromRte.server";
+import _ from "lodash";
 
 const wireCodec = C.struct({ project: Project.codec("string") });
 
@@ -91,13 +103,36 @@ const JobLine = ({ job }: { job: JobDocument }) => (
 );
 
 const JobsList = () => {
-  const { jobs } = useProjectJobs();
+  const state = useProjectJobs();
+
+  if (state.loading) {
+    return <Spinner />;
+  }
+
+  const { jobs, errors } = state;
+
   return (
-    <Stack alignItems="flex-start">
-      {jobs.map((job) => (
-        <JobLine key={job.jobDefinition.id} job={job} />
-      ))}
-    </Stack>
+    <>
+      {
+        <Stack alignItems="flex-start">
+          {!_.isEmpty(errors) && (
+            <Alert status="error">
+              <Stack alignItems={"flex-start"}>
+                <HStack>
+                  <AlertIcon />
+                  <Text>There was an error listing your jobs:</Text>
+                </HStack>
+                {<Code>{errors}</Code>}
+              </Stack>
+            </Alert>
+          )}
+
+          {jobs.map((job) => (
+            <JobLine key={job.jobDefinition.id} job={job} />
+          ))}
+        </Stack>
+      }
+    </>
   );
 };
 

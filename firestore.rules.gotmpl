@@ -7,7 +7,7 @@ service cloud.firestore {
     }
     match /namespaces/{{.Env.NAMESPACE}}/jobs/{jobId} {
       allow list, read: if request.auth != null &&
-        resource.data.projectId in request.auth.token.owner_projects.split(',')
+        resource.data.projectId in request.auth.token.projects.is_owner
     }
     match /{document=**} {
       allow read, write: if false;

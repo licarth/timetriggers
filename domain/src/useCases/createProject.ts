@@ -48,11 +48,21 @@ export const createProject = ({
               );
               t.set(projectRef, Project.codec("firestore").encode(project));
             });
-            const owner_projects = ((await auth.getUser(creator.id))
-              .customClaims?.owner_projects || "") as string;
-            await auth.setCustomUserClaims(creator.id, {
-              owner_projects: `${owner_projects},${projectId}`,
-            });
+
+            const projects = (await auth.getUser(creator.id)).customClaims
+              ?.projects || {
+              is_owner: [],
+              can_read: [],
+              can_edit: [],
+            };
+
+            const claims = {
+              projects: {
+                ...projects,
+                is_owner: [...projects.is_owner, projectId],
+              },
+            };
+            await auth.setCustomUserClaims(creator.id, claims);
           },
           (reason) => {
             //@ts-ignore

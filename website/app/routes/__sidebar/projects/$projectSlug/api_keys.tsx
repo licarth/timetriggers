@@ -33,7 +33,12 @@ import {
   useDisclosure,
   useToast,
 } from "@chakra-ui/react";
-import { useLoaderData, useNavigate } from "@remix-run/react";
+import {
+  useLoaderData,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "@remix-run/react";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import { redirect } from "@remix-run/server-runtime";
 import {
@@ -52,7 +57,7 @@ import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as C from "io-ts/lib/Codec";
 import { draw } from "io-ts/lib/Decoder";
 import _ from "lodash";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BsFillTrash2Fill } from "react-icons/bs";
 import { FaCopy } from "react-icons/fa";
 import { match } from "ts-pattern";
@@ -63,6 +68,7 @@ import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte.server";
 import * as E from "fp-ts/lib/Either";
+import { useFirebaseAuth } from "~/contexts";
 
 export const loader: LoaderFunction = async ({ params, request }) => {
   return loaderFromRte(
@@ -76,7 +82,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
         getProjectBySlugOrRedirect({ projectSlug }, "..")
       ),
       RTE.map(({ user, project }) => {
-        if (project && project.isReader(user.id)) {
+        if (project && project.hasReadAccess(user.id)) {
           return {
             project: Project.codec("string").encode(project),
             user: FirebaseUser.codec.encode(user),
@@ -215,6 +221,21 @@ const ApiKeyUsageModal = ({
 };
 
 const Document = () => {
+  const { loading, reloadUserData } = useFirebaseAuth();
+  // check params
+  const location = useLocation();
+
+  useEffect(() => {
+    const getParams = new URLSearchParams(location.search);
+    if (!loading && getParams.get("reloadUser") === "true") {
+      console.log("reloading user");
+      reloadUserData().then(() => {
+        console.log("reloaded user");
+        window.history.replaceState({}, document.title, location.pathname);
+      });
+    }
+  }, [loading]);
+
   const bgColor = useColorModeValue("white", "gray.900");
   const { project, user, now } = useIoTsLoaderDataOrThrow(
     C.struct({

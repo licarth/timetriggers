@@ -1,5 +1,4 @@
-import { Button, Code, Container, Stack, Text } from "@chakra-ui/react";
-import { Logo } from "~/components/Logo";
+import { Button, Code, Stack, Text } from "@chakra-ui/react";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import { redirect } from "@remix-run/server-runtime";
 import {
@@ -10,15 +9,16 @@ import {
 } from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
+import { useLoaderData } from "react-router";
 import {
   adjectives,
   animals,
   colors,
   uniqueNamesGenerator,
 } from "unique-names-generator";
+import { Logo } from "~/components/Logo";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte.server";
-import { useLoaderData } from "react-router";
 
 export const loader: LoaderFunction = ({ request }) =>
   loaderFromRte(
@@ -69,7 +69,7 @@ export const action: ActionFunction = ({ params, request }) =>
           creator: creator.id,
         })
       ),
-      RTE.map(({ slug }) => redirect(`/projects/${slug}`))
+      RTE.map(({ slug }) => redirect(`/projects/${slug}?reloadUser=true`))
     )
   );
 

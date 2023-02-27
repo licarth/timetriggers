@@ -25,15 +25,15 @@ export class Project {
     this.apiKeys = props.apiKeys;
   }
 
-  isReader(userId: FirebaseUserId) {
+  hasReadAccess(userId: FirebaseUserId) {
     return (
       this.isOwner(userId) ||
-      this.isEditor(userId) ||
+      this.hasEditAccess(userId) ||
       this.editorIds?.some((editorId) => editorId.id === userId.id)
     );
   }
 
-  isEditor(userId: FirebaseUserId) {
+  hasEditAccess(userId: FirebaseUserId) {
     return (
       this.isOwner(userId) ||
       this.readerIds?.some((readerId) => readerId.id === userId.id)
