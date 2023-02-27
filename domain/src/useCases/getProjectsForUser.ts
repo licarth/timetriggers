@@ -21,7 +21,6 @@ export const getProjectsForUser = (userId: FirebaseUserId) =>
         async () => {
           const serializedUserId = FirebaseUserId.codec.encode(userId);
           const user = await auth.getUser(serializedUserId.id);
-          // console.log(user);
           const ownedProjects = firestore
             .collection(`/namespaces/${namespace}/projects`)
             .where("ownerId.id", "==", serializedUserId.id);

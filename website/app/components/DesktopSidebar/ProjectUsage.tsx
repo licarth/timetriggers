@@ -15,7 +15,8 @@ export const ProjectUsage = ({
   selectedProjectSlug,
   hidden,
 }: ProjectUsageArgs) => {
-  const u = usage?.getScheduleUsageForYearMonth(2023, 2) || 0;
+  const now = new Date();
+  const u = usage?.getScheduleUsageForYearMonth(2023, now.getMonth() + 1) || 0;
   const requestMonthlyQuota = 500;
   let revalidator = useRevalidator();
   const firstRender = useFirstRender();
@@ -28,7 +29,7 @@ export const ProjectUsage = ({
   return (
     <Card p={2} variant="outline" hidden={hidden}>
       <Heading mb={2} size={"xs"}>
-        Api Quota Usage
+        Api Quota Usage ({now.toLocaleString("default", { month: "short" })})
       </Heading>
       <Skeleton height="20px" hidden={revalidator.state === "idle"} />
       {revalidator.state === "idle" && (

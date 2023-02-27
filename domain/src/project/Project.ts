@@ -4,7 +4,7 @@ import { fromClassCodec } from "@iots";
 import { ProjectOwnerId } from "./ProjectOwnerId";
 import { ApiKey } from "./ApiKey";
 import { FirebaseUserId } from "./FirebaseUserId";
-import { CodecType } from "./CodecType";
+import { CodecType } from "../iots/CodecType";
 import { ProjectSlug } from "./ProjectSlug";
 import { ProjectId } from "./ProjectId";
 

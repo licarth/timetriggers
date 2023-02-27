@@ -4,7 +4,7 @@ import { fromClassCodec } from "@iots";
 import { FirebaseUserId } from "./FirebaseUserId";
 import { randomString } from "@/test/randomString";
 import { UtcDate } from "@/UtcDate";
-import { CodecType } from "./CodecType";
+import { CodecType } from "../iots/CodecType";
 
 export class ApiKey {
   value;

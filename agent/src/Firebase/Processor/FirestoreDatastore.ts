@@ -609,13 +609,6 @@ const indent = (str: string, spaces = 2) => {
     .join("\n");
 };
 
-const waitUntil = (date: Date) => {
-  return new Promise((resolve) => {
-    const timeout = setTimeout(resolve, date.getTime() - Date.now());
-    return () => clearTimeout(timeout);
-  });
-};
-
 const checkPreconditions = ({
   docRef,
   preconditions,

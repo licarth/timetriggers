@@ -40,7 +40,7 @@ export const getProjectByApiKey = ({
     ),
     RTE.filterOrElseW(
       (d) => d.length < 2,
-      () => `Multiple projects found for slug ${apiKeyValue}`
+      () => `Multiple projects found for api key ${apiKeyValue}`
     ),
     RTE.map((d) => pipe(d[0].data())),
     RTE.chainEitherKW((d) =>

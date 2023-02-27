@@ -1,5 +1,5 @@
 export * from "./ApiKey";
-export * from "./CodecType";
+export * from "../iots/CodecType";
 export * from "./FirebaseUser";
 export * from "./FirebaseUserId";
 export * from "./Organization";
