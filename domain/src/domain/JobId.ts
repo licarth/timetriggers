@@ -4,7 +4,7 @@ import * as Codec from "io-ts/lib/Codec.js";
 export namespace JobId {
   export const codec = stringOpaqueCodec("JobId");
   export const factory = (): JobId => {
-    return `job-${randomString(16)}` as JobId;
+    return `${randomString(32)}` as JobId;
   };
 }
 
