@@ -1,6 +1,6 @@
 import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
-import { ProjectId, Shard } from "@timetriggers/domain";
+import { JobScheduleArgs, ProjectId, Shard } from "@timetriggers/domain";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { JobDefinition } from "@timetriggers/domain";
 import { JobId } from "@timetriggers/domain";
@@ -20,7 +20,7 @@ export class DatastoreApi extends AbstractApi {
     this.datastore = props.datastore;
   }
 
-  schedule(args: Omit<JobDefinition, "id">, projectId?: ProjectId) {
+  schedule(args: JobScheduleArgs, projectId?: ProjectId) {
     return this.datastore.schedule(
       args,
       (jobId: JobId) =>

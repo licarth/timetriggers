@@ -1,4 +1,4 @@
-import { JobDocument, TestClock } from "@timetriggers/domain";
+import { JobDocument, JobScheduleArgs, TestClock } from "@timetriggers/domain";
 import { JobDefinition } from "@timetriggers/domain";
 import { ScheduledAt } from "@timetriggers/domain";
 import { Shard } from "@timetriggers/domain";
@@ -19,7 +19,7 @@ describe("InMemoryDataStore", () => {
       });
       await te.unsafeGetOrThrow(
         datastore.schedule(
-          JobDefinition.factory({
+          JobScheduleArgs.factory({
             scheduledAt: ScheduledAt.fromDate(
               addMilliseconds(clock.now(), 1000)
             ),
@@ -53,7 +53,7 @@ describe("InMemoryDataStore", () => {
       });
       await te.unsafeGetOrThrow(
         datastore.schedule(
-          JobDefinition.factory({
+          JobScheduleArgs.factory({
             scheduledAt: ScheduledAt.fromDate(
               addMilliseconds(clock.now(), 1000)
             ),
@@ -88,12 +88,12 @@ describe("Sharded InMemoryDatastore", () => {
       });
       await Promise.all([
         te.unsafeGetOrThrow(
-          datastore.schedule(JobDefinition.factory({ clock }), (id) => [
+          datastore.schedule(JobScheduleArgs.factory({ clock }), (id) => [
             Shard.of(0, 2),
           ])
         ),
         te.unsafeGetOrThrow(
-          datastore.schedule(JobDefinition.factory({ clock }), (id) => [
+          datastore.schedule(JobScheduleArgs.factory({ clock }), (id) => [
             Shard.of(1, 2),
           ])
         ),
@@ -121,12 +121,12 @@ describe("Sharded InMemoryDatastore", () => {
       });
       await Promise.all([
         te.unsafeGetOrThrow(
-          datastore.schedule(JobDefinition.factory({ clock }), (id) => [
+          datastore.schedule(JobScheduleArgs.factory({ clock }), () => [
             Shard.of(0, 2),
           ])
         ),
         te.unsafeGetOrThrow(
-          datastore.schedule(JobDefinition.factory({ clock }), (id) => [
+          datastore.schedule(JobScheduleArgs.factory({ clock }), () => [
             Shard.of(1, 2),
           ])
         ),

@@ -1,3 +1,4 @@
+import { Clock } from "@/Clock";
 import { CodecType } from "@/project";
 import { fromClassCodec } from "@iots";
 import { pipe } from "fp-ts/lib/function.js";
@@ -12,6 +13,10 @@ export class JobScheduleArgs {
   constructor(props: JobScheduleHttpArgsProps) {
     this.scheduledAt = props.scheduledAt;
     this.http = props.http;
+  }
+
+  noizyScheduledAt() {
+    this.scheduledAt.setMilliseconds(Math.random() * 1000);
   }
 
   static propsCodec = (codecType: CodecType) =>
@@ -32,9 +37,11 @@ export class JobScheduleArgs {
       Codec.compose(fromClassCodec(JobScheduleArgs))
     );
 
-  static factory = (props: Partial<JobScheduleHttpArgsProps> = {}) => {
+  static factory = (
+    props: Partial<JobScheduleHttpArgsProps> & { clock?: Clock } = {}
+  ) => {
     return new JobScheduleArgs({
-      scheduledAt: props.scheduledAt || ScheduledAt.factory(),
+      scheduledAt: props.scheduledAt || ScheduledAt.factory(props.clock?.now()),
       http:
         props.http ||
         Http.factory({
@@ -47,3 +54,8 @@ export class JobScheduleArgs {
 export type JobScheduleHttpArgsProps = Codec.TypeOf<
   ReturnType<typeof JobScheduleArgs.propsCodec>
 >;
+
+const floorAtSecond = (date: Date) => {
+  date.setMilliseconds(0);
+  return date;
+};

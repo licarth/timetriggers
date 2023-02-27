@@ -90,12 +90,14 @@ export const initializeEndpoints = ({
           )
         ),
         RTE.chainFirstW(
-          ({ jobScheduleArgs, project: { id: projectId } }) =>
-            pipe(
+          ({ jobScheduleArgs, project: { id: projectId } }) => {
+            jobScheduleArgs.noizyScheduledAt();
+            return pipe(
               api.schedule(jobScheduleArgs, projectId),
               RTE.fromTaskEither,
               rte.sideEffect((jobId) => res.send({ success: true, jobId }))
-            )
+            );
+          }
           // Todo handle errors due to scheduling
         ),
         RTE.mapLeft((error) => {
