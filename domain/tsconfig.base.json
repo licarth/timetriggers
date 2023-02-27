@@ -16,7 +16,8 @@
       "@iots/*": ["src/iots/*"]
     },
     "sourceMap": true,
-    "declaration": true
+    "declaration": true,
+    "declarationMap": true
   },
   "include": ["src/**/*"],
   "ts-node": {
