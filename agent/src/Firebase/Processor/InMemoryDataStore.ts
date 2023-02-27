@@ -170,7 +170,6 @@ export class InMemoryDataStore implements Datastore {
     status: JobStatus;
   }): TE.TaskEither<any, void> {
     const jobDocument = this.queuedJobs.get(jobId);
-    console.log("queuedJobs: ", this.queuedJobs);
     if (!jobDocument) {
       return TE.left(new Error(`Job ${jobId} not found in queued jobs`));
     }
