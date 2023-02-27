@@ -1,12 +1,15 @@
 import {
   Clock,
+  CompletedAt,
   JobDefinition,
   JobDocument,
   JobId,
   JobScheduleArgs,
   JobStatus,
+  QueuedAt,
   RegisteredAt,
   Shard,
+  StartedAt,
   SystemClock,
 } from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function.js";
@@ -49,7 +52,6 @@ export class InMemoryDataStore implements Datastore {
       toEntries(props.registeredJobs)
     );
     this.queuedJobs = new Map<JobId, JobDocument>(toEntries(props.queuedJobs));
-    console.log("queuedJobs: ", this.queuedJobs);
     this.runningJobs = new Map<JobId, JobDocument>(
       toEntries(props.runningJobs)
     );
@@ -155,6 +157,7 @@ export class InMemoryDataStore implements Datastore {
         );
       }
       this.registeredJobs.delete(jobDefinition.id);
+      jobDocument.status.enqueue(QueuedAt.fromDate(this.clock.now()));
       this.queuedJobs.set(jobDefinition.id, jobDocument);
     });
     return TE.right(undefined);
@@ -172,6 +175,7 @@ export class InMemoryDataStore implements Datastore {
       return TE.left(new Error(`Job ${jobId} not found in queued jobs`));
     }
     this.queuedJobs.delete(jobId);
+    jobDocument.status.markAsRunning(StartedAt.fromDate(this.clock.now()));
     this.runningJobs.set(jobId, jobDocument);
     const shards = this.shardsByJobId.get(jobId);
     // If document was sharded, remove it from map queuesJobByShardIndex.
@@ -188,6 +192,7 @@ export class InMemoryDataStore implements Datastore {
     if (!jobDocument) {
       return TE.left(new Error(`Job ${jobId} not found in running jobs`));
     }
+    jobDocument.status.markAsCompleted(CompletedAt.fromDate(this.clock.now()));
     this.completedJobs.set(jobId, jobDocument);
     this.runningJobs.delete(jobId);
     this.shardsByJobId.delete(jobId);

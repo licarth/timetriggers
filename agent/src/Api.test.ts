@@ -20,7 +20,7 @@ import { Scheduler } from "./Firebase/Processor/Scheduler.js";
 import { te } from "./fp-ts/te.js";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
 
-jest.setTimeout(15000);
+jest.setTimeout(5000);
 
 const randomString = (length: number) =>
   Math.random()
@@ -142,4 +142,4 @@ describe(`Api tests`, () => {
   }
 });
 
-const rootDocumentPathFromNs = (namespace: string) => `${namespace}`;
+const rootDocumentPathFromNs = (namespace: string) => `tests/${namespace}`;

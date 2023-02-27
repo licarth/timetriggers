@@ -24,6 +24,11 @@ export class JobStatus {
     this.completedAt = props.completedAt;
   }
 
+  enqueue(queuedAt: QueuedAt) {
+    this.value = "queued";
+    this.queuedAt = queuedAt;
+  }
+
   markAsRunning(startedAt: StartedAt) {
     return pipe(
       this,

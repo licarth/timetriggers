@@ -216,7 +216,7 @@ export class FirestoreDatastore implements Datastore {
               .map(({ doc }) => doc);
 
             addedDocs.length > 0 &&
-              console.log(
+              console.debug(
                 `Jobs : \n`,
                 addedDocs
                   .map((doc) =>
@@ -225,7 +225,7 @@ export class FirestoreDatastore implements Datastore {
                   .join("\n")
               );
 
-            console.log(
+            console.debug(
               addedDocs
                 .map(
                   (doc) =>
