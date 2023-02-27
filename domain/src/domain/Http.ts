@@ -23,6 +23,11 @@ export class Http {
     )
   );
 
+  domain() {
+    const url = new URL(this.url);
+    return url.hostname;
+  }
+
   static codec = pipe(Http.propsCodec, Codec.compose(fromClassCodec(Http)));
 
   static factory = (props: Partial<HttpProps> = {}) =>

@@ -1,5 +1,5 @@
-import { HttpCallCompleted, HttpCallLastStatus } from "@/HttpCallStatusUpdate";
 import {
+  HttpCallLastStatus,
   JobDefinition,
   JobDocument,
   JobId,

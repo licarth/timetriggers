@@ -1,12 +1,10 @@
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
 import { e, te } from "@/fp-ts";
 import {
+  Clock,
   HttpCallCompleted,
   HttpCallErrored,
   HttpCallLastStatus,
-} from "@/HttpCallStatusUpdate";
-import {
-  Clock,
   JobDefinition,
   JobDocument,
   JobId,

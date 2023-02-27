@@ -6,7 +6,7 @@
     "@sentry/tracing": "^7.35.0",
     "@timetriggers/domain": "file:../domain",
     "@types/jest": "^29.2.4",
-    "axios": "^1.2.2",
+    "axios": "^1.3.4",
     "chalk": "^5.2.0",
     "consistent-hash": "^1.1.1",
     "consistent-hashing": "^0.3.0",

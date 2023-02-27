@@ -16,12 +16,14 @@ export class JobDocument {
   jobDefinition;
   status;
   shards;
+  lastStatusUpdate;
 
   constructor(props: JobDocumentProps) {
     this._props = props;
     this.jobDefinition = props.jobDefinition;
     this.status = props.status;
     this.shards = props.shards;
+    this.lastStatusUpdate = props.lastStatusUpdate;
   }
 
   static propsCodec = (codecType: CodecType) =>
