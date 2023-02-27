@@ -49,6 +49,7 @@ export class InMemoryDataStore implements Datastore {
       toEntries(props.registeredJobs)
     );
     this.queuedJobs = new Map<JobId, JobDocument>(toEntries(props.queuedJobs));
+    console.log("queuedJobs: ", this.queuedJobs);
     this.runningJobs = new Map<JobId, JobDocument>(
       toEntries(props.runningJobs)
     );
@@ -62,6 +63,13 @@ export class InMemoryDataStore implements Datastore {
   }
 
   static factory(props: Partial<InMemoryDataStoreProps> & { clock: Clock }) {
+    props.queuedJobs?.forEach((j) => {
+      j.status = new JobStatus({
+        registeredAt: RegisteredAt.fromDate(props.clock.now()),
+        value: "queued",
+      });
+    });
+
     return new InMemoryDataStore({
       clock: props.clock,
       pollingInterval: props.pollingInterval || 1000,
@@ -159,6 +167,7 @@ export class InMemoryDataStore implements Datastore {
     status: JobStatus;
   }): TE.TaskEither<any, void> {
     const jobDocument = this.queuedJobs.get(jobId);
+    console.log("queuedJobs: ", this.queuedJobs);
     if (!jobDocument) {
       return TE.left(new Error(`Job ${jobId} not found in queued jobs`));
     }
@@ -180,7 +189,7 @@ export class InMemoryDataStore implements Datastore {
       return TE.left(new Error(`Job ${jobId} not found in running jobs`));
     }
     this.completedJobs.set(jobId, jobDocument);
-    this.queuedJobs.delete(jobId);
+    this.runningJobs.delete(jobId);
     this.shardsByJobId.delete(jobId);
     return TE.right(undefined);
   }
@@ -267,10 +276,6 @@ export class InMemoryDataStore implements Datastore {
       this.jobsMatchingShard(this.queuedJobs, shardsToListenTo),
       (i) => i.jobDefinition.scheduledAt.getTime()
     );
-    // remove these from the queue
-    jobs.forEach((job) => {
-      this.queuedJobs.delete(job.jobDefinition.id);
-    });
 
     if (jobs.length > 0) {
       observer.next(jobs);

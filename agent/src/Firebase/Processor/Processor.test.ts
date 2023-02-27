@@ -39,7 +39,7 @@ const fakeWorkerPool: WorkerPool = {
 };
 
 describe("Processor (not sharded)", () => {
-  it.only("should process single job in queue", async () => {
+  it("should process single job in queue", async () => {
     const callbackReceiver = await CallbackReceiver.factory();
 
     const clock = new TestClock();
@@ -129,5 +129,7 @@ describe("Processor (not sharded)", () => {
 });
 
 describe("Processor sharded", () => {
-  it("should process job in its shard", () => {});
+  it.skip("should process job in its shard", () => {
+    // TODO
+  });
 });
