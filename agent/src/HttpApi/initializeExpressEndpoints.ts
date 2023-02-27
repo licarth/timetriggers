@@ -42,6 +42,9 @@ export const initializeEndpoints = ({
     .all("/schedule", async (req, res) => {
       const url = req.headers["x-timetriggers-url"] as string;
       const apiKeyValue = (req.headers["x-timetriggers-key"] as string) || "";
+      const options =
+        ((req.headers["x-timetriggers-options"] as string) || "").split(",") ||
+        [];
 
       await pipe(
         RTE.Do,
@@ -91,7 +94,7 @@ export const initializeEndpoints = ({
         ),
         RTE.chainFirstW(
           ({ jobScheduleArgs, project: { id: projectId } }) => {
-            jobScheduleArgs.noizyScheduledAt();
+            options.includes("no_noise") || jobScheduleArgs.noizyScheduledAt();
             return pipe(
               api.schedule(jobScheduleArgs, projectId),
               RTE.fromTaskEither,
