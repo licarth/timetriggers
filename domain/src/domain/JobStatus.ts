@@ -8,6 +8,7 @@ import { StartedAt } from "./StartedAt";
 import { CompletedAt } from "./CompletedAt";
 import * as E from "fp-ts/lib/Either.js";
 import { e } from "@/fp-ts";
+import { ScheduledAt } from "./ScheduledAt";
 
 export class JobStatus {
   value;
@@ -57,7 +58,7 @@ export class JobStatus {
     );
   }
 
-  executionLagMs() {
+  executionLagMs(scheduledAt: ScheduledAt) {
     return pipe(
       this,
       E.fromPredicate(
@@ -68,8 +69,8 @@ export class JobStatus {
         ({ startedAt }) => !!startedAt,
         () => "JobStatus startedAt is not set" as const
       ),
-      E.map(({ startedAt, registeredAt }) => {
-        return startedAt!.getTime() - registeredAt.getTime();
+      E.map(({ startedAt }) => {
+        return startedAt!.getTime() - scheduledAt.getTime();
       })
     );
   }

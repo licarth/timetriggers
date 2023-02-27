@@ -433,20 +433,26 @@ export class FirestoreDatastore implements Datastore {
               return te.unsafeGetOrThrow(
                 pipe(
                   TE.Do,
-                  TE.chainFirstW(() =>
+                  TE.bindW("jobDocument", () =>
                     checkPreconditions({
                       docRef,
                       transaction,
                       preconditions: [
                         (jobDocument) => ({
                           test: jobDocument.status.value === "running",
-                          errorMessage: `should be running, is ${jobDocument.status.value} instead.`,
+                          errorMessage: `should be running, is ${jobDocument.status.value} instead. 🔴 Job may have been executed twice !`,
                         }),
                       ],
                     })
                   ),
-                  TE.bindW("executionLagMs", ({}) =>
-                    pipe(status.executionLagMs(), TE.fromEither)
+                  TE.bindW(
+                    "executionLagMs",
+                    ({
+                      jobDocument: {
+                        jobDefinition: { scheduledAt },
+                      },
+                    }) =>
+                      pipe(status.executionLagMs(scheduledAt), TE.fromEither)
                   ),
                   TE.bindW("durationMs", ({}) =>
                     pipe(status.durationMs(), TE.fromEither)
@@ -643,8 +649,7 @@ const checkPreconditions = ({
         preconditions.every((precondition) => precondition(jobDocument).test),
       (jobDocument) =>
         `job ${jobDocument.jobDefinition.id} does not satisfy preconditions` as const
-    ),
-    TE.map(() => void 0)
+    )
   );
 
 // const docRef = this.firestore.doc(
