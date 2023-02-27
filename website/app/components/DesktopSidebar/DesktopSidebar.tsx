@@ -18,15 +18,19 @@ export const DesktopSidebar = ({
   projectMonthlyUsage,
 }: SidebarProps) => {
   const { pathname } = useLocation();
-  const [screenWidth, setScreenWidth] = useState(0);
+  const [screenWidth, setScreenWidth] = useState<number>();
 
   useEffect(() => {
     typeof window !== "undefined" && setScreenWidth(window.innerWidth);
   }, []);
 
-  const [navSize, setNavSize] = useState<NavSize>(
-    screenWidth > 600 ? "large" : "small"
-  );
+  const [navSize, setNavSize] = useState<NavSize>("large");
+
+  useEffect(() => {
+    if (screenWidth && screenWidth < 768) {
+      setNavSize("small");
+    }
+  }, [screenWidth]);
 
   const selectedProjectSlug = pathname.startsWith("/projects/")
     ? pathname.split("/")[2]

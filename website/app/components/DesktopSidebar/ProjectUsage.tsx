@@ -7,11 +7,13 @@ import { useFirstRender } from "./useFirstRender";
 type ProjectUsageArgs = {
   usage: MonthlyUsage;
   selectedProjectSlug: string;
+  hidden: boolean;
 };
 
 export const ProjectUsage = ({
   usage,
   selectedProjectSlug,
+  hidden,
 }: ProjectUsageArgs) => {
   const u = usage?.getScheduleUsageForYearMonth(2023, 2) || 0;
   const requestMonthlyQuota = 500;
@@ -24,7 +26,7 @@ export const ProjectUsage = ({
   }, [selectedProjectSlug]);
 
   return (
-    <Card p={2} variant="outline">
+    <Card p={2} variant="outline" hidden={hidden}>
       <Heading mb={2} size={"xs"}>
         Api Quota Usage
       </Heading>

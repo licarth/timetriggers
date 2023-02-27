@@ -78,8 +78,9 @@ export const MenuElements = ({
                 </Select>
               </>
             )}
-            {projectMonthlyUsage && navSize === "large" && (
+            {projectMonthlyUsage && (
               <ProjectUsage
+                hidden={navSize === "small"}
                 usage={projectMonthlyUsage}
                 selectedProjectSlug={selectedProjectSlug}
               />
