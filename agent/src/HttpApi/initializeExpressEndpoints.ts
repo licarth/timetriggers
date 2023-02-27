@@ -5,6 +5,7 @@ import {
   Clock,
   getProjectByApiKey,
   Headers,
+  Http,
   JobScheduleArgs,
   RawBody,
   ScheduledAt,
@@ -77,14 +78,14 @@ export const initializeEndpoints = ({
           RTE.of(
             new JobScheduleArgs({
               scheduledAt,
-              http: {
+              http: new Http({
                 url,
                 options: {
                   method: req.method,
                   headers: Headers.fromExpress(req.headers),
                   body: rawBody,
                 },
-              },
+              }),
             })
           )
         ),

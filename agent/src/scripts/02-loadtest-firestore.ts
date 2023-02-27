@@ -1,6 +1,7 @@
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
 import { FirestoreDatastore } from "@/Firebase/Processor/FirestoreDatastore";
 import {
+  Http,
   JobId,
   JobScheduleArgs,
   ScheduledAt,
@@ -31,10 +32,10 @@ const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(5);
       datastore.schedule(
         new JobScheduleArgs({
           scheduledAt: ScheduledAt.fromDate(addSeconds(now, 3)),
-          http: {
+          http: new Http({
             options: undefined,
             url: "https://api.timetriggers.io/1",
-          },
+          }),
         }),
         (jobId: JobId) =>
           preloadedHashingFunction(jobId)

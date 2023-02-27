@@ -8,7 +8,7 @@ import {
   HttpCallCompleted,
   HttpCallResponse,
   StatusCode,
-} from "@/HttpCallStatusUpdate";
+} from "@timetriggers/domain";
 import { sleep } from "@/sleep";
 import { CallbackReceiver } from "@/test/CallbackReceiver";
 import { Worker } from "@/Worker";
