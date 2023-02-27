@@ -438,7 +438,10 @@ export class FirestoreDatastore implements Datastore {
                       docRef,
                       transaction,
                       preconditions: [
-                        (jobDocument) => jobDocument.status.value === "running",
+                        (jobDocument) => ({
+                          test: jobDocument.status.value === "running",
+                          errorMessage: `should be running, is ${jobDocument.status.value} instead.`,
+                        }),
                       ],
                     })
                   ),
@@ -614,7 +617,9 @@ const checkPreconditions = ({
   preconditions,
   transaction,
 }: {
-  preconditions: Array<(jobDocument: JobDocument) => boolean>;
+  preconditions: Array<
+    (jobDocument: JobDocument) => { test: boolean; errorMessage?: string }
+  >;
   docRef: FirebaseFirestore.DocumentReference;
   transaction: FirebaseFirestore.Transaction;
 }) =>
@@ -635,7 +640,7 @@ const checkPreconditions = ({
     ),
     TE.filterOrElseW(
       (jobDocument) =>
-        preconditions.every((precondition) => precondition(jobDocument)),
+        preconditions.every((precondition) => precondition(jobDocument).test),
       (jobDocument) =>
         `job ${jobDocument.jobDefinition.id} does not satisfy preconditions` as const
     ),
