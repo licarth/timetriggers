@@ -8,7 +8,6 @@ import { withTimeout } from "@/fp-ts/withTimeout";
 import { getOrReportToSentry } from "@/Sentry/getOrReportToSentry";
 import {
   Clock,
-  JobDefinition,
   JobDocument,
   JobId,
   RateLimit,
@@ -17,7 +16,7 @@ import {
   ScheduledAt,
 } from "@timetriggers/domain";
 import chalk from "chalk";
-import { addMilliseconds, addMinutes, addSeconds } from "date-fns";
+import { addMilliseconds } from "date-fns";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
@@ -25,7 +24,6 @@ import _ from "lodash";
 import PQueue from "p-queue";
 import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 import { Datastore, LastKnownScheduledJob } from "./Datastore";
-import { FirestoreDatastore } from "./FirestoreDatastore";
 import {
   humanReadibleCountdownBetween2Dates,
   humanReadibleMs,
@@ -33,7 +31,7 @@ import {
 import { unsubscribeAll } from "./unsubscribeAll";
 
 const MINUTE = 1000 * 60;
-const TLD_QPS = 1;
+const TLD_QPS = 0.3;
 
 const qpsForRateLimit = (rateLimit: RateLimit): number => {
   if (rateLimit.key.startsWith("tld")) {

@@ -131,7 +131,10 @@ export class InMemoryDataStore implements Datastore {
   }
 
   waitForRegisteredJobsByRegisteredAt(
-    { maxNoticePeriodMs }: WaitForRegisteredJobsByRegisteredAtArgs,
+    {
+      maxNoticePeriodMs,
+      registeredAfter,
+    }: WaitForRegisteredJobsByRegisteredAtArgs,
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<never, Observable<JobDocument[]>> {
     return TE.of(
@@ -269,23 +272,24 @@ export class InMemoryDataStore implements Datastore {
   }
 
   getRegisteredJobsByScheduledAt(
-    { maxScheduledAt, limit, offset }: GetJobsScheduledBeforeArgs,
+    { maxScheduledAt, limit, lastKnownJob }: GetJobsScheduledBeforeArgs,
     shardsToListenTo?: ShardsToListenTo
   ) {
-    return TE.of(
-      _.take(
-        this.jobsMatchingShard(this.registeredJobs, shardsToListenTo)
-          .filter((job) => {
-            const scheduledAt = job.jobDefinition.scheduledAt.getTime();
-            return scheduledAt <= maxScheduledAt.getTime();
-          })
-          .map((job) => {
-            return job;
-          })
-          .slice(offset),
-        limit
-      )
-    );
+    const results = this.jobsMatchingShard(
+      this.registeredJobs,
+      shardsToListenTo
+    )
+      .filter((job) => {
+        const scheduledAt = job.jobDefinition.scheduledAt.getTime();
+        return scheduledAt <= maxScheduledAt.getTime();
+      })
+      .map((job) => {
+        return job;
+      });
+    const offset = lastKnownJob
+      ? results.findIndex((i) => i.jobDefinition.id === lastKnownJob.id) + 1
+      : 0;
+    return TE.of(_.take(results.slice(offset), limit));
   }
 
   waitForNextJobsInQueue(
