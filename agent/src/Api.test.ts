@@ -57,7 +57,7 @@ describe(`Api tests`, () => {
       // @ts-ignore
       describe(`${apiName} (${clockName} clock)`, () => {
         beforeEach(async () => {
-          const namespace = `test-${testRunId}/${apiName}-${clockName}`;
+          const namespace = `test-${testRunId}-${apiName}-${clockName}`;
           const datastore = datastoreBuilders[apiName](clock, namespace);
           api = new DatastoreApi({
             clock,
