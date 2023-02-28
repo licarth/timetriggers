@@ -7,6 +7,7 @@ import {
   JobScheduleArgs,
   JobStatus,
   QueuedAt,
+  RateLimit,
   RegisteredAt,
   Shard,
   StartedAt,
@@ -184,6 +185,14 @@ export class InMemoryDataStore implements Datastore {
       }
     }
     return TE.right(undefined);
+  }
+
+  markRateLimited(jobDocument: JobDocument, rateLimits: RateLimit[]) {
+    return TE.of(undefined);
+  }
+
+  markAsDead(jobDocument: JobDocument) {
+    return TE.of(undefined);
   }
 
   markJobAsComplete({ jobId }: { jobId: JobId }): TE.TaskEither<any, void> {

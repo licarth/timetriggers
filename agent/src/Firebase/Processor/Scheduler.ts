@@ -1,3 +1,4 @@
+import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
 import {
   ClusterNodeInformation,
   CoordinationClient,
@@ -10,6 +11,7 @@ import {
   JobDefinition,
   JobDocument,
   JobId,
+  RateLimit,
   RegisteredAt,
   ScheduledAt,
 } from "@timetriggers/domain";
@@ -21,6 +23,7 @@ import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 import { Datastore, LastKnownScheduledJob } from "./Datastore";
+import { FirestoreDatastore } from "./FirestoreDatastore";
 import {
   humanReadibleCountdownBetween2Dates,
   humanReadibleMs,
@@ -56,6 +59,7 @@ type SchedulingPeriod = {
 
 export class Scheduler extends ClusterTopologyDatastoreAware {
   plannedTimeouts = new Map<JobId, NodeJS.Timeout>();
+
   datastoreNewJobsHooks: UnsubsribeHook[] = [];
   nextPeriodSchedulingHooks: UnsubsribeHook[] = [];
 
@@ -133,11 +137,30 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         unsubscribeAll(this.datastoreNewJobsHooks);
       },
       TE.fromTask,
-      TE.chainFirstW(() => this.startListening())
+      TE.chainFirstW(() => this.startListeningToRateLimits()),
+      TE.chainFirstW(() => this.startListeningToJobs())
     );
   }
 
-  startListening() {
+  startListeningToRateLimits() {
+    const d = this.datastore as FirestoreDatastore;
+    return pipe(
+      d.listenToRateLimits(this.shardsToListenTo),
+      TE.map((rateLimits) => {
+        const s = rateLimits.subscribe((rateLimit) => {
+          rateLimit.forEach((rl) => {
+            console.log(
+              `[Scheduler] 🔸 Rate limit found for ${rl.key} (job ${rl.jobId}}`
+            );
+            getOrReportToSentry(d.markRateLimitSatisfied(rl));
+          });
+        });
+        this.datastoreNewJobsHooks.push(() => s.unsubscribe());
+      })
+    );
+  }
+
+  startListeningToJobs() {
     const originPeriod = this.originPeriod(); // Cathup until now +
     const firstPeriod = this.nextPeriod(originPeriod);
     return pipe(
@@ -258,11 +281,6 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
 
   private _scheduleNewJobs(jobs: JobDocument[]) {
     const jobsWithinTimeRange = jobs;
-    // .filter(
-    //   (job) =>
-    //     job.jobDefinition.scheduledAt <
-    //     addMilliseconds(this.clock.now(), this.scheduleAdvanceMs)
-    // );
     const [jobsInThePast, jobsIntheFuture] = _.partition(
       jobsWithinTimeRange,
       (job) => job.jobDefinition.scheduledAt < this.clock.now()
@@ -275,13 +293,11 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     // should be scheduled in a single transaction, but this requires changes
     // in the way we track setTimeouts
     jobsIntheFuture.forEach((job) => {
-      this.scheduleSetTimeout(job.jobDefinition);
+      this.scheduleSetTimeout(job);
     });
 
     if (jobsInThePast.length > 0) {
-      return this.datastore.queueJobs(
-        jobsInThePast.map((j) => j.jobDefinition)
-      );
+      return this.rateLimitOrQueue(jobsInThePast);
     } else {
       return TE.right(undefined);
     }
@@ -350,33 +366,81 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     );
   }
 
-  scheduleSetTimeout(jobDefinition: JobDefinition) {
-    if (this.plannedTimeouts.has(jobDefinition.id)) {
+  scheduleSetTimeout(jobDocument: JobDocument) {
+    const { jobDefinition } = jobDocument;
+    const { id, scheduledAt } = jobDefinition;
+    if (this.plannedTimeouts.has(id)) {
       // Rescheduling a job that is already scheduled
-      console.warn(
-        `Job ${jobDefinition.id} is already scheduled, rescheduling it`
-      );
+      console.warn(`Job ${id} is already scheduled, rescheduling it`);
       return;
     }
     console.log(
-      `[Scheduler] Scheduling job ${
-        jobDefinition.id
-      } for in ${humanReadibleDifferenceWithDateFns(
-        jobDefinition.scheduledAt,
+      `[Scheduler] Scheduling job ${id} for in ${humanReadibleDifferenceWithDateFns(
+        scheduledAt,
         this.clock.now()
       )}`
     );
     const timeoutId = this.clock.setTimeout(() => {
-      getOrReportToSentry(this.datastore.queueJobs([jobDefinition]));
-      this.plannedTimeouts.delete(jobDefinition.id);
-    }, Math.max(0, jobDefinition.scheduledAt.getTime() - this.clock.now().getTime()));
-    this.plannedTimeouts.set(jobDefinition.id, timeoutId);
+      getOrReportToSentry(this.rateLimitOrQueue([jobDocument]));
+      this.plannedTimeouts.delete(id);
+    }, Math.max(0, scheduledAt.getTime() - this.clock.now().getTime()));
+    this.plannedTimeouts.set(id, timeoutId);
   }
 
-  //TODO: cancel jobs
+  private rateLimitOrQueue(jobDocuments: JobDocument[]) {
+    const [rateLimitedDocuments, nonRateLimitedDocuments] = _.partition(
+      jobDocuments.map((jobDocument) => ({
+        rateLimits: getRateLimits(jobDocument),
+        jobDocument,
+      })),
+      (jobDocument) => jobDocument.rateLimits.length > 0
+    );
+
+    return pipe(
+      this.datastore.queueJobs(
+        nonRateLimitedDocuments.map((j) => j.jobDocument.jobDefinition)
+      ),
+      TE.chainW(() => {
+        // Mark each rate limited job
+        return pipe(
+          rateLimitedDocuments.map(
+            ({ jobDocument, rateLimits }) => {
+              jobDocument.rateLimitKeys = rateLimits.map((rl) => rl.key);
+              return pipe(
+                this.datastore.markRateLimited(jobDocument, rateLimits),
+                TE.orElseW(() => this.datastore.markAsDead(jobDocument))
+              );
+            }
+            // What if this fails?
+          ),
+          TE.sequenceArray
+        );
+      }),
+      TE.map(() => undefined)
+    );
+  }
 }
 
 const humanReadibleDifferenceWithDateFns = (date1: Date, date2: Date) => {
   const diff = Math.abs(date1.getTime() - date2.getTime());
   return humanReadibleMs(diff);
+};
+
+const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(11);
+
+const getRateLimits = (jobDocument: JobDocument) => {
+  const rateLimits = [] as RateLimit[];
+  if (jobDocument.projectId) {
+    const tld = jobDocument.jobDefinition.http?.tld();
+    if (tld) {
+      rateLimits.push(
+        RateLimit.tld(
+          tld,
+          jobDocument.jobDefinition.id,
+          preloadedHashingFunction(tld)
+        )
+      );
+    }
+  }
+  return rateLimits;
 };

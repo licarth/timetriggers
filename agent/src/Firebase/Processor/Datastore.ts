@@ -6,6 +6,7 @@ import {
   JobScheduleArgs,
   JobStatus,
   ProjectId,
+  RateLimit,
   RegisteredAt,
   ScheduledAt,
   Shard,
@@ -85,7 +86,7 @@ export interface Datastore {
     args: WaitForRegisteredJobsByRegisteredAtArgs,
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<
-    "too many previous jobs" | "not implemented",
+    string,
     // Observable<{ def: JobDefinition } & { registeredAt: RegisteredAt }[]>
     Observable<JobDocument[]>
   >;
@@ -128,6 +129,13 @@ export interface Datastore {
    * This must fail on the second call with the same jobDefinition.
    */
   queueJobs(jobDefinition: JobDefinition[]): TE.TaskEither<any, void>;
+
+  markRateLimited(
+    jobDocument: JobDocument,
+    rateLimits: RateLimit[]
+  ): TE.TaskEither<any, void>;
+
+  markAsDead(jobDocument: JobDocument): TE.TaskEither<any, void>;
 
   /**
    * Marks the job as running.

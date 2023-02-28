@@ -6,3 +6,4 @@ export * from "./domain";
 export * from "./Clock";
 export * from "./MonthlyUsage";
 export * from "./iots";
+export * from "./firestore";

@@ -4,7 +4,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
-import _ from "lodash";
+import { setUpdate } from "../Firebase/setUpdate";
 
 type Dependencies = {
   firestore: FirebaseFirestore.Firestore;
@@ -16,13 +16,6 @@ type Args = {
   project: Project;
   apiKeyValue: ApiKey["value"];
   jobScheduleArgs: JobScheduleArgs;
-};
-
-const setUpdate = (update: { [key: string]: any }) => {
-  return _.keys(update).reduce(
-    (prev, currKey) => _.setWith(prev, currKey, update[currKey], Object),
-    {}
-  );
 };
 
 const utcFormat = (date: Date, f: string) => formatInTimeZone(date, "Z", f);

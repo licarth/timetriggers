@@ -17,6 +17,8 @@ export class JobDocument {
   status;
   shards;
   lastStatusUpdate;
+  projectId;
+  rateLimitKeys;
 
   constructor(props: JobDocumentProps) {
     this._props = props;
@@ -24,6 +26,8 @@ export class JobDocument {
     this.status = props.status;
     this.shards = props.shards;
     this.lastStatusUpdate = props.lastStatusUpdate;
+    this.projectId = props.projectId;
+    this.rateLimitKeys = props.rateLimitKeys;
   }
 
   static propsCodec = (codecType: CodecType) =>
@@ -37,6 +41,7 @@ export class JobDocument {
         Codec.partial({
           projectId: ProjectId.codec,
           lastStatusUpdate: HttpCallLastStatus.codec,
+          rateLimitKeys: Codec.array(Codec.string),
         })
       )
     );
