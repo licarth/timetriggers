@@ -1,4 +1,5 @@
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
+import { emulatorFirestore } from "@/Firebase/emulatorFirestore";
 import { Datastore } from "@/Firebase/Processor/Datastore";
 import { FirestoreDatastore } from "@/Firebase/Processor/FirestoreDatastore";
 import {
@@ -16,19 +17,22 @@ import {
 import { initializeApp } from "../Firebase/initializeApp";
 import { parseHumanReadibleDuration, sleep } from "./utils";
 
-const { firestore } = initializeApp({
-  serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-});
+const { firestore } =
+  process.env.EMULATOR === "true"
+    ? emulatorFirestore()
+    : initializeApp({
+        serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+      });
 
 const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(11);
 
 (async () => {
   const datastore = FirestoreDatastore.factory({
     firestore,
-    rootDocumentPath: `/namespaces/doi-production/jobs`,
+    namespace: `doi-production`,
   });
 
-  const scheduleVia = process.env.SCHEDULED_VIA || "datastore";
+  const scheduleVia = process.env.SCHEDULE_VIA || "datastore";
   const qps = parseFloat(process.env.QPS || "0.3");
   const schedulingRateLimitQps = parseFloat(
     process.env.API_RATE_LIMIT_QPS || "20"
@@ -85,19 +89,21 @@ const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(11);
 
 async function scheduleJobHttp(scheduledAt: ScheduledAt) {
   const now = new Date();
-  const response = await fetch("https://api.timetriggers.io/schedule", {
+  const response = await fetch(`${process.env.API}/schedule`, {
     method: "GET",
 
     headers: {
       "X-Timetriggers-At": `${scheduledAt.toISOString()}`,
-      "X-Timetriggers-Key": "Dqm0JAXuuSbEy0C1unRbb60ULU0nIWaC",
-      "X-Timetriggers-Url": "https://api.timetriggers.io/1",
+      "X-Timetriggers-Key": `${process.env.KEY}`,
+      "X-Timetriggers-Url": `${
+        process.env.TARGET || "https://api.timetriggers.io/1"
+      }`,
       "X-Timetriggers-Options": "no_noise",
     },
   });
 
   console.log(
-    `🚀 ${response.status} (took ${humanReadibleMs(
+    `[HTTP]🚀 ${response.status} (took ${humanReadibleMs(
       now.getTime() - new Date().getTime()
     )}) Scheduled job ${
       (await response.json()).jobId

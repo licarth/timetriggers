@@ -11,7 +11,7 @@ import { JobId } from "@timetriggers/domain";
 import { JobScheduleArgs } from "@timetriggers/domain";
 import { ScheduledAt } from "@timetriggers/domain";
 import { DatastoreApi } from "./Firebase/DatastoreApi.js";
-import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore.js";
+import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore";
 import { Processor } from "./Firebase/Processor/Processor.js";
 import { Scheduler } from "./Firebase/Processor/Scheduler.js";
 import { te } from "./fp-ts/te.js";
@@ -40,9 +40,9 @@ describe(`Firebase Distributed`, () => {
   });
 
   it(`should schedule ${NUM_JOBS} jobs and execute them one by one`, async () => {
-    const rootDocumentPath = `tests/test-${testRunId}/distributed`;
+    const namespace = `test-${testRunId}`;
     const clock = new SystemClock();
-    const datastore = FirestoreDatastore.factory({ clock, rootDocumentPath });
+    const datastore = FirestoreDatastore.factory({ clock, namespace });
     const api = new DatastoreApi({
       clock,
       datastore,

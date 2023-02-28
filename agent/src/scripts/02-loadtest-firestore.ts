@@ -24,7 +24,7 @@ const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(5);
   // create a FirestoreDatastore
   const datastore = new FirestoreDatastore({
     firestore,
-    rootDocumentPath: `/namespaces/doi-production/jobs`,
+    namespace: `doi-production`,
   });
 
   const jobSchedulePromise = () =>

@@ -12,6 +12,7 @@ import {
   JobDocument,
   JobId,
   RateLimit,
+  RateLimitKey,
   RegisteredAt,
   ScheduledAt,
 } from "@timetriggers/domain";
@@ -21,6 +22,7 @@ import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
+import PQueue from "p-queue";
 import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 import { Datastore, LastKnownScheduledJob } from "./Datastore";
 import { FirestoreDatastore } from "./FirestoreDatastore";
@@ -31,7 +33,16 @@ import {
 import { unsubscribeAll } from "./unsubscribeAll";
 
 const MINUTE = 1000 * 60;
-const SECOND = 1000;
+const TLD_QPS = 1;
+
+const qpsForRateLimit = (rateLimit: RateLimit): number => {
+  if (rateLimit.key.startsWith("tld")) {
+    return TLD_QPS;
+  } else if (rateLimit.key.startsWith("project")) {
+    return 5;
+  }
+  return 1;
+};
 
 type SchedulerProps = {
   clock?: Clock;
@@ -59,6 +70,7 @@ type SchedulingPeriod = {
 
 export class Scheduler extends ClusterTopologyDatastoreAware {
   plannedTimeouts = new Map<JobId, NodeJS.Timeout>();
+  rateLimitQueues = new Map<RateLimitKey, PQueue>();
 
   datastoreNewJobsHooks: UnsubsribeHook[] = [];
   nextPeriodSchedulingHooks: UnsubsribeHook[] = [];
@@ -112,6 +124,10 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     this.clearAllPlannedTimeouts();
     unsubscribeAll(this.datastoreNewJobsHooks);
     unsubscribeAll(this.nextPeriodSchedulingHooks);
+    for (const queue of this.rateLimitQueues.values()) {
+      queue.clear();
+      // TODO: wait for all ongoing to be done ? => not necessarily as they are in a transaction...
+    }
     return super.close();
   }
 
@@ -152,7 +168,19 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
             console.log(
               `[Scheduler] 🔸 Rate limit found for ${rl.key} (job ${rl.jobId}}`
             );
-            getOrReportToSentry(d.markRateLimitSatisfied(rl));
+            if (!this.rateLimitQueues.get(rl.key)) {
+              const q = new PQueue({
+                interval: Math.floor(1000 / qpsForRateLimit(rl)),
+                intervalCap: 1,
+              });
+              this.rateLimitQueues.set(rl.key, q);
+            }
+            this.rateLimitQueues.get(rl.key)?.add(
+              () => {
+                getOrReportToSentry(d.markRateLimitSatisfied(rl));
+              },
+              { priority: -rl.scheduledAt.getTime() }
+            );
           });
         });
         this.datastoreNewJobsHooks.push(() => s.unsubscribe());
@@ -430,17 +458,27 @@ const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(11);
 
 const getRateLimits = (jobDocument: JobDocument) => {
   const rateLimits = [] as RateLimit[];
-  if (jobDocument.projectId) {
-    const tld = jobDocument.jobDefinition.http?.tld();
-    if (tld) {
-      rateLimits.push(
-        RateLimit.tld(
-          tld,
-          jobDocument.jobDefinition.id,
-          preloadedHashingFunction(tld)
-        )
-      );
-    }
+  const tld = jobDocument.jobDefinition.http?.tld();
+  if (tld) {
+    rateLimits.push(
+      RateLimit.tld(
+        tld,
+        jobDocument.jobDefinition.id,
+        jobDocument.jobDefinition.scheduledAt,
+        preloadedHashingFunction(tld)
+      )
+    );
   }
+  if (jobDocument.projectId) {
+    rateLimits.push(
+      RateLimit.project(
+        jobDocument.jobDefinition.id,
+        jobDocument.projectId,
+        jobDocument.jobDefinition.scheduledAt,
+        preloadedHashingFunction(jobDocument.projectId)
+      )
+    );
+  }
+
   return rateLimits;
 };

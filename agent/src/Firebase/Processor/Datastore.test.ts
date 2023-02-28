@@ -19,7 +19,7 @@ const datastores: Record<string, (clock: TestClock) => Datastore> = {
   FirestoreEmulator: (clock: TestClock) =>
     FirestoreDatastore.factory({
       clock,
-      rootDocumentPath: `namespaces/test/test-${randomString(10)}`,
+      namespace: `test-${randomString(10)}`,
       firestore: emulatorFirestore().firestore,
     }),
 };

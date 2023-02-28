@@ -13,7 +13,7 @@ import { JobScheduleArgs } from "@timetriggers/domain";
 import { ScheduledAt } from "@timetriggers/domain";
 import { DatastoreApi } from "./Firebase/DatastoreApi.js";
 import { Datastore } from "./Firebase/Processor/Datastore.js";
-import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore.js";
+import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore";
 import { InMemoryDataStore } from "./Firebase/Processor/InMemoryDataStore.js";
 import { Processor } from "./Firebase/Processor/Processor.js";
 import { Scheduler } from "./Firebase/Processor/Scheduler.js";
@@ -43,7 +43,7 @@ describe(`Api tests`, () => {
     FirestoreEmulator: (clock, namespace) =>
       FirestoreDatastore.factory({
         clock,
-        rootDocumentPath: rootDocumentPathFromNs(namespace),
+        namespace,
       }),
   } as Record<string, (clock: Clock, namespace: string) => Datastore>;
 
