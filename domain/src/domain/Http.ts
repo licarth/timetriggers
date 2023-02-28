@@ -28,6 +28,11 @@ export class Http {
     return url.hostname;
   }
 
+  tld() {
+    const url = new URL(this.url);
+    return url.hostname.split(".").slice(-2).join(".");
+  }
+
   static codec = pipe(Http.propsCodec, Codec.compose(fromClassCodec(Http)));
 
   static factory = (props: Partial<HttpProps> = {}) =>

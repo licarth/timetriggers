@@ -9,6 +9,8 @@ discover:
 tasks:
   apply_rules:
     cmd: |
-      cat firestore.rules.gotmpl | gomplate > firestore.rules
+      export DATA='namespaces: [doi-production, local]'
+      cat firestore.rules.gotmpl | gomplate -d 'data=env:///DATA?type=application/yaml' > firestore.rules
       firebase deploy --only firestore:rules
+
       # firebase deploy --only firestore:indexes

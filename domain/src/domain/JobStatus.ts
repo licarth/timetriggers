@@ -9,6 +9,7 @@ import { CompletedAt } from "./CompletedAt";
 import * as E from "fp-ts/lib/Either.js";
 import { e } from "@/fp-ts";
 import { ScheduledAt } from "./ScheduledAt";
+import { RateLimitedAt } from "./RateLimit";
 
 export class JobStatus {
   value;
@@ -95,7 +96,14 @@ export class JobStatus {
   static propsCodec = (codecType: CodecType) =>
     pipe(
       Codec.struct({
-        value: Codec.literal("registered", "queued", "running", "completed"),
+        value: Codec.literal(
+          "registered",
+          "rate-limited",
+          "queued",
+          "running",
+          "completed",
+          "dead"
+        ),
         registeredAt: RegisteredAt.codec(codecType),
       }),
       Codec.intersect(
@@ -103,6 +111,7 @@ export class JobStatus {
           queuedAt: QueuedAt.codec(codecType),
           startedAt: StartedAt.codec(codecType),
           completedAt: CompletedAt.codec(codecType),
+          rateLimitedAt: RateLimitedAt.codec(codecType),
         })
       )
     );

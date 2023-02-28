@@ -46,7 +46,7 @@ export const start = (props: StartProps) =>
       RTE.of(
         new FirestoreDatastore({
           firestore,
-          rootDocumentPath,
+          namespace: props.namespace,
         })
       )
     ),

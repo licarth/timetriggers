@@ -1,7 +1,9 @@
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
-import { e, te } from "@/fp-ts";
+import { externallyResolvablePromise } from "@/externallyResolvablePromise";
+import { e, te } from "@timetriggers/domain";
 import {
   Clock,
+  getOneFromFirestore,
   HttpCallCompleted,
   HttpCallErrored,
   HttpCallLastStatus,
@@ -11,6 +13,7 @@ import {
   JobScheduleArgs,
   JobStatus,
   ProjectId,
+  RateLimit,
   RegisteredAt,
   SystemClock,
 } from "@timetriggers/domain";
@@ -32,32 +35,115 @@ import {
   WaitForRegisteredJobsByRegisteredAtArgs,
 } from "./Datastore";
 import { ShardsToListenTo, toShards } from "./ShardsToListenTo";
-import * as E from "fp-ts/lib/Either.js";
 
 type State = "starting" | "running" | "stopped";
-
-const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(15);
 
 type FirestoreDatastoreProps = {
   clock?: Clock;
   firestore: Firestore;
-  rootDocumentPath: string;
+  namespace: string;
 };
 
 export class FirestoreDatastore implements Datastore {
   private readonly clock;
   private readonly firestore;
+  private readonly namespace;
   private readonly rootDocumentPath;
+
   private state: State = "starting";
 
   constructor(props: FirestoreDatastoreProps) {
     this.clock = props.clock || new SystemClock();
     this.firestore = props.firestore;
-    this.rootDocumentPath = props.rootDocumentPath;
+    this.namespace = props.namespace;
+    this.rootDocumentPath = `/namespaces/${props.namespace}/jobs`;
     console.log(
       `Initializing FirestoreDatastore with root path: ${this.rootDocumentPath}`
     );
     this.state = "running";
+  }
+
+  private txBegin = () =>
+    pipe(
+      TE.tryCatch(
+        async () => {
+          let { promise, resolve, reject } = externallyResolvablePromise();
+          let tEndPromise: Promise<void>;
+          const tStartPromise = new Promise<FirebaseFirestore.Transaction>(
+            (resolve) => {
+              tEndPromise = this.firestore.runTransaction(async (t) => {
+                resolve(t);
+                await promise;
+              });
+            }
+          );
+          return {
+            t: await tStartPromise,
+            commit: () => {
+              resolve(void 0);
+              return TE.tryCatch(
+                () => tEndPromise,
+                (e) => `could not execute transaction: ${e}` as const
+              );
+            },
+            rollback: () => {
+              reject();
+            },
+          };
+        },
+        (e) => `cannot start transaction` as const
+      )
+    );
+
+  markRateLimited(jobDocument: JobDocument, rateLimits: RateLimit[]) {
+    const id = jobDocument.jobDefinition.id;
+    const jobDocRef = this.jobDocRef(id);
+    const rateLimitCollection = this.jobDocRef(id).collection("rate-limits");
+    console.log(
+      `[Datastore] Marking job ${id} as rate limited : [${jobDocument.rateLimitKeys?.join(
+        ","
+      )}]`
+    );
+    return pipe(
+      this.txBegin(),
+      TE.chainW(({ t, commit, rollback }) =>
+        pipe(
+          checkPreconditions({
+            docRef: jobDocRef,
+            transaction: t,
+            preconditions: [
+              (jobDocument) => ({
+                test: jobDocument.status.value === "registered",
+                errorMessage: `should be registered, is ${jobDocument.status.value} instead.`,
+              }),
+            ],
+          }),
+          te.sideEffect(() => {
+            t.set(
+              jobDocRef,
+              {
+                status: {
+                  value: "rate-limited",
+                  rateLimitedAt: FieldValue.serverTimestamp(),
+                },
+              },
+              { merge: true }
+            );
+            t.update(jobDocRef, {
+              rateLimitKeys: jobDocument.rateLimitKeys,
+            });
+            rateLimits.forEach((rateLimit) => {
+              t.create(
+                rateLimitCollection.doc(rateLimit.key),
+                RateLimit.codec("firestore").encode(rateLimit)
+              );
+            });
+          }),
+          TE.chainW(() => commit()),
+          te.leftSideEffect(() => rollback())
+        )
+      )
+    );
   }
 
   schedule(
@@ -69,9 +155,7 @@ export class FirestoreDatastore implements Datastore {
       async () => {
         const id = JobId.factory();
         const jobDefinition = new JobDefinition({ ...args, id });
-        const jobDocumentRef = this.firestore
-          .collection(`${this.rootDocumentPath}`)
-          .doc(id);
+        const jobDocumentRef = this.jobDocRef(id);
         const scheduledWithin =
           jobDefinition.scheduledAt.getTime() - this.clock.now().getTime();
         const doc = {
@@ -116,7 +200,7 @@ export class FirestoreDatastore implements Datastore {
     return new FirestoreDatastore({
       clock: props.clock,
       firestore: props.firestore || emulatorFirestore().firestore,
-      rootDocumentPath: props.rootDocumentPath || "",
+      namespace: props.namespace || "local",
     });
   }
 
@@ -175,11 +259,11 @@ export class FirestoreDatastore implements Datastore {
   waitForRegisteredJobsByRegisteredAt(
     args: WaitForRegisteredJobsByRegisteredAtArgs,
     shardsToListenTo?: ShardsToListenTo
-  ): TE.TaskEither<"too many previous jobs", Observable<JobDocument[]>> {
+  ) {
     const { registeredAfter, maxNoticePeriodMs } = args;
     return TE.tryCatch(
       async () => {
-        return new Observable((subscriber) => {
+        return new Observable<JobDocument[]>((subscriber) => {
           console.log(
             `[Datastore] 🕐 Waiting for new jobs to schedule (${
               shardsToListenTo ? `${toShards(shardsToListenTo)}` : "all shards"
@@ -264,8 +348,139 @@ export class FirestoreDatastore implements Datastore {
           };
         });
       },
-      (reason) => "too many previous jobs" as const
+      (reason) => `cannot listen to registered jobs ${reason}` as const
     );
+  }
+
+  listenToRateLimits(shardsToListenTo?: ShardsToListenTo) {
+    return TE.tryCatch(
+      async () => {
+        return new Observable<RateLimit[]>((subscriber) => {
+          let queryRoot = shardedFirestoreQuery(
+            this.firestore.collectionGroup(`rate-limits`),
+            toShards(shardsToListenTo)
+          );
+          queryRoot = queryRoot.where("satisfiedAt", "==", null);
+
+          const unsubscribe = queryRoot.onSnapshot(async (snapshot) => {
+            const addedDocs = snapshot
+              .docChanges()
+              .filter(({ type }, i) => type === "added")
+              .map(({ doc }) => doc);
+
+            pipe(
+              addedDocs.map((doc) =>
+                pipe(doc.data(), RateLimit.codec("firestore").decode)
+              ),
+              e.split,
+              ({ successes, errors }) => {
+                if (errors.length > 0) {
+                  console.log(
+                    `❌ Could not decode ${errors.length} documents !`
+                  );
+                  console.log(errors.map((e) => draw(e)));
+                }
+                return successes;
+              },
+              (jobs) => {
+                if (jobs.length > 0) {
+                  subscriber.next(jobs);
+                }
+              }
+            );
+          });
+          return () => {
+            subscriber.complete();
+            console.log(`[Datastore] 🔇 unsubscribing from rate limits`);
+            unsubscribe();
+          };
+        });
+      },
+      (reason) => `cannot listen to registered jobs ${reason}` as const
+    );
+  }
+
+  private checkAllRateLimitsSatisfied(jobDocument: JobDocument) {
+    const id = jobDocument.jobDefinition.id;
+    const rateLimitKeys = jobDocument.rateLimitKeys || [];
+    return pipe(
+      rateLimitKeys.map((k) =>
+        getOneFromFirestore(
+          RateLimit,
+          `jobs/${id}/rate-limits/${k}`
+        )({
+          firestore: this.firestore,
+          namespace: this.namespace,
+        })
+      ),
+      te.executeAllInArray({ parallelism: 10 }),
+      TE.fromTask,
+      te.sideEffect(({ errors }) => {
+        if (errors.length > 0) {
+          console.log(`❌ Could not read ${errors.length} documents !`);
+          console.log(errors.map((e) => console.log(e._tag)));
+        }
+      }),
+      TE.map(({ successes }) => successes),
+      TE.chainW((rateLimits) => {
+        if (rateLimits.every((rateLimit) => rateLimit.satisfiedAt !== null)) {
+          console.log(
+            `[Datastore] All rate limits are satisfied, queuing job...`
+          );
+          return pipe(
+            this.queueJobs([jobDocument.jobDefinition]),
+            TE.orElseW(() => TE.right(undefined)) // Ignore if we cannot queue it... (someone else might have done it)
+          );
+        } else {
+          console.log(`[Datastore] Some rate limits are not satisfied yet...`);
+          return TE.right(undefined);
+        }
+      })
+    );
+  }
+
+  markRateLimitSatisfied(rateLimit: RateLimit) {
+    const jobDocRef = this.jobDocRef(rateLimit.jobId);
+    return pipe(
+      TE.Do,
+      TE.bindW("transaction", () => this.txBegin()),
+      TE.bindW("jobDocument", ({ transaction: { t } }) =>
+        checkPreconditions({
+          docRef: jobDocRef,
+          transaction: t,
+          preconditions: [
+            (jobDocument) => ({
+              test: jobDocument.status.value === "rate-limited",
+              errorMessage: `should be "rate-limited", is "${jobDocument.status.value}" instead.`,
+            }),
+          ],
+        })
+      ),
+      te.sideEffect(({ transaction: { t } }) => {
+        const docRef = jobDocRef.collection("rate-limits").doc(rateLimit.key);
+        t.update(docRef, {
+          satisfiedAt: FieldValue.serverTimestamp(),
+        });
+      }),
+      TE.chainFirstW(({ transaction: { commit } }) => commit()),
+      TE.chainW(({ jobDocument }) =>
+        this.checkAllRateLimitsSatisfied(jobDocument)
+      )
+    );
+
+    // return TE.tryCatch(
+    //   async () => {
+    //     const docRef = this.firestore
+    //       .collection(`${this.rootDocumentPath}`)
+    //       .doc(rateLimit.jobId)
+    //       .collection("rate-limits")
+    //       .doc(rateLimit.key);
+    //     await docRef.update({
+    //       satisfiedAt: FieldValue.serverTimestamp(),
+    //     });
+    //   },
+    //   (reason) => `cannot mark rate limit as satisfied ${reason}` as const
+    // );
   }
 
   queueJobs(jobDefinitions: JobDefinition[]): TE.TaskEither<any, void> {
@@ -293,7 +508,7 @@ export class FirestoreDatastore implements Datastore {
       return TE.right(undefined);
     }
     return pipe(
-      TE.tryCatch<Error, { nonExistingJobIds: string[] }>(
+      TE.tryCatch(
         async () => {
           const okResponse = { nonExistingJobIds: [] };
           try {
@@ -303,11 +518,23 @@ export class FirestoreDatastore implements Datastore {
                 "Datastore is not running anymore, not queuing job"
               );
             }
-            return await queueJobDocuments({
-              firestore: this.firestore,
-              jobDefinitions,
-              fromCollectionPath: this.rootDocumentPath,
-            });
+            const { nonExistingJobIds, notRegisteredJobIds } =
+              await queueJobDocuments({
+                firestore: this.firestore,
+                jobDefinitions,
+                fromCollectionPath: this.rootDocumentPath,
+              });
+            if (nonExistingJobIds.length > 0) {
+              throw new Error(
+                `Some jobs do not exist: ${nonExistingJobIds.join(", ")}`
+              );
+            } else if (notRegisteredJobIds.length > 0) {
+              throw new Error(
+                `Some jobs do not have the proper status: ${notRegisteredJobIds.join(
+                  ", "
+                )}`
+              );
+            }
           } catch (reason) {
             // If code is 5 (NOT_FOUND), then the job was already moved by another instance
             if (
@@ -320,11 +547,11 @@ export class FirestoreDatastore implements Datastore {
             } else {
               // Report this error somehow to the user !
               // This will not be caught by the caller of this function as it's running in a setTimeout !
-              console.log(
-                `[state=${this.state}] Failed to queue jobs ${jobDefinitions
-                  .map(({ id }) => id)
-                  .join(", ")}: ${reason}`
-              );
+              // console.log(
+              //   `[state=${this.state}] Failed to queue jobs ${jobDefinitions
+              //     .map(({ id }) => id)
+              //     .join(", ")}: ${reason}`
+              // );
               throw reason;
             }
           }
@@ -333,15 +560,7 @@ export class FirestoreDatastore implements Datastore {
           return new Error(`Failed to queue jobs: ${reason}`);
         }
       ),
-      TE.chain(({ nonExistingJobIds }) => {
-        if (nonExistingJobIds.length > 0) {
-          return TE.left(
-            new Error(`Some jobs do not exist: ${nonExistingJobIds.join(", ")}`)
-          );
-        } else {
-          return TE.right(undefined);
-        }
-      })
+      TE.map(() => undefined)
     );
   }
 
@@ -361,9 +580,7 @@ export class FirestoreDatastore implements Datastore {
           }
           // Make sure it's not already marked as running
           return this.firestore.runTransaction(async (transaction) => {
-            const docRef = this.firestore.doc(
-              `${this.rootDocumentPath}/${jobId}`
-            );
+            const docRef = this.jobDocRef(jobId);
             const doc = await transaction.get(docRef);
 
             if (!doc.exists) {
@@ -382,7 +599,7 @@ export class FirestoreDatastore implements Datastore {
           });
         } catch (reason) {
           // If code is 5 (NOT_FOUND), then the job was already moved by another instance
-          if (isFirebaseError(reason) && Number(reason.code) === 5) {
+          if (isFirebaseError(reason) && Number(reason?.code) === 5) {
             // console.log(
             //   `Ignoring job ${jobDefinition.id} as it was already moved by another instance`
             // );
@@ -409,6 +626,20 @@ export class FirestoreDatastore implements Datastore {
     );
   }
 
+  markAsDead(jobDocument: JobDocument) {
+    const id = jobDocument.jobDefinition.id;
+    return pipe(
+      TE.tryCatch(
+        () =>
+          this.jobDocRef(id).update({
+            "status.value": "dead",
+          }),
+        (reason) => `failed to mark job ${id} as dead` as const
+      ),
+      TE.map(() => undefined)
+    );
+  }
+
   markJobAsComplete({
     jobId,
     lastStatusUpdate,
@@ -424,12 +655,10 @@ export class FirestoreDatastore implements Datastore {
         TE.tryCatchK(
           () => {
             console.log(`[Datastore] Marking job ${jobId} as complete`);
+            const docRef = this.jobDocRef(jobId);
 
             // Make sure it's not already marked as completed
             return this.firestore.runTransaction(async (transaction) => {
-              const docRef = this.firestore.doc(
-                `${this.rootDocumentPath}/${jobId}`
-              );
               return te.unsafeGetOrThrow(
                 pipe(
                   TE.Do,
@@ -564,6 +793,10 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
       )
     );
   }
+
+  private jobDocRef(jobId: JobId) {
+    return this.firestore.collection(`${this.rootDocumentPath}`).doc(jobId);
+  }
 }
 
 export const queueJobDocuments = ({
@@ -589,7 +822,9 @@ export const queueJobDocuments = ({
 
     const [registeredJobDocuments, notRegisteredJobDocuments] = _.partition(
       existingJobDocuments,
-      (jobDocument) => jobDocument.data()?.status.value === "registered"
+      (jobDocument) =>
+        jobDocument.data()?.status.value === "registered" ||
+        jobDocument.data()?.status.value === "rate-limited"
     );
 
     registeredJobDocuments.forEach((existingJobDocument) => {
@@ -634,36 +869,37 @@ const checkPreconditions = ({
     TE.bind("docData", () =>
       TE.tryCatch(
         () => transaction.get(docRef),
-        (e) => "failed to get job document" as const
+        (e) => `failed to get job document ${docRef}` as const
       )
     ),
     TE.filterOrElseW(
       ({ docData }) => docData.exists,
       () => "job document does not exist" as const
     ),
-    TE.chainEitherKW(({ docData }) =>
-      JobDocument.codec("firestore").decode(docData.data())
+    TE.bindW("jobDocument", ({ docData }) =>
+      TE.fromEither(JobDocument.codec("firestore").decode(docData.data()))
+    ),
+    TE.bindW("failedPreconditions", ({ jobDocument }) =>
+      TE.of(
+        preconditions
+          .map((precondition) => {
+            const p = precondition(jobDocument);
+            return {
+              isValid: p.test,
+              errorMessage: p.errorMessage,
+            };
+          })
+          .filter(({ isValid }) => isValid === false)
+      )
     ),
     TE.filterOrElseW(
-      (jobDocument) =>
-        preconditions.every((precondition) => precondition(jobDocument).test),
-      (jobDocument) =>
-        `job ${jobDocument.jobDefinition.id} does not satisfy preconditions` as const
-    )
+      ({ failedPreconditions }) => failedPreconditions.length === 0,
+      ({ jobDocument, failedPreconditions }) =>
+        `job ${
+          jobDocument.jobDefinition.id
+        } does not satisfy preconditions: ${failedPreconditions.map(
+          (p) => p.errorMessage
+        )}` as const
+    ),
+    TE.map(({ jobDocument }) => jobDocument)
   );
-
-// const docRef = this.firestore.doc(
-//   `${this.rootDocumentPath}/${jobId}`
-// );
-// const doc = await transaction.get(docRef);
-
-// if (!doc.exists) {
-//   throw new Error(`Job ${jobId} does not exist !`);
-// }
-// return pipe(
-//   JobDocument.codec("firestore").decode(doc.data()),
-//   E.filterOrElseW(
-//     (jobDocument) => jobDocument.status.value === "running",
-//     (jobDocument) =>
-//       `🔴 Job ${jobId} is not running, cannot mark as completed ! Status: ${jobDocument.status.value}. Job may have got executed twice !`
-//   ),

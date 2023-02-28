@@ -7,6 +7,7 @@ import {
   JobScheduleArgs,
   JobStatus,
   QueuedAt,
+  RateLimit,
   RegisteredAt,
   Shard,
   StartedAt,
@@ -57,6 +58,23 @@ export class InMemoryDataStore implements Datastore {
     );
     this.completedJobs = new Map<JobId, JobDocument>(
       toEntries(props.completedJobs)
+    );
+  }
+
+  markRateLimitSatisfied(rateLimit: RateLimit): TE.TaskEither<any, void> {
+    throw new Error("Method not implemented.");
+  }
+
+  listenToRateLimits(
+    shardsToListenTo?: ShardsToListenTo
+  ): TE.TaskEither<any, Observable<RateLimit[]>> {
+    return TE.right(
+      new Observable<RateLimit[]>((subscriber) => {
+        const interval = setInterval(() => {
+          subscriber.next([]);
+        }, this.pollingInterval);
+        return () => clearInterval(interval);
+      })
     );
   }
 
@@ -113,7 +131,10 @@ export class InMemoryDataStore implements Datastore {
   }
 
   waitForRegisteredJobsByRegisteredAt(
-    { maxNoticePeriodMs }: WaitForRegisteredJobsByRegisteredAtArgs,
+    {
+      maxNoticePeriodMs,
+      registeredAfter,
+    }: WaitForRegisteredJobsByRegisteredAtArgs,
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<never, Observable<JobDocument[]>> {
     return TE.of(
@@ -186,6 +207,14 @@ export class InMemoryDataStore implements Datastore {
     return TE.right(undefined);
   }
 
+  markRateLimited(jobDocument: JobDocument, rateLimits: RateLimit[]) {
+    return TE.of(undefined);
+  }
+
+  markAsDead(jobDocument: JobDocument) {
+    return TE.of(undefined);
+  }
+
   markJobAsComplete({ jobId }: { jobId: JobId }): TE.TaskEither<any, void> {
     const jobDocument = this.runningJobs.get(jobId);
     if (!jobDocument) {
@@ -243,23 +272,24 @@ export class InMemoryDataStore implements Datastore {
   }
 
   getRegisteredJobsByScheduledAt(
-    { maxScheduledAt, limit, offset }: GetJobsScheduledBeforeArgs,
+    { maxScheduledAt, limit, lastKnownJob }: GetJobsScheduledBeforeArgs,
     shardsToListenTo?: ShardsToListenTo
   ) {
-    return TE.of(
-      _.take(
-        this.jobsMatchingShard(this.registeredJobs, shardsToListenTo)
-          .filter((job) => {
-            const scheduledAt = job.jobDefinition.scheduledAt.getTime();
-            return scheduledAt <= maxScheduledAt.getTime();
-          })
-          .map((job) => {
-            return job;
-          })
-          .slice(offset),
-        limit
-      )
-    );
+    const results = this.jobsMatchingShard(
+      this.registeredJobs,
+      shardsToListenTo
+    )
+      .filter((job) => {
+        const scheduledAt = job.jobDefinition.scheduledAt.getTime();
+        return scheduledAt <= maxScheduledAt.getTime();
+      })
+      .map((job) => {
+        return job;
+      });
+    const offset = lastKnownJob
+      ? results.findIndex((i) => i.jobDefinition.id === lastKnownJob.id) + 1
+      : 0;
+    return TE.of(_.take(results.slice(offset), limit));
   }
 
   waitForNextJobsInQueue(

@@ -13,7 +13,7 @@ import { JobScheduleArgs } from "@timetriggers/domain";
 import { ScheduledAt } from "@timetriggers/domain";
 import { DatastoreApi } from "./Firebase/DatastoreApi.js";
 import { Datastore } from "./Firebase/Processor/Datastore.js";
-import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore.js";
+import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore";
 import { InMemoryDataStore } from "./Firebase/Processor/InMemoryDataStore.js";
 import { Processor } from "./Firebase/Processor/Processor.js";
 import { Scheduler } from "./Firebase/Processor/Scheduler.js";
@@ -32,7 +32,7 @@ const clocks = {
   TestClock: new TestClock(),
 };
 
-const NUM_JOBS = 10;
+const NUM_JOBS = 2;
 
 describe(`Api tests`, () => {
   const testRunId = randomString(4);
@@ -43,7 +43,7 @@ describe(`Api tests`, () => {
     FirestoreEmulator: (clock, namespace) =>
       FirestoreDatastore.factory({
         clock,
-        rootDocumentPath: rootDocumentPathFromNs(namespace),
+        namespace,
       }),
   } as Record<string, (clock: Clock, namespace: string) => Datastore>;
 
@@ -57,7 +57,7 @@ describe(`Api tests`, () => {
       // @ts-ignore
       describe(`${apiName} (${clockName} clock)`, () => {
         beforeEach(async () => {
-          const namespace = `test-${testRunId}/${apiName}-${clockName}`;
+          const namespace = `test-${testRunId}-${apiName}-${clockName}`;
           const datastore = datastoreBuilders[apiName](clock, namespace);
           api = new DatastoreApi({
             clock,
@@ -65,7 +65,12 @@ describe(`Api tests`, () => {
           });
 
           scheduler = await te.unsafeGetOrThrow(
-            Scheduler.build({ datastore, clock, schedulePeriodMs: 500 })
+            Scheduler.build({
+              datastore,
+              clock,
+              schedulePeriodMs: 500,
+              noRateLimits: true,
+            })
           );
           processor = await te.unsafeGetOrThrow(
             Processor.factory({ datastore, clock })

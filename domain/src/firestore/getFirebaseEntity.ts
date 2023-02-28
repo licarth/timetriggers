@@ -37,11 +37,16 @@ export const getOneFromFirestore = <T>(
               : doc.get());
             return snapshot;
           },
-          (reason) => ({ _tag: "FirestoreError", message: String(reason) })
+          (reason) => ({
+            _tag: "FirestoreError" as const,
+            message: String(reason),
+          })
         ),
         TE.filterOrElseW(
-          (d) => d.exists,
-          () => ({ _tag: "NotFound" })
+          (d) => {
+            return d.exists;
+          },
+          () => ({ _tag: "NotFound" as const })
         ),
         TE.map((d) => d.data()),
         RTE.fromTaskEither
@@ -55,7 +60,7 @@ export const getOneFromFirestore = <T>(
         ).decode,
         E.mapLeft((e) => {
           console.error(`Could not decode \n`, draw(e));
-          return { _tag: "DecoderError", message: draw(e) };
+          return { _tag: "DecoderError" as const, message: draw(e) };
         })
       )
     )

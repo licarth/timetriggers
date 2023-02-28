@@ -1,3 +1,4 @@
+import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
 import {
   ClusterNodeInformation,
   CoordinationClient,
@@ -7,18 +8,20 @@ import { withTimeout } from "@/fp-ts/withTimeout";
 import { getOrReportToSentry } from "@/Sentry/getOrReportToSentry";
 import {
   Clock,
-  JobDefinition,
   JobDocument,
   JobId,
+  RateLimit,
+  RateLimitKey,
   RegisteredAt,
   ScheduledAt,
 } from "@timetriggers/domain";
 import chalk from "chalk";
-import { addMilliseconds, addMinutes, addSeconds } from "date-fns";
+import { addMilliseconds } from "date-fns";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
+import PQueue from "p-queue";
 import { ClusterTopologyDatastoreAware } from "./ClusterTopologyAware";
 import { Datastore, LastKnownScheduledJob } from "./Datastore";
 import {
@@ -28,7 +31,16 @@ import {
 import { unsubscribeAll } from "./unsubscribeAll";
 
 const MINUTE = 1000 * 60;
-const SECOND = 1000;
+const TLD_QPS = 0.3;
+
+const qpsForRateLimit = (rateLimit: RateLimit): number => {
+  if (rateLimit.key.startsWith("tld")) {
+    return TLD_QPS;
+  } else if (rateLimit.key.startsWith("project")) {
+    return 5;
+  }
+  return 1;
+};
 
 type SchedulerProps = {
   clock?: Clock;
@@ -40,6 +52,7 @@ type SchedulerProps = {
   scheduleAdvanceMs?: number;
   scheduleBatch?: number;
   schedulePeriodMs?: number;
+  noRateLimits?: boolean;
 };
 
 type UnsubsribeHook = () => void;
@@ -56,16 +69,21 @@ type SchedulingPeriod = {
 
 export class Scheduler extends ClusterTopologyDatastoreAware {
   plannedTimeouts = new Map<JobId, NodeJS.Timeout>();
+  rateLimitQueues = new Map<RateLimitKey, PQueue>();
+
   datastoreNewJobsHooks: UnsubsribeHook[] = [];
   nextPeriodSchedulingHooks: UnsubsribeHook[] = [];
 
   schedulePeriodMs: number;
   scheduleBatch: number;
 
+  noRateLimits: boolean;
+
   private constructor(props: SchedulerProps) {
     super(props);
     this.schedulePeriodMs = props.scheduleAdvanceMs || 10 * MINUTE;
     this.scheduleBatch = props.scheduleBatch || 100;
+    this.noRateLimits = props.noRateLimits || false;
     // Initialize current period to now
   }
 
@@ -108,6 +126,10 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     this.clearAllPlannedTimeouts();
     unsubscribeAll(this.datastoreNewJobsHooks);
     unsubscribeAll(this.nextPeriodSchedulingHooks);
+    for (const queue of this.rateLimitQueues.values()) {
+      queue.clear();
+      // TODO: wait for all ongoing to be done ? => not necessarily as they are in a transaction...
+    }
     return super.close();
   }
 
@@ -133,11 +155,41 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         unsubscribeAll(this.datastoreNewJobsHooks);
       },
       TE.fromTask,
-      TE.chainFirstW(() => this.startListening())
+      TE.chainFirstW(() => this.startListeningToRateLimits()),
+      TE.chainFirstW(() => this.startListeningToJobs())
     );
   }
 
-  startListening() {
+  startListeningToRateLimits() {
+    return pipe(
+      this.datastore.listenToRateLimits(this.shardsToListenTo),
+      TE.map((rateLimits) => {
+        const s = rateLimits.subscribe((rateLimit) => {
+          rateLimit.forEach((rl) => {
+            console.log(
+              `[Scheduler] 🔸 Rate limit found for ${rl.key} (job ${rl.jobId}}`
+            );
+            if (!this.rateLimitQueues.get(rl.key)) {
+              const q = new PQueue({
+                interval: Math.floor(1000 / qpsForRateLimit(rl)),
+                intervalCap: 1,
+              });
+              this.rateLimitQueues.set(rl.key, q);
+            }
+            this.rateLimitQueues.get(rl.key)?.add(
+              () => {
+                getOrReportToSentry(this.datastore.markRateLimitSatisfied(rl));
+              },
+              { priority: -rl.scheduledAt.getTime() }
+            );
+          });
+        });
+        this.datastoreNewJobsHooks.push(() => s.unsubscribe());
+      })
+    );
+  }
+
+  startListeningToJobs() {
     const originPeriod = this.originPeriod(); // Cathup until now +
     const firstPeriod = this.nextPeriod(originPeriod);
     return pipe(
@@ -258,11 +310,6 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
 
   private _scheduleNewJobs(jobs: JobDocument[]) {
     const jobsWithinTimeRange = jobs;
-    // .filter(
-    //   (job) =>
-    //     job.jobDefinition.scheduledAt <
-    //     addMilliseconds(this.clock.now(), this.scheduleAdvanceMs)
-    // );
     const [jobsInThePast, jobsIntheFuture] = _.partition(
       jobsWithinTimeRange,
       (job) => job.jobDefinition.scheduledAt < this.clock.now()
@@ -275,13 +322,11 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     // should be scheduled in a single transaction, but this requires changes
     // in the way we track setTimeouts
     jobsIntheFuture.forEach((job) => {
-      this.scheduleSetTimeout(job.jobDefinition);
+      this.scheduleSetTimeout(job);
     });
 
     if (jobsInThePast.length > 0) {
-      return this.datastore.queueJobs(
-        jobsInThePast.map((j) => j.jobDefinition)
-      );
+      return this.rateLimitOrQueue(jobsInThePast);
     } else {
       return TE.right(undefined);
     }
@@ -350,33 +395,93 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
     );
   }
 
-  scheduleSetTimeout(jobDefinition: JobDefinition) {
-    if (this.plannedTimeouts.has(jobDefinition.id)) {
+  scheduleSetTimeout(jobDocument: JobDocument) {
+    const { jobDefinition } = jobDocument;
+    const { id, scheduledAt } = jobDefinition;
+    if (this.plannedTimeouts.has(id)) {
       // Rescheduling a job that is already scheduled
-      console.warn(
-        `Job ${jobDefinition.id} is already scheduled, rescheduling it`
-      );
+      console.warn(`Job ${id} is already scheduled, rescheduling it`);
       return;
     }
     console.log(
-      `[Scheduler] Scheduling job ${
-        jobDefinition.id
-      } for in ${humanReadibleDifferenceWithDateFns(
-        jobDefinition.scheduledAt,
+      `[Scheduler] Scheduling job ${id} for in ${humanReadibleDifferenceWithDateFns(
+        scheduledAt,
         this.clock.now()
       )}`
     );
     const timeoutId = this.clock.setTimeout(() => {
-      getOrReportToSentry(this.datastore.queueJobs([jobDefinition]));
-      this.plannedTimeouts.delete(jobDefinition.id);
-    }, Math.max(0, jobDefinition.scheduledAt.getTime() - this.clock.now().getTime()));
-    this.plannedTimeouts.set(jobDefinition.id, timeoutId);
+      getOrReportToSentry(this.rateLimitOrQueue([jobDocument]));
+      this.plannedTimeouts.delete(id);
+    }, Math.max(0, scheduledAt.getTime() - this.clock.now().getTime()));
+    this.plannedTimeouts.set(id, timeoutId);
   }
 
-  //TODO: cancel jobs
+  private rateLimitOrQueue(jobDocuments: JobDocument[]) {
+    const [rateLimitedDocuments, nonRateLimitedDocuments] = _.partition(
+      jobDocuments.map((jobDocument) => ({
+        rateLimits: this.getRateLimits(jobDocument),
+        jobDocument,
+      })),
+      (jobDocument) => jobDocument.rateLimits.length > 0
+    );
+
+    return pipe(
+      this.datastore.queueJobs(
+        nonRateLimitedDocuments.map((j) => j.jobDocument.jobDefinition)
+      ),
+      TE.chainW(() => {
+        // Mark each rate limited job
+        return pipe(
+          rateLimitedDocuments.map(
+            ({ jobDocument, rateLimits }) => {
+              jobDocument.rateLimitKeys = rateLimits.map((rl) => rl.key);
+              return pipe(
+                this.datastore.markRateLimited(jobDocument, rateLimits),
+                TE.orElseW(() => this.datastore.markAsDead(jobDocument))
+              );
+            }
+            // What if this fails?
+          ),
+          TE.sequenceArray
+        );
+      }),
+      TE.map(() => undefined)
+    );
+  }
+  getRateLimits = (jobDocument: JobDocument) => {
+    const rateLimits = [] as RateLimit[];
+    if (this.noRateLimits) {
+      return rateLimits;
+    }
+    const tld = jobDocument.jobDefinition.http?.tld();
+    if (tld) {
+      rateLimits.push(
+        RateLimit.tld(
+          tld,
+          jobDocument.jobDefinition.id,
+          jobDocument.jobDefinition.scheduledAt,
+          preloadedHashingFunction(tld)
+        )
+      );
+    }
+    if (jobDocument.projectId) {
+      rateLimits.push(
+        RateLimit.project(
+          jobDocument.jobDefinition.id,
+          jobDocument.projectId,
+          jobDocument.jobDefinition.scheduledAt,
+          preloadedHashingFunction(jobDocument.projectId)
+        )
+      );
+    }
+
+    return rateLimits;
+  };
 }
 
 const humanReadibleDifferenceWithDateFns = (date1: Date, date2: Date) => {
   const diff = Math.abs(date1.getTime() - date2.getTime());
   return humanReadibleMs(diff);
 };
+
+const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(11);

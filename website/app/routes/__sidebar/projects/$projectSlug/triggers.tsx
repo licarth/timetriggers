@@ -1,7 +1,6 @@
 import {
   Alert,
   AlertIcon,
-  Box,
   Code,
   HStack,
   Spinner,
@@ -18,6 +17,7 @@ import { formatDistanceToNow } from "date-fns";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as C from "io-ts/lib/Codec.js";
+import _ from "lodash";
 import {
   ProjectJobsProvider,
   useProjectJobs,
@@ -26,7 +26,6 @@ import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { loaderFromRte } from "~/utils/loaderFromRte.server";
-import _ from "lodash";
 
 const wireCodec = C.struct({ project: Project.codec("string") });
 
@@ -47,24 +46,22 @@ export const loader: LoaderFunction = async ({ params, request }) => {
 };
 
 const JobStatus = ({ job }: { job: JobDocument }) => {
-  const tagWidth = "70px";
   return (
     <>
-      {job.status.value === "registered" && (
+      {!["running", "completed"].includes(job.status.value) && (
         <Tooltip
           label={humanReadibleDurationFromNow(job.jobDefinition.scheduledAt)}
         >
           <Tag size={"sm"} colorScheme={"blue"} alignContent={"center"}>
-            planned
+            {job.status.value}
           </Tag>
         </Tooltip>
       )}
-      {job.status.value !== "registered" &&
-        job.status.value !== "completed" && (
-          <Tag size={"sm"} colorScheme={"orange"}>
-            <Spinner size={"xs"} />
-          </Tag>
-        )}
+      {job.status.value == "running" && (
+        <Tag size={"sm"} colorScheme={"orange"}>
+          <Spinner size={"xs"} />
+        </Tag>
+      )}
       {job.lastStatusUpdate?._tag === "HttpCallErrored" && (
         <Tooltip label={job.lastStatusUpdate.errorMessage}>
           <Tag
