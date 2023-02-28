@@ -49,7 +49,12 @@ describe(`Firebase Distributed`, () => {
     });
 
     await te.unsafeGetOrThrow(
-      Scheduler.build({ datastore, clock, schedulePeriodMs: 500 })
+      Scheduler.build({
+        datastore,
+        clock,
+        schedulePeriodMs: 500,
+        noRateLimits: true,
+      })
     );
     await te.unsafeGetOrThrow(Processor.factory({ datastore, clock }));
 
