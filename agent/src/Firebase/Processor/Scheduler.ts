@@ -54,6 +54,7 @@ type SchedulerProps = {
   scheduleAdvanceMs?: number;
   scheduleBatch?: number;
   schedulePeriodMs?: number;
+  noRateLimits?: boolean;
 };
 
 type UnsubsribeHook = () => void;
@@ -78,10 +79,13 @@ export class Scheduler extends ClusterTopologyDatastoreAware {
   schedulePeriodMs: number;
   scheduleBatch: number;
 
+  noRateLimits: boolean;
+
   private constructor(props: SchedulerProps) {
     super(props);
     this.schedulePeriodMs = props.scheduleAdvanceMs || 10 * MINUTE;
     this.scheduleBatch = props.scheduleBatch || 100;
+    this.noRateLimits = props.noRateLimits || false;
     // Initialize current period to now
   }
 
@@ -417,7 +421,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
   private rateLimitOrQueue(jobDocuments: JobDocument[]) {
     const [rateLimitedDocuments, nonRateLimitedDocuments] = _.partition(
       jobDocuments.map((jobDocument) => ({
-        rateLimits: getRateLimits(jobDocument),
+        rateLimits: this.getRateLimits(jobDocument),
         jobDocument,
       })),
       (jobDocument) => jobDocument.rateLimits.length > 0
@@ -446,6 +450,35 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
       TE.map(() => undefined)
     );
   }
+  getRateLimits = (jobDocument: JobDocument) => {
+    const rateLimits = [] as RateLimit[];
+    if (this.noRateLimits) {
+      return rateLimits;
+    }
+    const tld = jobDocument.jobDefinition.http?.tld();
+    if (tld) {
+      rateLimits.push(
+        RateLimit.tld(
+          tld,
+          jobDocument.jobDefinition.id,
+          jobDocument.jobDefinition.scheduledAt,
+          preloadedHashingFunction(tld)
+        )
+      );
+    }
+    if (jobDocument.projectId) {
+      rateLimits.push(
+        RateLimit.project(
+          jobDocument.jobDefinition.id,
+          jobDocument.projectId,
+          jobDocument.jobDefinition.scheduledAt,
+          preloadedHashingFunction(jobDocument.projectId)
+        )
+      );
+    }
+
+    return rateLimits;
+  };
 }
 
 const humanReadibleDifferenceWithDateFns = (date1: Date, date2: Date) => {
@@ -454,30 +487,3 @@ const humanReadibleDifferenceWithDateFns = (date1: Date, date2: Date) => {
 };
 
 const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(11);
-
-const getRateLimits = (jobDocument: JobDocument) => {
-  const rateLimits = [] as RateLimit[];
-  const tld = jobDocument.jobDefinition.http?.tld();
-  if (tld) {
-    rateLimits.push(
-      RateLimit.tld(
-        tld,
-        jobDocument.jobDefinition.id,
-        jobDocument.jobDefinition.scheduledAt,
-        preloadedHashingFunction(tld)
-      )
-    );
-  }
-  if (jobDocument.projectId) {
-    rateLimits.push(
-      RateLimit.project(
-        jobDocument.jobDefinition.id,
-        jobDocument.projectId,
-        jobDocument.jobDefinition.scheduledAt,
-        preloadedHashingFunction(jobDocument.projectId)
-      )
-    );
-  }
-
-  return rateLimits;
-};

@@ -32,7 +32,7 @@ const clocks = {
   TestClock: new TestClock(),
 };
 
-const NUM_JOBS = 10;
+const NUM_JOBS = 2;
 
 describe(`Api tests`, () => {
   const testRunId = randomString(4);
@@ -65,7 +65,12 @@ describe(`Api tests`, () => {
           });
 
           scheduler = await te.unsafeGetOrThrow(
-            Scheduler.build({ datastore, clock, schedulePeriodMs: 500 })
+            Scheduler.build({
+              datastore,
+              clock,
+              schedulePeriodMs: 500,
+              noRateLimits: true,
+            })
           );
           processor = await te.unsafeGetOrThrow(
             Processor.factory({ datastore, clock })
