@@ -159,9 +159,8 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
   }
 
   startListeningToRateLimits() {
-    const d = this.datastore as FirestoreDatastore;
     return pipe(
-      d.listenToRateLimits(this.shardsToListenTo),
+      this.datastore.listenToRateLimits(this.shardsToListenTo),
       TE.map((rateLimits) => {
         const s = rateLimits.subscribe((rateLimit) => {
           rateLimit.forEach((rl) => {
@@ -177,7 +176,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
             }
             this.rateLimitQueues.get(rl.key)?.add(
               () => {
-                getOrReportToSentry(d.markRateLimitSatisfied(rl));
+                getOrReportToSentry(this.datastore.markRateLimitSatisfied(rl));
               },
               { priority: -rl.scheduledAt.getTime() }
             );

@@ -135,6 +135,12 @@ export interface Datastore {
     rateLimits: RateLimit[]
   ): TE.TaskEither<any, void>;
 
+  listenToRateLimits(
+    shardsToListenTo?: ShardsToListenTo
+  ): TE.TaskEither<any, Observable<RateLimit[]>>;
+
+  markRateLimitSatisfied(rateLimit: RateLimit): TE.TaskEither<any, void>;
+
   markAsDead(jobDocument: JobDocument): TE.TaskEither<any, void>;
 
   /**

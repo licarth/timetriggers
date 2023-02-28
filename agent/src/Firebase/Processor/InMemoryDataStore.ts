@@ -61,6 +61,23 @@ export class InMemoryDataStore implements Datastore {
     );
   }
 
+  markRateLimitSatisfied(rateLimit: RateLimit): TE.TaskEither<any, void> {
+    throw new Error("Method not implemented.");
+  }
+
+  listenToRateLimits(
+    shardsToListenTo?: ShardsToListenTo
+  ): TE.TaskEither<any, Observable<RateLimit[]>> {
+    return TE.right(
+      new Observable<RateLimit[]>((subscriber) => {
+        const interval = setInterval(() => {
+          subscriber.next([]);
+        }, this.pollingInterval);
+        return () => clearInterval(interval);
+      })
+    );
+  }
+
   close(): TE.TaskEither<any, void> {
     return TE.right(undefined);
   }
