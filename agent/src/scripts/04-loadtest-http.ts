@@ -1,8 +1,18 @@
+import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
+import { Datastore } from "@/Firebase/Processor/Datastore";
+import { FirestoreDatastore } from "@/Firebase/Processor/FirestoreDatastore";
 import {
   humanReadibleCountdownBetween2Dates,
   humanReadibleMs,
 } from "@/Firebase/Processor/humanReadibleMs";
-import { ScheduledAt } from "@timetriggers/domain";
+import { te } from "@/fp-ts";
+import {
+  Http,
+  JobId,
+  JobScheduleArgs,
+  ScheduledAt,
+  Shard,
+} from "@timetriggers/domain";
 import { initializeApp } from "../Firebase/initializeApp";
 import { parseHumanReadibleDuration, sleep } from "./utils";
 
@@ -10,7 +20,15 @@ const { firestore } = initializeApp({
   serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
 });
 
+const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(11);
+
 (async () => {
+  const datastore = FirestoreDatastore.factory({
+    firestore,
+    rootDocumentPath: `/namespaces/doi-production/jobs`,
+  });
+
+  const scheduleVia = process.env.SCHEDULED_VIA || "datastore";
   const qps = parseFloat(process.env.QPS || "0.3");
   const schedulingRateLimitQps = parseFloat(
     process.env.API_RATE_LIMIT_QPS || "20"
@@ -52,25 +70,9 @@ const { firestore } = initializeApp({
       );
       return;
     }
-    const response = await fetch("https://api.timetriggers.io/schedule", {
-      method: "GET",
-
-      headers: {
-        "X-Timetriggers-At": `${scheduledAt.toISOString()}`,
-        "X-Timetriggers-Key": "Dqm0JAXuuSbEy0C1unRbb60ULU0nIWaC",
-        "X-Timetriggers-Url": "https://api.timetriggers.io/1",
-        "X-Timetriggers-Options": "no_noise",
-      },
-    });
-
-    console.log(
-      `🚀 ${response.status} Scheduled job ${
-        (await response.json()).jobId
-      }, time remaining before job scheduledAt: ${humanReadibleCountdownBetween2Dates(
-        new Date(),
-        scheduledAt
-      )})`
-    );
+    scheduleVia === "http"
+      ? await scheduleJobHttp(scheduledAt)
+      : await scheduleJobDatastore(datastore, scheduledAt);
   }, 1000 / schedulingRateLimitQps);
 
   setTimeout(() => {
@@ -80,3 +82,65 @@ const { firestore } = initializeApp({
   await sleep(testDurationMs + 1000);
   console.log("✅ done");
 })();
+
+async function scheduleJobHttp(scheduledAt: ScheduledAt) {
+  const now = new Date();
+  const response = await fetch("https://api.timetriggers.io/schedule", {
+    method: "GET",
+
+    headers: {
+      "X-Timetriggers-At": `${scheduledAt.toISOString()}`,
+      "X-Timetriggers-Key": "Dqm0JAXuuSbEy0C1unRbb60ULU0nIWaC",
+      "X-Timetriggers-Url": "https://api.timetriggers.io/1",
+      "X-Timetriggers-Options": "no_noise",
+    },
+  });
+
+  console.log(
+    `🚀 ${response.status} (took ${humanReadibleMs(
+      now.getTime() - new Date().getTime()
+    )}) Scheduled job ${
+      (await response.json()).jobId
+    }, time remaining before job scheduledAt: ${humanReadibleCountdownBetween2Dates(
+      new Date(),
+      scheduledAt
+    )})`
+  );
+}
+
+async function scheduleJobDatastore(
+  datastore: Datastore,
+  scheduledAt: ScheduledAt
+) {
+  const now = new Date();
+  const jobId = await te.unsafeGetOrThrow(
+    datastore.schedule(
+      new JobScheduleArgs({
+        scheduledAt,
+        http: new Http({
+          options: undefined,
+          url: "https://api.timetriggers.io/1",
+        }),
+      }),
+      (jobId: JobId) =>
+        preloadedHashingFunction(jobId)
+          .slice(1)
+          .map((s) => {
+            const parts = s.split("-");
+            return new Shard({
+              nodeCount: Number(parts[0]),
+              nodeId: Number(parts[1]),
+            });
+          })
+    )
+  );
+
+  console.log(
+    `🚀 took ${humanReadibleMs(
+      now.getTime() - new Date().getTime()
+    )}) Scheduled job ${jobId}, time remaining before job scheduledAt: ${humanReadibleCountdownBetween2Dates(
+      new Date(),
+      scheduledAt
+    )})`
+  );
+}
