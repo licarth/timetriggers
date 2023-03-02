@@ -7,16 +7,25 @@ import { AxiosResponse } from "axios";
 export class HttpCallResponse {
   statusCode;
   statusText;
+  sizeInBytes;
 
   constructor(props: HttpCallResponseProps) {
     this.statusCode = props.statusCode;
     this.statusText = props.statusText;
+    this.sizeInBytes = props.sizeInBytes;
   }
 
-  static propsCodec = Codec.struct({
-    statusCode: StatusCode.codec,
-    statusText: Codec.string,
-  });
+  static propsCodec = pipe(
+    Codec.struct({
+      statusCode: StatusCode.codec,
+      statusText: Codec.string,
+    }),
+    Codec.intersect(
+      Codec.partial({
+        sizeInBytes: Codec.number,
+      })
+    )
+  );
 
   static codec = pipe(
     HttpCallResponse.propsCodec,
@@ -27,6 +36,7 @@ export class HttpCallResponse {
     new HttpCallResponse({
       statusCode: StatusCode.fromInt(response.status),
       statusText: response.statusText,
+      sizeInBytes: Number((response.data as ArrayBuffer).byteLength),
     });
 }
 

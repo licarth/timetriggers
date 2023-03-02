@@ -28,6 +28,7 @@ const worker: Worker = {
         response: new HttpCallResponse({
           statusCode: StatusCode.fromInt(200),
           statusText: "OK",
+          sizeInBytes: 200,
         }),
       })
     ),

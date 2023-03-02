@@ -1,10 +1,12 @@
-import { e, JobDocument, ProjectId } from "@timetriggers/domain";
+import type { ProjectId, ScheduledAt } from "@timetriggers/domain";
+import { e, JobDocument } from "@timetriggers/domain";
 import {
   collection,
   limit,
   onSnapshot,
   orderBy,
   query,
+  startAfter,
   where,
 } from "firebase/firestore";
 import { pipe } from "fp-ts/lib/function";
@@ -33,13 +35,17 @@ const ProjectJobsProvider = ({
   children,
   projectId,
 }: React.PropsWithChildren & { projectId: ProjectId }) => {
-  const [results, setResults] = React.useState<
+  type ProjectJobs =
     | {
         jobs: JobDocument[];
         errors: string[];
       }
-    | "loading"
-  >("loading");
+    | "loading";
+
+  const [results, setResults] = React.useState<ProjectJobs>("loading");
+
+  const [startAfterScheduledAt, setStartAfterScheduledAt] =
+    React.useState<ScheduledAt | null>(null);
 
   console.log(
     `✅ auth.currentUser`,
@@ -57,7 +63,8 @@ const ProjectJobsProvider = ({
         collection(firestore, jobsRef),
         where("projectId", "==", projectId),
         orderBy("jobDefinition.scheduledAt", "desc"),
-        limit(100)
+        ...(startAfterScheduledAt ? [startAfter(startAfterScheduledAt)] : []),
+        limit(10)
       ),
       (snapshot) => {
         pipe(
@@ -99,12 +106,4 @@ const ProjectJobsProvider = ({
   );
 };
 
-function useProjectJobs() {
-  const context = React.useContext(ProjectJobsContext);
-  if (context === undefined) {
-    throw new Error("useProjectJobs must be used within a ProjectJobsProvider");
-  }
-  return context;
-}
-
-export { ProjectJobsProvider, useProjectJobs };
+export { ProjectJobsProvider };

@@ -59,6 +59,8 @@ export class AxiosWorker implements Worker {
         headers: { ...userHeaders, "x-callback-id": jobDefinition.id },
         data: jobDefinition.http?.options?.body?.toData(),
         timeout: 10_000, // 10 seconds
+        responseType: "arraybuffer",
+        responseEncoding: "utf8",
       });
       subscriber.next(
         new HttpCallCompleted({

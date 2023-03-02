@@ -1,16 +1,8 @@
-import { Code, Flex, Heading, IconButton, Select } from "@chakra-ui/react";
+import { Flex, IconButton } from "@chakra-ui/react";
 import { useLocation, useNavigate } from "@remix-run/react";
 import type { FirebaseUser, Project } from "@timetriggers/domain";
-import {
-  BsBook,
-  BsCollectionPlayFill,
-  BsGearFill,
-  BsKey,
-} from "react-icons/bs";
 import { FiMenu } from "react-icons/fi";
 import { Logo } from "~/components/Logo";
-import { NavItem } from "./NavItem";
-import type { NavSize } from "./NavItemProps";
 
 type MenuElementsProps = {
   user?: FirebaseUser;

@@ -2,6 +2,7 @@ import { taggedUnionClassCodec } from "@/iots";
 import * as Codec from "io-ts/lib/Codec.js";
 import { HttpCallResponse } from "./HttpCallResponse";
 import { UtcDate } from "@/UtcDate";
+import { pipe } from "fp-ts/lib/function";
 
 export class HttpCallCompleted {
   _tag = "HttpCallCompleted" as const;
@@ -18,11 +19,14 @@ export class HttpCallCompleted {
     this.response = props.response;
   }
 
-  static propsCodec = Codec.struct({
-    startedAt: UtcDate.stringCodec,
-    completedAt: UtcDate.stringCodec,
-    response: HttpCallResponse.codec,
-  });
+  static propsCodec = pipe(
+    Codec.struct({
+      startedAt: UtcDate.stringCodec,
+      completedAt: UtcDate.stringCodec,
+      response: HttpCallResponse.codec,
+    }),
+    Codec.intersect(Codec.partial({}))
+  );
 
   static codec = taggedUnionClassCodec(this.propsCodec, HttpCallCompleted);
 }
