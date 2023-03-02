@@ -80,8 +80,14 @@ const StatusTag = ({ job }: { job: JobDocument }) => {
         >
           <Tag size={"sm"} colorScheme={"blue"} alignContent={"center"}>
             {job.status.value}
+            {job.status.value}
           </Tag>
         </Tooltip>
+      )}
+      {job.status.value == "running" && (
+        <Tag size={"sm"} colorScheme={"orange"}>
+          <Spinner size={"xs"} />
+        </Tag>
       )}
       {job.status.value == "running" && (
         <Tag size={"sm"} colorScheme={"orange"}>
