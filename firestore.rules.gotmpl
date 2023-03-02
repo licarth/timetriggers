@@ -8,9 +8,17 @@ service cloud.firestore {
       // Applies to queries and collection read requests
       allow list: if request.auth != null;
     }
+    match /namespaces/{{ $ns }}/jobs/{jobId}/rate-limits {
+      allow list: if request.auth != null;
+    }
+
     match /namespaces/{{ $ns }}/jobs/{jobId} {
       allow list, read: if request.auth != null &&
         resource.data.projectId in request.auth.token.projects.is_owner
+    }
+    match /namespaces/{{ $ns }}/jobs/{jobId}/rate-limits/{rateLimitKey} {
+      allow list, read: if request.auth != null &&
+        get(/databases/$(database)/documents/namespaces/{{ $ns }}/jobs/$(jobId)).data.projectId in request.auth.token.projects.is_owner
     }
     match /{document=**} {
       allow read, write: if false;

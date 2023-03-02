@@ -59,6 +59,7 @@ export const useProjectJobs = ({
         where("status.value", "in", [
           "queued",
           "rate-limited",
+          "running",
           "completed",
           "dead",
         ]),

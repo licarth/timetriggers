@@ -1,3 +1,4 @@
+import type { ModalProps } from "@chakra-ui/react";
 import {
   Alert,
   AlertIcon,
@@ -18,7 +19,6 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  ModalProps,
   OrderedList,
   Stack,
   Table,
@@ -33,12 +33,7 @@ import {
   useDisclosure,
   useToast,
 } from "@chakra-ui/react";
-import {
-  useLoaderData,
-  useLocation,
-  useNavigate,
-  useParams,
-} from "@remix-run/react";
+import { useLoaderData, useLocation, useNavigate } from "@remix-run/react";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import { redirect } from "@remix-run/server-runtime";
 import {
@@ -51,8 +46,8 @@ import {
   UtcDate,
 } from "@timetriggers/domain";
 import { format } from "date-fns";
-import { flow } from "fp-ts/lib/function";
-import { pipe } from "fp-ts/lib/function";
+import * as E from "fp-ts/lib/Either";
+import { flow, pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as C from "io-ts/lib/Codec";
 import { draw } from "io-ts/lib/Decoder";
@@ -61,14 +56,14 @@ import { useEffect, useState } from "react";
 import { BsFillTrash2Fill } from "react-icons/bs";
 import { FaCopy } from "react-icons/fa";
 import { match } from "ts-pattern";
+import { H1 } from "~/components";
 import { CodeExample } from "~/components/CodeExample";
 import { CopyToClipboardButton } from "~/components/CopyToClipboardButton";
+import { useFirebaseAuth } from "~/contexts";
 import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte.server";
-import * as E from "fp-ts/lib/Either";
-import { useFirebaseAuth } from "~/contexts";
 
 export const loader: LoaderFunction = async ({ params, request }) => {
   return loaderFromRte(
@@ -313,7 +308,8 @@ const Document = () => {
 
   const firstApiKey = _.values(apiKeys)[0];
   return (
-    <Stack spacing={10}>
+    <Stack spacing={4}>
+      <H1>Api Keys</H1>
       <Text>Manage your API keys from here.</Text>
       {!_.isEmpty(apiKeys) && createKeyButton}
       <Card bgColor={bgColor} maxW="xxl" overflowY="scroll">

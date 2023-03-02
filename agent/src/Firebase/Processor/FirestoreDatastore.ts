@@ -135,7 +135,10 @@ export class FirestoreDatastore implements Datastore {
             rateLimits.forEach((rateLimit) => {
               t.create(
                 rateLimitCollection.doc(rateLimit.key),
-                RateLimit.codec("firestore").encode(rateLimit)
+                {
+                  ...RateLimit.codec("firestore").encode(rateLimit),
+                  createdAt: FieldValue.serverTimestamp(),
+                } // TODO Move this to the domain
               );
             });
           }),

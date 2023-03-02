@@ -6,19 +6,20 @@ import {
   Card,
   Center,
   Code,
+  Flex,
   Heading,
   HStack,
+  IconButton,
   Spinner,
   Stack,
   Tag,
   Text,
-  Tooltip,
 } from "@chakra-ui/react";
 import { useLoaderData } from "@remix-run/react";
 import type { LoaderFunction } from "@remix-run/server-runtime";
 import type { JobDocument, ScheduledAt } from "@timetriggers/domain";
 import { e, Project } from "@timetriggers/domain";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistance, formatDuration, intervalToDuration } from "date-fns";
 import * as E from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
@@ -26,12 +27,16 @@ import * as C from "io-ts/lib/Codec.js";
 import _ from "lodash";
 import { useEffect, useState } from "react";
 import { BsArrowCounterclockwise } from "react-icons/bs";
+import { MdExpandLess, MdExpandMore } from "react-icons/md";
 import { VscCircleFilled } from "react-icons/vsc";
+import { H1, H2 } from "~/components";
 import { ProjectProvider, useProject, useProjectJobs } from "~/contexts";
 import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { loaderFromRte } from "~/utils/loaderFromRte.server";
+import { humanReadibleDurationFromNow, useRateLimits } from "./components";
+import { StatusTag } from "./components/StatusTag";
 
 const wireCodec = C.struct({ project: Project.codec("string") });
 
@@ -50,58 +55,12 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     )
   );
 };
-const StatusTag = ({ job }: { job: JobDocument }) => {
-  return (
-    <>
-      {job.lastStatusUpdate?._tag === "HttpCallCompleted" &&
-        job.lastStatusUpdate?.response && (
-          <>
-            <Tag
-              size={"sm"}
-              colorScheme={colorByStatusCode(
-                job.lastStatusUpdate.response.statusCode.codeInt
-              )}
-            >
-              {job.lastStatusUpdate.response.statusCode.codeInt}
-            </Tag>
-          </>
-        )}
-      {!["running", "completed"].includes(job.status.value) && (
-        <Tooltip
-          label={humanReadibleDurationFromNow(job.jobDefinition.scheduledAt)}
-        >
-          <Tag size={"sm"} colorScheme={"blue"} alignContent={"center"}>
-            {job.status.value}
-          </Tag>
-        </Tooltip>
-      )}
-      {job.status.value == "running" && (
-        <Tag size={"sm"} colorScheme={"orange"}>
-          <Spinner size={"xs"} />
-        </Tag>
-      )}
-      {job.lastStatusUpdate?._tag === "HttpCallErrored" && (
-        <Tooltip label={job.lastStatusUpdate.errorMessage}>
-          <Tag
-            display={"flex"}
-            size={"sm"}
-            colorScheme={"red"}
-            variant="outline"
-          >
-            ERROR
-          </Tag>
-        </Tooltip>
-      )}
-    </>
-  );
-};
-
 const humanReadableSizeBytes = (sizeInBytes: number) => {
   if (sizeInBytes < 1024) {
     return `${sizeInBytes} B`;
   }
   if (sizeInBytes < 1024 * 1024) {
-    return `${(sizeInBytes / 1024).toFixed(2)} KB`;
+    return `${(sizeInBytes / 1024).toFixed(0)} KB`;
   }
   if (sizeInBytes < 1024 * 1024 * 1024) {
     return `${(sizeInBytes / 1024 / 1024).toFixed(2)} MB`;
@@ -109,36 +68,108 @@ const humanReadableSizeBytes = (sizeInBytes: number) => {
   return `${(sizeInBytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 };
 
-const JobLine = ({ job }: { job: JobDocument }) => (
-  <Card w={"100%"} variant="outline" p={1} m={1} justifyContent="stretch">
-    <HStack>
-      <StatusTag job={job} />
-      <Tag size={"sm"}>{job.jobDefinition.http?.options?.method} </Tag>
-      <Text fontSize="sm">{job.jobDefinition.http?.domain()}</Text>
-      {job.lastStatusUpdate &&
-        job.lastStatusUpdate._tag === "HttpCallCompleted" &&
-        job.lastStatusUpdate.response?.sizeInBytes && (
-          <Text fontSize={"70%"}>
-            {humanReadableSizeBytes(job.lastStatusUpdate.response.sizeInBytes)}
-          </Text>
+const RateLimits = ({ jobDocument }: { jobDocument: JobDocument }) => {
+  const s = useRateLimits({ jobDocument });
+
+  if (s.loading) {
+    return <Spinner />;
+  }
+
+  return (
+    <Box p={3} m={2}>
+      <H2>Rate Limits</H2>
+      {s.rateLimits.map((rateLimit) => (
+        <HStack key={rateLimit.key} mt={1}>
+          <Tag size={"sm"}>{rateLimit.key.split(":")[0]}</Tag>
+          {rateLimit.satisfiedAt && (
+            <Tag size={"sm"} colorScheme={"green"}>
+              Satisfied (waited{" "}
+              {rateLimit.createdAt &&
+                formatDistance(rateLimit.satisfiedAt, rateLimit.createdAt, {
+                  includeSeconds: true,
+                })}
+              )
+            </Tag>
+          )}
+          {!rateLimit.satisfiedAt && (
+            <Tag size={"sm"} colorScheme="yellow">
+              Waiting...
+            </Tag>
+          )}
+        </HStack>
+      ))}
+    </Box>
+  );
+};
+
+const JobLine = ({ job: jobDocument }: { job: JobDocument }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const toggleExpanded = () => setExpanded(!expanded);
+
+  return (
+    <Card w={"100%"} variant="outline" p={1} m={1} justifyContent="stretch">
+      <Stack ml={1}>
+        <HStack onClick={() => toggleExpanded()}>
+          <StatusTag job={jobDocument} />
+          <Tag size={"sm"}>
+            {jobDocument.jobDefinition.http?.options?.method}{" "}
+          </Tag>
+          <Text fontSize="sm">{jobDocument.jobDefinition.http?.domain()}</Text>
+          {jobDocument.lastStatusUpdate &&
+            jobDocument.lastStatusUpdate._tag === "HttpCallCompleted" &&
+            jobDocument.lastStatusUpdate.response?.sizeInBytes && (
+              <Text fontSize={"70%"}>
+                {humanReadableSizeBytes(
+                  jobDocument.lastStatusUpdate.response.sizeInBytes
+                )}
+              </Text>
+            )}
+          {pipe(
+            jobDocument.status.durationMs(),
+            E.fold(
+              () => <></>,
+              (durationMs) => <Text fontSize={"70%"}>{durationMs} ms</Text>
+            )
+          )}
+          <IconButton
+            size={"xs"}
+            variant={"unstyled"}
+            style={{ marginLeft: "auto" }}
+            aria-label="expand-trigger-card"
+            icon={expanded ? <MdExpandLess /> : <MdExpandMore />}
+          />
+        </HStack>
+        {expanded && (
+          <Flex alignItems={"flex-start"} flexWrap="wrap">
+            <Box p={2} m={2} variant="unstyled">
+              <H2>Request Headers</H2>
+              <Text fontSize={"70%"}>
+                {jobDocument.jobDefinition.http?.url}
+              </Text>
+              {jobDocument.lastStatusUpdate &&
+                jobDocument.lastStatusUpdate._tag === "HttpCallCompleted" &&
+                jobDocument.jobDefinition.http?.options?.headers && (
+                  <Code
+                    fontSize={"70%"}
+                    // keep line breaks
+                    whiteSpace="pre-wrap"
+                    maxH={"100px"}
+                    overflow={"scroll"}
+                  >
+                    {jobDocument.jobDefinition.http?.options?.headers.headersArray.map(
+                      (header) => `${header.key}: ${header.value}\n`
+                    )}
+                  </Code>
+                )}
+            </Box>
+            <RateLimits jobDocument={jobDocument} />
+          </Flex>
         )}
-      {pipe(
-        job.status.durationMs(),
-        E.fold(
-          () => <></>,
-          (durationMs) => <Text fontSize={"70%"}>{durationMs} ms</Text>
-        )
-      )}
-      {/* <IconButton
-        size={"xs"}
-        variant={"unstyled"}
-        style={{ marginLeft: "auto" }}
-        aria-label="expand-trigger-card"
-        icon={<MdExpandMore />}
-      /> */}
-    </HStack>
-  </Card>
-);
+      </Stack>
+    </Card>
+  );
+};
 
 const EmptyState = () => (
   <Center w={"100%"} h={"100%"}>
@@ -231,11 +262,9 @@ const PastTriggersList = () => {
 const PaginatedPastTriggers = ({ jobs }: { jobs: JobDocument[] }) => {
   return (
     <Box m={1} pt={3}>
-      {jobs
-        // .filter(({ status: { value } }) => value != "registered")
-        .map((job) => (
-          <JobLine key={job.jobDefinition.id} job={job} />
-        ))}
+      {jobs.map((job) => (
+        <JobLine key={job.jobDefinition.id} job={job} />
+      ))}
     </Box>
   );
 };
@@ -245,7 +274,7 @@ const JobsList = () => {
     <>
       {
         <Stack alignItems="flex-start">
-          <Heading>Past Triggers</Heading>
+          <H1>Past Triggers</H1>
           <PastTriggersList />
         </Stack>
       }
@@ -263,26 +292,4 @@ export default () => {
       <JobsList />
     </ProjectProvider>
   );
-};
-
-const colorByStatusCode = (statusCode: number) => {
-  if (statusCode >= 200 && statusCode < 300) {
-    return "green";
-  }
-  if (statusCode >= 300 && statusCode < 400) {
-    return "blue";
-  }
-  if (statusCode >= 400 && statusCode < 500) {
-    return "yellow";
-  }
-  if (statusCode >= 500 && statusCode < 600) {
-    return "red";
-  }
-  return "gray";
-};
-
-const humanReadibleDurationFromNow = (date: Date) => {
-  // With date-fns
-  const duration = formatDistanceToNow(date, { addSuffix: true });
-  return duration;
 };
