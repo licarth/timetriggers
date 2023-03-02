@@ -1,5 +1,4 @@
 import {
-  Code,
   Flex,
   Heading,
   Modal,
@@ -96,12 +95,16 @@ export const MobileTopbar = ({ user, projects }: MobileSidebarProps) => {
                   <Heading size={"md"} mt={4}>
                     Navigation
                   </Heading>
-                  <NavItem title="Api Keys" icon={BsKey} active />
+                  <NavItem
+                    title="Api Keys"
+                    icon={BsKey}
+                    active
+                    href="api_keys"
+                  />
                   <NavItem
                     title="Triggers"
                     icon={BsCollectionPlayFill}
-                    disabled
-                    comingSoon
+                    href="triggers"
                   />
                   <NavItem
                     title="Settings"

@@ -200,7 +200,7 @@ const PastTriggersList = () => {
           isDisabled={!moreResults}
           onClick={() => setStartAfter(_.last(jobs)?.jobDefinition.scheduledAt)}
         >
-          {"EARLER JOBS >"}
+          {"EARLIER JOBS >"}
         </Button>
       </HStack>
       {!_.isEmpty(errors) && (

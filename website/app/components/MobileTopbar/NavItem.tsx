@@ -5,7 +5,6 @@ import {
   Menu,
   MenuButton,
   Text,
-  Tooltip,
   useColorModeValue,
 } from "@chakra-ui/react";
 import type { NavItemProps } from "./NavItemProps";
@@ -17,6 +16,7 @@ export const NavItem = ({
   active,
   disabled,
   comingSoon,
+  href,
 }: NavItemProps) => {
   const activeColor = useColorModeValue("gray.200", "gray.700");
   const textColor = useColorModeValue("gray.900", "white");
@@ -35,17 +35,16 @@ export const NavItem = ({
           bgColor={active ? activeColor : "none"}
           color={disabled ? disabledColor : textColor}
           w={navSize === "large" ? "100%" : "auto"}
+          href={href}
         >
-          <Tooltip label="Coming Soon !" hidden={!comingSoon}>
-            <MenuButton w={"100%"} disabled={disabled}>
-              <Flex>
-                <Icon as={icon} alignSelf="center" />
-                <Text ml={5} display={navSize === "small" ? "none" : "flex"}>
-                  {title}
-                </Text>
-              </Flex>
-            </MenuButton>
-          </Tooltip>
+          <MenuButton w={"100%"} disabled={disabled}>
+            <Flex>
+              <Icon as={icon} alignSelf="center" />
+              <Text ml={5} display={navSize === "small" ? "none" : "flex"}>
+                {title} {comingSoon && "(Coming Soon)"}
+              </Text>
+            </Flex>
+          </MenuButton>
         </Link>
       </Menu>
     </Flex>
