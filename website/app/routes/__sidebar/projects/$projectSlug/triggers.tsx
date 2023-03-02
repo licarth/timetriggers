@@ -6,40 +6,32 @@ import {
   Card,
   Center,
   Code,
-  Flex,
   Heading,
   HStack,
-  IconButton,
   Spinner,
   Stack,
   Tag,
   Text,
   Tooltip,
 } from "@chakra-ui/react";
-import styled from "@emotion/styled";
 import { useLoaderData } from "@remix-run/react";
 import type { LoaderFunction } from "@remix-run/server-runtime";
 import type { JobDocument, ScheduledAt } from "@timetriggers/domain";
 import { e, Project } from "@timetriggers/domain";
-import {
-  formatDistanceToNow,
-  formatDuration,
-  intervalToDuration,
-} from "date-fns";
+import { formatDistanceToNow } from "date-fns";
+import * as E from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as C from "io-ts/lib/Codec.js";
 import _ from "lodash";
 import { useEffect, useState } from "react";
 import { BsArrowCounterclockwise } from "react-icons/bs";
-import { MdExpandMore } from "react-icons/md";
 import { VscCircleFilled } from "react-icons/vsc";
 import { ProjectProvider, useProject, useProjectJobs } from "~/contexts";
 import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { loaderFromRte } from "~/utils/loaderFromRte.server";
-import * as E from "fp-ts/lib/Either";
 
 const wireCodec = C.struct({ project: Project.codec("string") });
 
@@ -80,14 +72,8 @@ const StatusTag = ({ job }: { job: JobDocument }) => {
         >
           <Tag size={"sm"} colorScheme={"blue"} alignContent={"center"}>
             {job.status.value}
-            {job.status.value}
           </Tag>
         </Tooltip>
-      )}
-      {job.status.value == "running" && (
-        <Tag size={"sm"} colorScheme={"orange"}>
-          <Spinner size={"xs"} />
-        </Tag>
       )}
       {job.status.value == "running" && (
         <Tag size={"sm"} colorScheme={"orange"}>
@@ -246,9 +232,7 @@ const PaginatedPastTriggers = ({ jobs }: { jobs: JobDocument[] }) => {
   return (
     <Box m={1} pt={3}>
       {jobs
-        .filter(
-          ({ jobDefinition: { scheduledAt } }) => scheduledAt <= new Date()
-        )
+        // .filter(({ status: { value } }) => value != "registered")
         .map((job) => (
           <JobLine key={job.jobDefinition.id} job={job} />
         ))}

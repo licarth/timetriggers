@@ -56,6 +56,12 @@ export const useProjectJobs = ({
       query(
         collection(firestore, jobsRef),
         where("projectId", "==", projectId),
+        where("status.value", "in", [
+          "queued",
+          "rate-limited",
+          "completed",
+          "dead",
+        ]),
         orderBy("jobDefinition.scheduledAt", "desc"),
         ...(startAfterScheduledAt ? [startAfter(startAfterScheduledAt)] : []),
         fbLimit(theLimit + 1)
