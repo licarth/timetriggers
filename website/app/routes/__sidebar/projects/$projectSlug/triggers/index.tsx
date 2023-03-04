@@ -142,7 +142,7 @@ const JobLine = ({ job: jobDocument }: { job: JobDocument }) => {
         </HStack>
         {expanded && (
           <Flex alignItems={"flex-start"} flexWrap="wrap">
-            <Box p={2} m={2} variant="unstyled">
+            <Box p={2} m={2}>
               <H2>Request Headers</H2>
               <Text fontSize={"70%"}>
                 {jobDocument.jobDefinition.http?.url}

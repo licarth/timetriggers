@@ -48,7 +48,7 @@ export class FirestoreDatastore implements Datastore {
   private readonly clock;
   private readonly firestore;
   private readonly namespace;
-  private readonly rootDocumentPath;
+  readonly rootJobsCollectionPath;
 
   private state: State = "starting";
 
@@ -56,9 +56,9 @@ export class FirestoreDatastore implements Datastore {
     this.clock = props.clock || new SystemClock();
     this.firestore = props.firestore;
     this.namespace = props.namespace;
-    this.rootDocumentPath = `/namespaces/${props.namespace}/jobs`;
+    this.rootJobsCollectionPath = `/namespaces/${props.namespace}/jobs`;
     console.log(
-      `Initializing FirestoreDatastore with root path: ${this.rootDocumentPath}`
+      `Initializing FirestoreDatastore with root path: ${this.rootJobsCollectionPath}`
     );
     this.state = "running";
   }
@@ -224,7 +224,7 @@ export class FirestoreDatastore implements Datastore {
       async () => {
         console.log("[Datastore] Fetching jobs until " + maxScheduledAt);
         let query = shardedFirestoreQuery(
-          this.firestore.collection(`${this.rootDocumentPath}`),
+          this.firestore.collection(`${this.rootJobsCollectionPath}`),
           toShards(shardsToListenTo)
         );
         if (minScheduledAt) {
@@ -274,7 +274,7 @@ export class FirestoreDatastore implements Datastore {
           );
 
           let queryRoot = shardedFirestoreQuery(
-            this.firestore.collection(`${this.rootDocumentPath}`),
+            this.firestore.collection(`${this.rootJobsCollectionPath}`),
             toShards(shardsToListenTo)
           );
           if (registeredAfter) {
@@ -525,7 +525,7 @@ export class FirestoreDatastore implements Datastore {
               await queueJobDocuments({
                 firestore: this.firestore,
                 jobDefinitions,
-                fromCollectionPath: this.rootDocumentPath,
+                fromCollectionPath: this.rootJobsCollectionPath,
               });
             if (nonExistingJobIds.length > 0) {
               throw new Error(
@@ -629,15 +629,14 @@ export class FirestoreDatastore implements Datastore {
     );
   }
 
-  markAsDead(jobDocument: JobDocument) {
-    const id = jobDocument.jobDefinition.id;
+  markAsDead(jobId: JobId) {
     return pipe(
       TE.tryCatch(
-        () =>
-          this.jobDocRef(id).update({
+        async () =>
+          await this.jobDocRef(jobId).update({
             "status.value": "dead",
           }),
-        (reason) => `failed to mark job ${id} as dead` as const
+        (reason) => `failed to mark job ${jobId} as dead` as const
       ),
       TE.map(() => undefined)
     );
@@ -717,7 +716,7 @@ export class FirestoreDatastore implements Datastore {
     return TE.tryCatch(
       async () => {
         const jobDefinitionRef = this.firestore
-          .collection(`${this.rootDocumentPath}`)
+          .collection(`${this.rootJobsCollectionPath}`)
           .doc(jobId);
         await this.firestore.runTransaction(async (transaction) => {
           const jobDefinitionDoc = await transaction.get(jobDefinitionRef);
@@ -744,7 +743,7 @@ export class FirestoreDatastore implements Datastore {
         async () => {
           return new Observable<JobDocument[]>((observer) => {
             const u = shardedFirestoreQuery(
-              this.firestore.collection(`${this.rootDocumentPath}`),
+              this.firestore.collection(`${this.rootJobsCollectionPath}`),
               toShards(shardsToListenTo)
             )
               .where("status.value", "==", "queued")
@@ -797,8 +796,10 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
     );
   }
 
-  private jobDocRef(jobId: JobId) {
-    return this.firestore.collection(`${this.rootDocumentPath}`).doc(jobId);
+  jobDocRef(jobId: JobId) {
+    return this.firestore
+      .collection(`${this.rootJobsCollectionPath}`)
+      .doc(jobId);
   }
 }
 

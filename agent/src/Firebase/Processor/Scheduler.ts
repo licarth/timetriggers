@@ -437,7 +437,9 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
               jobDocument.rateLimitKeys = rateLimits.map((rl) => rl.key);
               return pipe(
                 this.datastore.markRateLimited(jobDocument, rateLimits),
-                TE.orElseW(() => this.datastore.markAsDead(jobDocument))
+                TE.orElseW(() =>
+                  this.datastore.markAsDead(jobDocument.jobDefinition.id)
+                )
               );
             }
             // What if this fails?

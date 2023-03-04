@@ -211,7 +211,7 @@ export class InMemoryDataStore implements Datastore {
     return TE.of(undefined);
   }
 
-  markAsDead(jobDocument: JobDocument) {
+  markAsDead(jobId: JobId) {
     return TE.of(undefined);
   }
 

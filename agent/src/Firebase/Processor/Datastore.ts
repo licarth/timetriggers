@@ -141,7 +141,7 @@ export interface Datastore {
 
   markRateLimitSatisfied(rateLimit: RateLimit): TE.TaskEither<any, void>;
 
-  markAsDead(jobDocument: JobDocument): TE.TaskEither<any, void>;
+  markAsDead(jobId: JobId): TE.TaskEither<any, void>;
 
   /**
    * Marks the job as running.
