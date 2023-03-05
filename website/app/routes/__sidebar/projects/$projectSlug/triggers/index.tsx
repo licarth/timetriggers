@@ -150,7 +150,7 @@ const JobLine = ({ job: jobDocument }: { job: JobDocument }) => {
           )}
           {jobDocument.status.value === "registered" && (
             <Tooltip
-              label={jobDocument.jobDefinition.scheduledAt.toTimeString()}
+              label={format(jobDocument.jobDefinition.scheduledAt, "PPpp (z)")}
             >
               <Text fontSize={"0.7em"} fontStyle="italic">
                 {humanReadibleDurationFromNow(
