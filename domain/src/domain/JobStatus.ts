@@ -14,6 +14,7 @@ import { RateLimitedAt } from "./RateLimit";
 export class JobStatus {
   value;
   registeredAt;
+  rateLimitedAt;
   queuedAt;
   startedAt;
   completedAt;
@@ -21,9 +22,27 @@ export class JobStatus {
   constructor(props: JobStatusProps) {
     this.value = props.value;
     this.registeredAt = props.registeredAt;
+    this.rateLimitedAt = props.rateLimitedAt;
     this.queuedAt = props.queuedAt;
     this.startedAt = props.startedAt;
     this.completedAt = props.completedAt;
+  }
+
+  getTimingsMs(scheduledAt: ScheduledAt) {
+    const result = [] as (number | null)[];
+    if (this.queuedAt) {
+      result.push(this.queuedAt.getTime() - scheduledAt.getTime());
+      if (this.rateLimitedAt) {
+        result.push(this.rateLimitedAt.getTime() - scheduledAt.getTime());
+      } else result.push(null);
+      if (this.startedAt) {
+        result.push(this.startedAt.getTime() - this.queuedAt.getTime());
+        if (this.completedAt) {
+          result.push(this.completedAt.getTime() - this.queuedAt.getTime());
+        }
+      }
+    }
+    return result;
   }
 
   enqueue(queuedAt: QueuedAt) {
