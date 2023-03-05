@@ -10,16 +10,23 @@ import {
   Heading,
   HStack,
   IconButton,
+  Spacer,
   Spinner,
   Stack,
   Tag,
   Text,
+  Tooltip,
 } from "@chakra-ui/react";
 import { useLoaderData } from "@remix-run/react";
 import type { LoaderFunction } from "@remix-run/server-runtime";
 import type { JobDocument, ScheduledAt } from "@timetriggers/domain";
 import { e, Project } from "@timetriggers/domain";
-import { formatDistance, formatDuration, intervalToDuration } from "date-fns";
+import {
+  format,
+  formatDistance,
+  formatDuration,
+  intervalToDuration,
+} from "date-fns";
 import * as E from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
@@ -30,7 +37,12 @@ import { BsArrowCounterclockwise } from "react-icons/bs";
 import { MdExpandLess, MdExpandMore } from "react-icons/md";
 import { VscCircleFilled } from "react-icons/vsc";
 import { H1, H2 } from "~/components";
-import { ProjectProvider, useProject, useProjectJobs } from "~/contexts";
+import {
+  ProjectProvider,
+  useProject,
+  usePastProjectTriggers,
+  useFutureProjectTriggers,
+} from "~/contexts";
 import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
@@ -82,18 +94,22 @@ const RateLimits = ({ jobDocument }: { jobDocument: JobDocument }) => {
         <HStack key={rateLimit.key} mt={1}>
           <Tag size={"sm"}>{rateLimit.key.split(":")[0]}</Tag>
           {rateLimit.satisfiedAt && (
-            <Tag size={"sm"} colorScheme={"green"}>
-              Satisfied (waited{" "}
-              {rateLimit.createdAt &&
-                formatDistance(rateLimit.satisfiedAt, rateLimit.createdAt, {
-                  includeSeconds: true,
-                })}
-              )
-            </Tag>
+            <>
+              <Tag size={"sm"} colorScheme={"green"}>
+                ✅
+              </Tag>
+              <Text>
+                waited{" "}
+                {rateLimit.createdAt &&
+                  formatDistance(rateLimit.satisfiedAt, rateLimit.createdAt, {
+                    includeSeconds: true,
+                  })}
+              </Text>
+            </>
           )}
           {!rateLimit.satisfiedAt && (
             <Tag size={"sm"} colorScheme="yellow">
-              Waiting...
+              ⏳ Waiting...
             </Tag>
           )}
         </HStack>
@@ -132,6 +148,17 @@ const JobLine = ({ job: jobDocument }: { job: JobDocument }) => {
               (durationMs) => <Text fontSize={"70%"}>{durationMs} ms</Text>
             )
           )}
+          {jobDocument.status.value === "registered" && (
+            <Tooltip
+              label={jobDocument.jobDefinition.scheduledAt.toTimeString()}
+            >
+              <Text fontSize={"0.7em"} fontStyle="italic">
+                {humanReadibleDurationFromNow(
+                  jobDocument.jobDefinition.scheduledAt
+                )}
+              </Text>
+            </Tooltip>
+          )}
           <IconButton
             size={"xs"}
             variant={"unstyled"}
@@ -141,8 +168,17 @@ const JobLine = ({ job: jobDocument }: { job: JobDocument }) => {
           />
         </HStack>
         {expanded && (
-          <Flex alignItems={"flex-start"} flexWrap="wrap">
+          <Flex alignItems={"flex-start"} flexWrap="wrap" fontSize={"0.7em"}>
             <Box p={2} m={2}>
+              {
+                <Text>
+                  Scheduled At{" "}
+                  <Code fontSize={"0.8em"}>
+                    {format(jobDocument.jobDefinition.scheduledAt, "PPpp (z)")}
+                  </Code>
+                </Text>
+              }
+              <Spacer h={3} />
               <H2>Request Headers</H2>
               <Text fontSize={"70%"}>
                 {jobDocument.jobDefinition.http?.url}
@@ -188,14 +224,13 @@ const PastTriggersList = () => {
   }, [projectId]);
 
   const [pause, setPause] = useState(false);
-  const state = useProjectJobs({
+  const pastTriggers = usePastProjectTriggers({
     startAfterScheduledAt: startAfter,
     limit: 15,
   });
-
   const { jobs, errors, moreResults } =
-    state.loading === false
-      ? state
+    pastTriggers.loading === false
+      ? pastTriggers
       : { jobs: [], errors: [], moreResults: false };
 
   return (
@@ -245,21 +280,102 @@ const PastTriggersList = () => {
           </Stack>
         </Alert>
       )}
-      {state.loading ? (
+      {pastTriggers.loading ? (
         <Center>
           <Spinner />
         </Center>
       ) : (
-        <PaginatedPastTriggers jobs={jobs} />
+        <PaginatedTriggers jobs={jobs} />
       )}
-      {state.loading === false && !startAfter && _.isEmpty(jobs) && (
+      {pastTriggers.loading === false && !startAfter && _.isEmpty(jobs) && (
         <EmptyState />
       )}
     </Box>
   );
 };
 
-const PaginatedPastTriggers = ({ jobs }: { jobs: JobDocument[] }) => {
+const FutureTriggersList = () => {
+  const [startAfter, setStartAfter] = useState<ScheduledAt>();
+  const {
+    project: { id: projectId },
+  } = useProject();
+
+  useEffect(() => {
+    setStartAfter(undefined);
+  }, [projectId]);
+
+  const futureTriggers = useFutureProjectTriggers({
+    startAfterScheduledAt: startAfter,
+    limit: 10,
+  });
+
+  const { jobs, errors, moreResults } =
+    futureTriggers.loading === false
+      ? futureTriggers
+      : { jobs: [], errors: [], moreResults: false };
+
+  return (
+    <Box
+      w={{
+        base: "100%",
+      }}
+    >
+      <HStack justifyContent={"space-between"} w={"100%"}>
+        {startAfter ? (
+          <Button
+            variant={startAfter ? "solid" : "outline"}
+            leftIcon={
+              startAfter ? (
+                <BsArrowCounterclockwise />
+              ) : (
+                <VscCircleFilled color={"red"} />
+              )
+            }
+            size={"xs"}
+            onClick={() => setStartAfter(undefined)}
+            // isDisabled={!startAfter}
+          >
+            {startAfter && "BACK TO"} LIVE
+          </Button>
+        ) : (
+          <Tag size="sm" variant="outline">
+            <VscCircleFilled color={"red"} /> LIVE
+          </Tag>
+        )}
+        <Button
+          size={"xs"}
+          isDisabled={!moreResults}
+          onClick={() => setStartAfter(_.last(jobs)?.jobDefinition.scheduledAt)}
+        >
+          {"LATER JOBS >"}
+        </Button>
+      </HStack>
+      {!_.isEmpty(errors) && (
+        <Alert status="error">
+          <Stack alignItems={"flex-start"}>
+            <HStack>
+              <AlertIcon />
+              <Text>There was an error listing your jobs:</Text>
+            </HStack>
+            {<Code>{errors}</Code>}
+          </Stack>
+        </Alert>
+      )}
+      {futureTriggers.loading ? (
+        <Center>
+          <Spinner />
+        </Center>
+      ) : (
+        <PaginatedTriggers jobs={futureTriggers.jobs} />
+      )}
+      {futureTriggers.loading === false && !startAfter && _.isEmpty(jobs) && (
+        <EmptyState />
+      )}
+    </Box>
+  );
+};
+
+const PaginatedTriggers = ({ jobs }: { jobs: JobDocument[] }) => {
   return (
     <Box m={1} pt={3}>
       {jobs.map((job) => (
@@ -274,6 +390,8 @@ const JobsList = () => {
     <>
       {
         <Stack alignItems="flex-start">
+          <H1>Future Triggers</H1>
+          <FutureTriggersList />
           <H1>Past Triggers</H1>
           <PastTriggersList />
         </Stack>

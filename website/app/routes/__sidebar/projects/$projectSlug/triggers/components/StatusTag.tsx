@@ -31,13 +31,15 @@ export const StatusTag = ({ job }: { job: JobDocument }) => {
           </>
         )}
       {!["running", "completed"].includes(job.status.value) && (
-        <Tooltip
-          label={humanReadibleDurationFromNow(job.jobDefinition.scheduledAt)}
-        >
-          <Tag size={"sm"} colorScheme={"blue"} alignContent={"center"}>
-            {job.status.value}
-          </Tag>
-        </Tooltip>
+        <>
+          <Tooltip
+            label={humanReadibleDurationFromNow(job.jobDefinition.scheduledAt)}
+          >
+            <Tag size={"sm"} colorScheme={"blue"} alignContent={"center"}>
+              {job.status.value}
+            </Tag>
+          </Tooltip>
+        </>
       )}
       {job.status.value == "running" && (
         <Tag size={"sm"} colorScheme={"orange"}>
