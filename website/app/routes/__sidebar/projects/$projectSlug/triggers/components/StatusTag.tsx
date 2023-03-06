@@ -30,6 +30,9 @@ export const StatusTag = ({ job }: { job: JobDocument }) => {
             </Tag>
           </>
         )}
+      {job.status.value === "registered" &&
+        job.jobDefinition.scheduledAt < new Date() &&
+        "⚠️"}
       {!["running", "completed"].includes(job.status.value) && (
         <>
           <Tooltip
