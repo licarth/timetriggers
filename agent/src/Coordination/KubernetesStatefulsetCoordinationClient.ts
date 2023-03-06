@@ -69,7 +69,7 @@ export class KubernetesStatefulsetCoordinationClient
     try {
       const availableReplicas = parseInt(
         execSync(
-          "kubectl get statefulset timetriggers-agent -o jsonpath='{.spec.availableReplicas}'"
+          "kubectl get statefulset timetriggers-agent -o jsonpath='{.status.availableReplicas}'"
         )
           .toString()
           .trim()
