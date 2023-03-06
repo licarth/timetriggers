@@ -67,14 +67,22 @@ export class KubernetesStatefulsetCoordinationClient
    */
   private getClusterSize() {
     try {
-      const clusterSize = parseInt(
+      const availableReplicas = parseInt(
         execSync(
-          "kubectl get statefulset timetriggers-agent -o jsonpath='{.spec.readyReplicas}'"
+          "kubectl get statefulset timetriggers-agent -o jsonpath='{.spec.availableReplicas}'"
         )
           .toString()
           .trim()
       );
-      return clusterSize;
+      const replicas = parseInt(
+        execSync(
+          "kubectl get statefulset timetriggers-agent -o jsonpath='{.spec.replicas}'"
+        )
+          .toString()
+          .trim()
+      );
+
+      return Math.min(availableReplicas, replicas);
     } catch (e) {
       console.error("Error getting cluster size", e);
       return undefined;
