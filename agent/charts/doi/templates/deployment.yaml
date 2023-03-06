@@ -1,18 +1,32 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Service
 metadata:
-  name: do-it-tomorrow
+  name: timetriggers-agent
   labels:
-    app: do-it-tomorrow
+    app: timetriggers-agent
 spec:
+  ports: []
+  clusterIP: None
+  selector:
+    app: timetriggers-agent
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: timetriggers-agent
+  labels:
+    app: timetriggers-agent
+spec:
+  serviceName: timetriggers-agent
   selector:
     matchLabels:
-      app: do-it-tomorrow
+      app: timetriggers-agent
   template:
     metadata:
       labels:
-        app: do-it-tomorrow
+        app: timetriggers-agent
     spec:
+      serviceAccountName: timetriggers-agent-sa
       terminationGracePeriodSeconds: 25
       containers:
         - name: doi
@@ -35,6 +49,10 @@ spec:
               value: "true"
             - name: NAMESPACE
               value: "doi-production"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           envFrom:
             - secretRef:
                 name: secrets-envs
