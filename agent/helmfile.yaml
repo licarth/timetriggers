@@ -3,11 +3,11 @@ repositories:
     url: https://charts.bitnami.com/bitnami
 
 releases:
-  - name: zookeeper
-    namespace: doi-production
-    chart: ./charts/zookeeper
-    values:
-      - ./charts/zookeeper/values.yaml
+  # - name: zookeeper
+  #   namespace: doi-production
+  #   chart: ./charts/zookeeper
+  #   values:
+  #     - ./charts/zookeeper/values.yaml
   - name: doi
     namespace: doi-production
     chart: ./charts/doi
