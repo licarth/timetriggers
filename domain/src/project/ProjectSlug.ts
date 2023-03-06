@@ -18,7 +18,7 @@ export namespace ProjectSlug {
   };
 
   export const validate = (s: string): s is ProjectSlug => {
-    const regexp = /^[a-z0-9-]+$/;
+    const regexp = /^[a-z0-9-_]+$/;
     return s.length > 4 && s.length <= 30 && regexp.test(s);
   };
 }

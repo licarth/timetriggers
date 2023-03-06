@@ -106,12 +106,7 @@ export const MobileTopbar = ({ user, projects }: MobileSidebarProps) => {
                     icon={BsCollectionPlayFill}
                     href="triggers"
                   />
-                  <NavItem
-                    title="Settings"
-                    icon={BsGearFill}
-                    disabled
-                    comingSoon
-                  />
+                  <NavItem title="Settings" icon={BsGearFill} href="settings" />
                 </>
               )}
               <Heading mt={8} size="md">
