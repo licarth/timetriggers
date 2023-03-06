@@ -2,6 +2,7 @@
   "name": "do-it-tomorrow",
   "type": "module",
   "dependencies": {
+    "@kubernetes/client-node": "^0.18.1",
     "@sentry/node": "^7.35.0",
     "@sentry/tracing": "^7.35.0",
     "@timetriggers/domain": "file:../domain",
