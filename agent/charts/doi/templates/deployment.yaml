@@ -51,8 +51,8 @@ spec:
               value: "true"
             - name: NAMESPACE
               value: "doi-production"
-            - name: COORDINATION
-              value: "zookeeper"
+            # - name: COORDINATION
+            #   value: "zookeeper"
             - name: POD_NAME
               valueFrom:
                 fieldRef:
