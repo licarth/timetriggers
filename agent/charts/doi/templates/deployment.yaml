@@ -21,8 +21,6 @@ spec:
   selector:
     matchLabels:
       app: timetriggers-agent
-  nodeSelector:
-    cloud.google.com/gke-spot: "true"
   template:
     metadata:
       labels:
@@ -30,6 +28,8 @@ spec:
     spec:
       serviceAccountName: timetriggers-agent-sa
       terminationGracePeriodSeconds: 25
+      # nodeSelector:
+      #   cloud.google.com/gke-spot: "true"
       containers:
         - name: doi
           image: "{{ .Values.imageRef }}"
@@ -51,6 +51,8 @@ spec:
               value: "true"
             - name: NAMESPACE
               value: "doi-production"
+            - name: COORDINATION
+              value: "zookeeper"
             - name: POD_NAME
               valueFrom:
                 fieldRef:

@@ -1,11 +1,11 @@
+import { exec } from "child_process";
+import * as TE from "fp-ts/lib/TaskEither.js";
+import _ from "lodash";
 import { Observable, ReplaySubject } from "rxjs";
 import {
   ClusterNodeInformation,
   CoordinationClient,
 } from "./CoordinationClient";
-import * as TE from "fp-ts/lib/TaskEither.js";
-import _ from "lodash";
-import { execSync } from "child_process";
 
 export class KubernetesStatefulsetCoordinationClient
   implements CoordinationClient
@@ -19,16 +19,20 @@ export class KubernetesStatefulsetCoordinationClient
     this.currentNodeId = currentNodeId;
   }
 
-  private startClusterSizePolling() {
-    this.clearIntervalId = setInterval(() => {
-      const clusterSize = this.getClusterSize();
-      if (clusterSize !== this.currentClusterSize && clusterSize) {
-        this.currentClusterSize = clusterSize;
-        console.log(`[CoordinationClient] Cluster size: ${clusterSize}`);
-        this.subject.next({
-          currentNodeId: this.currentNodeId,
-          clusterSize,
-        });
+  private async startClusterSizePolling() {
+    this.clearIntervalId = setInterval(async () => {
+      try {
+        const clusterSize = await this.getClusterSize();
+        if (clusterSize !== this.currentClusterSize && clusterSize) {
+          this.currentClusterSize = clusterSize;
+          console.log(`[CoordinationClient] Cluster size: ${clusterSize}`);
+          this.subject.next({
+            currentNodeId: this.currentNodeId,
+            clusterSize,
+          });
+        }
+      } catch (e) {
+        console.error(`Could not get cluster size: ${e}`);
       }
     }, 1000);
   }
@@ -63,20 +67,24 @@ export class KubernetesStatefulsetCoordinationClient
   }
 
   /**
-   * Uses kubectl to get the current cluster size
+   * Uses kubectl to get the current cluster size, asynchronously.
    */
-  private getClusterSize() {
+  private async getClusterSize() {
     try {
       const availableReplicas = parseInt(
-        execSync(
-          "kubectl get statefulset timetriggers-agent -o jsonpath='{.status.availableReplicas}'"
+        (
+          await promiseExec(
+            "kubectl get statefulset timetriggers-agent -o jsonpath='{.status.availableReplicas}'"
+          )
         )
           .toString()
           .trim()
       );
       const replicas = parseInt(
-        execSync(
-          "kubectl get statefulset timetriggers-agent -o jsonpath='{.spec.replicas}'"
+        (
+          await promiseExec(
+            "kubectl get statefulset timetriggers-agent -o jsonpath='{.spec.replicas}'"
+          )
         )
           .toString()
           .trim()
@@ -89,3 +97,14 @@ export class KubernetesStatefulsetCoordinationClient
     }
   }
 }
+
+const promiseExec = (command: string) =>
+  new Promise<string>((resolve, reject) => {
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(stdout);
+      }
+    });
+  });
