@@ -6,6 +6,7 @@ import { Api } from "./Api";
 import { AxiosWorkerPool } from "./AxiosWorkerPool";
 import { CoordinationClient } from "./Coordination/CoordinationClient";
 import { KubernetesStatefulsetCoordinationClient } from "./Coordination/KubernetesStatefulsetCoordinationClient";
+import { ZookeeperCoordinationClient } from "./Coordination/ZookeeperCoordinationClient";
 import { DatastoreApi } from "./Firebase/DatastoreApi";
 import { initializeApp } from "./Firebase/initializeApp";
 import { Datastore } from "./Firebase/Processor/Datastore";
@@ -56,10 +57,14 @@ export const start = (props: StartProps) =>
     RTE.bindW("coordinationClient", () =>
       props.scheduler?.enabled || props.processor?.enabled
         ? RTE.fromTaskEither(
-            // ZookeeperCoordinationClient.build({
-            //   namespace: `/${props.namespace}`,
-            // })
-            KubernetesStatefulsetCoordinationClient.build()
+            process.env.COORDINATION === "zookeeper"
+              ? ZookeeperCoordinationClient.build({
+                  namespace: `/${props.namespace}`,
+                })
+              : (KubernetesStatefulsetCoordinationClient.build() as TE.TaskEither<
+                  any,
+                  CoordinationClient
+                >)
           )
         : RTE.of(undefined)
     ),

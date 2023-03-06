@@ -21,6 +21,8 @@ spec:
   selector:
     matchLabels:
       app: timetriggers-agent
+  nodeSelector:
+    cloud.google.com/gke-spot: "true"
   template:
     metadata:
       labels:
