@@ -380,41 +380,56 @@ export class FirestoreDatastore implements Datastore {
     );
   }
 
-  private checkAllRateLimitsSatisfied(jobDocument: JobDocument) {
-    const id = jobDocument.jobDefinition.id;
-    const rateLimitKeys = jobDocument.rateLimitKeys || [];
+  private checkAllRateLimitsSatisfied(id: JobId) {
     return pipe(
-      rateLimitKeys.map((k) =>
-        getOneFromFirestore(
-          RateLimit,
-          `jobs/${id}/rate-limits/${k}`
-        )({
-          firestore: this.firestore,
-          namespace: this.namespace,
-        })
-      ),
-      te.executeAllInArray({ parallelism: 10 }),
-      TE.fromTask,
-      te.sideEffect(({ errors }) => {
-        if (errors.length > 0) {
-          console.log(`❌ Could not read ${errors.length} documents !`);
-          console.log(errors.map((e) => console.log(e._tag)));
-        }
+      // get jobDocument
+      getOneFromFirestore(
+        JobDocument,
+        `jobs/${id}`
+      )({
+        firestore: this.firestore,
+        namespace: this.namespace,
       }),
-      TE.map(({ successes }) => successes),
-      TE.chainW((rateLimits) => {
-        if (rateLimits.every((rateLimit) => rateLimit.satisfiedAt !== null)) {
-          console.log(
-            `[Datastore] All rate limits are satisfied, queuing job...`
-          );
-          return pipe(
-            this.queueJobs([jobDocument.jobDefinition]),
-            TE.orElseW(() => TE.right(undefined)) // Ignore if we cannot queue it... (someone else might have done it)
-          );
-        } else {
-          console.log(`[Datastore] Some rate limits are not satisfied yet...`);
-          return TE.right(undefined);
-        }
+      TE.chainW((jobDocument) => {
+        const rateLimitKeys = jobDocument.rateLimitKeys || [];
+        return pipe(
+          rateLimitKeys.map((k) =>
+            getOneFromFirestore(
+              RateLimit,
+              `jobs/${id}/rate-limits/${k}`
+            )({
+              firestore: this.firestore,
+              namespace: this.namespace,
+            })
+          ),
+          te.executeAllInArray({ parallelism: 10 }),
+          TE.fromTask,
+          te.sideEffect(({ errors }) => {
+            if (errors.length > 0) {
+              console.log(`❌ Could not read ${errors.length} documents !`);
+              console.log(errors.map((e) => console.log(e._tag)));
+            }
+          }),
+          TE.map(({ successes }) => successes),
+          TE.chainW((rateLimits) => {
+            if (
+              rateLimits.every((rateLimit) => rateLimit.satisfiedAt !== null)
+            ) {
+              console.log(
+                `[Datastore] All rate limits are satisfied, queuing job...`
+              );
+              return pipe(
+                this.queueJobs([jobDocument.jobDefinition]),
+                TE.orElseW(() => TE.right(undefined)) // Ignore if we cannot queue it... (someone else might have done it)
+              );
+            } else {
+              console.log(
+                `[Datastore] Some rate limits are not satisfied yet...`
+              );
+              return TE.right(undefined);
+            }
+          })
+        );
       })
     );
   }
@@ -428,19 +443,7 @@ export class FirestoreDatastore implements Datastore {
             return await te.unsafeGetOrThrow(
               pipe(
                 TE.Do,
-                TE.bindW("jobDocument", () =>
-                  checkPreconditions({
-                    docRef: jobDocRef,
-                    transaction: t,
-                    preconditions: [
-                      (jobDocument) => ({
-                        test: jobDocument.status.value === "rate-limited",
-                        errorMessage: `should be "rate-limited", is "${jobDocument.status.value}" instead.`,
-                      }),
-                    ],
-                  })
-                ),
-                te.sideEffect(() => {
+                TE.map(() => {
                   const docRef = jobDocRef
                     .collection("rate-limits")
                     .doc(rateLimit.key);
@@ -453,24 +456,8 @@ export class FirestoreDatastore implements Datastore {
           }),
         (reason) => `cannot mark rate limit as satisfied ${reason}` as const
       ),
-      TE.chainW(({ jobDocument }) =>
-        this.checkAllRateLimitsSatisfied(jobDocument)
-      )
+      TE.chainW(() => this.checkAllRateLimitsSatisfied(rateLimit.jobId))
     );
-
-    // return TE.tryCatch(
-    //   async () => {
-    //     const docRef = this.firestore
-    //       .collection(`${this.rootDocumentPath}`)
-    //       .doc(rateLimit.jobId)
-    //       .collection("rate-limits")
-    //       .doc(rateLimit.key);
-    //     await docRef.update({
-    //       satisfiedAt: FieldValue.serverTimestamp(),
-    //     });
-    //   },
-    //   (reason) => `cannot mark rate limit as satisfied ${reason}` as const
-    // );
   }
 
   queueJobs(jobDefinitions: JobDefinition[]): TE.TaskEither<any, void> {
