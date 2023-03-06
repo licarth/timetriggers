@@ -63,38 +63,6 @@ export class FirestoreDatastore implements Datastore {
     this.state = "running";
   }
 
-  private txBegin = () =>
-    pipe(
-      TE.tryCatch(
-        async () => {
-          let { promise, resolve, reject } = externallyResolvablePromise();
-          let tEndPromise: Promise<void>;
-          const tStartPromise = new Promise<FirebaseFirestore.Transaction>(
-            (resolve) => {
-              tEndPromise = this.firestore.runTransaction(async (t) => {
-                resolve(t);
-                await promise;
-              });
-            }
-          );
-          return {
-            t: await tStartPromise,
-            commit: () => {
-              resolve(void 0);
-              return TE.tryCatch(
-                () => tEndPromise,
-                (e) => `could not execute transaction: ${e}` as const
-              );
-            },
-            rollback: () => {
-              reject();
-            },
-          };
-        },
-        (e) => `cannot start transaction` as const
-      )
-    );
-
   markRateLimited(jobDocument: JobDocument, rateLimits: RateLimit[]) {
     const id = jobDocument.jobDefinition.id;
     const jobDocRef = this.jobDocRef(id);
@@ -105,47 +73,56 @@ export class FirestoreDatastore implements Datastore {
       )}]`
     );
     return pipe(
-      this.txBegin(),
-      TE.chainW(({ t, commit, rollback }) =>
-        pipe(
-          checkPreconditions({
-            docRef: jobDocRef,
-            transaction: t,
-            preconditions: [
-              (jobDocument) => ({
-                test: jobDocument.status.value === "registered",
-                errorMessage: `should be registered, is ${jobDocument.status.value} instead.`,
-              }),
-            ],
-          }),
-          te.sideEffect(() => {
-            t.set(
-              jobDocRef,
-              {
-                status: {
-                  value: "rate-limited",
-                  rateLimitedAt: FieldValue.serverTimestamp(),
-                },
-              },
-              { merge: true }
+      TE.tryCatch(
+        () =>
+          this.firestore.runTransaction(async (t) => {
+            return await te.unsafeGetOrThrow(
+              pipe(
+                TE.Do,
+                TE.chainW(() =>
+                  pipe(
+                    checkPreconditions({
+                      docRef: jobDocRef,
+                      transaction: t,
+                      preconditions: [
+                        (jobDocument) => ({
+                          test: jobDocument.status.value === "registered",
+                          errorMessage: `should be registered, is ${jobDocument.status.value} instead.`,
+                        }),
+                      ],
+                    }),
+                    te.sideEffect(() => {
+                      t.set(
+                        jobDocRef,
+                        {
+                          status: {
+                            value: "rate-limited",
+                            rateLimitedAt: FieldValue.serverTimestamp(),
+                          },
+                        },
+                        { merge: true }
+                      );
+                      t.update(jobDocRef, {
+                        rateLimitKeys: jobDocument.rateLimitKeys,
+                      });
+                      rateLimits.forEach((rateLimit) => {
+                        t.create(
+                          rateLimitCollection.doc(rateLimit.key),
+                          {
+                            ...RateLimit.codec("firestore").encode(rateLimit),
+                            createdAt: FieldValue.serverTimestamp(),
+                          } // TODO Move this to the domain
+                        );
+                      });
+                    })
+                  )
+                )
+              )
             );
-            t.update(jobDocRef, {
-              rateLimitKeys: jobDocument.rateLimitKeys,
-            });
-            rateLimits.forEach((rateLimit) => {
-              t.create(
-                rateLimitCollection.doc(rateLimit.key),
-                {
-                  ...RateLimit.codec("firestore").encode(rateLimit),
-                  createdAt: FieldValue.serverTimestamp(),
-                } // TODO Move this to the domain
-              );
-            });
           }),
-          TE.chainW(() => commit()),
-          te.leftSideEffect(() => rollback())
-        )
-      )
+        (reason) => `Failed to mark job ${id} as rate limited: ${reason}`
+      ),
+      TE.map(() => undefined)
     );
   }
 
@@ -443,29 +420,39 @@ export class FirestoreDatastore implements Datastore {
   }
 
   markRateLimitSatisfied(rateLimit: RateLimit) {
-    const jobDocRef = this.jobDocRef(rateLimit.jobId);
     return pipe(
-      TE.Do,
-      TE.bindW("transaction", () => this.txBegin()),
-      TE.bindW("jobDocument", ({ transaction: { t } }) =>
-        checkPreconditions({
-          docRef: jobDocRef,
-          transaction: t,
-          preconditions: [
-            (jobDocument) => ({
-              test: jobDocument.status.value === "rate-limited",
-              errorMessage: `should be "rate-limited", is "${jobDocument.status.value}" instead.`,
-            }),
-          ],
-        })
+      TE.tryCatch(
+        () =>
+          this.firestore.runTransaction(async (t) => {
+            const jobDocRef = this.jobDocRef(rateLimit.jobId);
+            return await te.unsafeGetOrThrow(
+              pipe(
+                TE.Do,
+                TE.bindW("jobDocument", () =>
+                  checkPreconditions({
+                    docRef: jobDocRef,
+                    transaction: t,
+                    preconditions: [
+                      (jobDocument) => ({
+                        test: jobDocument.status.value === "rate-limited",
+                        errorMessage: `should be "rate-limited", is "${jobDocument.status.value}" instead.`,
+                      }),
+                    ],
+                  })
+                ),
+                te.sideEffect(() => {
+                  const docRef = jobDocRef
+                    .collection("rate-limits")
+                    .doc(rateLimit.key);
+                  t.update(docRef, {
+                    satisfiedAt: FieldValue.serverTimestamp(),
+                  });
+                })
+              )
+            );
+          }),
+        (reason) => `cannot mark rate limit as satisfied ${reason}` as const
       ),
-      te.sideEffect(({ transaction: { t } }) => {
-        const docRef = jobDocRef.collection("rate-limits").doc(rateLimit.key);
-        t.update(docRef, {
-          satisfiedAt: FieldValue.serverTimestamp(),
-        });
-      }),
-      TE.chainFirstW(({ transaction: { commit } }) => commit()),
       TE.chainW(({ jobDocument }) =>
         this.checkAllRateLimitsSatisfied(jobDocument)
       )

@@ -176,6 +176,7 @@ const JobLine = ({ job: jobDocument }: { job: JobDocument }) => {
         {expanded && (
           <Flex alignItems={"flex-start"} flexWrap="wrap" fontSize={"0.7em"}>
             <Box p={2} m={2}>
+              <Text>id: {jobDocument.jobDefinition.id}</Text>
               <Text>
                 Scheduled At{" "}
                 <Code fontSize={"0.8em"}>
