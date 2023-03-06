@@ -69,7 +69,7 @@ export class KubernetesStatefulsetCoordinationClient
     try {
       const clusterSize = parseInt(
         execSync(
-          "kubectl get statefulset timetriggers-agent -o jsonpath='{.spec.replicas}'"
+          "kubectl get statefulset timetriggers-agent -o jsonpath='{.spec.readyReplicas}'"
         )
           .toString()
           .trim()
