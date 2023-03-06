@@ -6,14 +6,13 @@ import {
   ProjectSlug,
   renameProject,
   rte,
-  te,
 } from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as C from "io-ts/lib/Codec.js";
+import { draw } from "io-ts/lib/Decoder";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
 import { actionFromRte } from "~/utils/loaderFromRte.server";
-import { draw } from "io-ts/lib/Decoder";
 
 const postCodec = C.struct({
   slug: ProjectSlug.codec,

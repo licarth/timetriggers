@@ -103,8 +103,8 @@ export const MenuElements = ({
               navSize={navSize}
               title="Settings"
               icon={BsGearFill}
-              disabled
-              comingSoon
+              active={currentProjectPath === "settings"}
+              href="settings"
             />
           </>
         )}

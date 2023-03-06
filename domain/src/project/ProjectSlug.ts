@@ -10,7 +10,16 @@ export namespace ProjectSlug {
   };
 
   export const parse = (s: string) => {
-    return E.of(s as ProjectSlug);
+    if (!validate(s)) {
+      return E.left(new Error("Invalid project slug"));
+    } else {
+      return E.of(s);
+    }
+  };
+
+  export const validate = (s: string): s is ProjectSlug => {
+    const regexp = /^[a-z0-9-]+$/;
+    return s.length > 4 && s.length <= 30 && regexp.test(s);
   };
 }
 

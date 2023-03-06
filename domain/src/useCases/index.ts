@@ -9,3 +9,4 @@ export * from "./projectExists";
 export * from "./storeApiKey";
 export * from "./getProjectUsageFromSlug";
 export * from "./renameProject";
+export * from "./slugIsAvailable";

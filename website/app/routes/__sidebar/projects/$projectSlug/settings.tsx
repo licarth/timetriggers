@@ -1,20 +1,22 @@
-import {
-  Button,
-  Card,
-  CardProps,
-  HStack,
-  Input,
-  Stack,
-} from "@chakra-ui/react";
+import { CardProps, Spinner } from "@chakra-ui/react";
+import { Button, Card, HStack, Input, Stack, Icon } from "@chakra-ui/react";
 import { useLoaderData } from "@remix-run/react";
-import { LoaderFunction, redirect } from "@remix-run/server-runtime";
-import { e, FirebaseUser, Project, UtcDate } from "@timetriggers/domain";
+import type { LoaderFunction } from "@remix-run/server-runtime";
+import { redirect } from "@remix-run/server-runtime";
+import {
+  e,
+  FirebaseUser,
+  Project,
+  ProjectSlug,
+  UtcDate,
+} from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as C from "io-ts/lib/Codec.js";
 import * as _ from "lodash";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { FaCheck, FaExclamationTriangle } from "react-icons/fa";
 import { H1, H2 } from "~/components";
 import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
 import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
@@ -92,7 +94,7 @@ const EditProjectName = ({ project }: { project: Project }) => {
   const {
     register,
     watch,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<Inputs>();
 
   watch("slug");
@@ -100,8 +102,7 @@ const EditProjectName = ({ project }: { project: Project }) => {
   // Callback version of watch.  It's your responsibility to unsubscribe when done.
   useEffect(() => {
     const subscription = watch((value, { name, type }) => {
-      setAvailable({ loading: true });
-      value.slug && checkSlugAvailable(value.slug);
+      value.slug !== undefined && checkSlugAvailable(value.slug);
     });
 
     return () => subscription.unsubscribe();
@@ -122,34 +123,43 @@ const EditProjectName = ({ project }: { project: Project }) => {
     );
   }, 300);
   return (
-    <HStack justify={"left"}>
-      <form method={"post"} action={"/rename-project"}>
+    <form method={"post"} action={"/rename-project"}>
+      <HStack justify={"left"} spacing={3}>
         {/* Hidden input for project id */}
         <input type="hidden" {...register(`projectId`)} value={project.id} />
 
         <Input
-          size={"sm"}
+          size={"xs"}
           defaultValue={project.slug}
           htmlSize={30}
           width="auto"
           // onChange={(e) => checkSlugAvailable(e.target.value)}
           {...register("slug", {
-            required: "Required",
+            required: true,
+            validate: ProjectSlug.validate,
           })}
         />
+        {available &&
+          (available?.loading ? (
+            <Spinner size={"xs"} />
+          ) : !available?.available ? (
+            <Icon
+              // cross
+              as={FaExclamationTriangle}
+              color={"yellow.500"}
+            />
+          ) : (
+            <Icon as={FaCheck} color={"green.500"} />
+          ))}
         <Button
-          size={"sm"}
+          size={"xs"}
           variant={"outline"}
-          colorScheme={"red"}
-          isLoading={available?.loading}
           type={"submit"}
+          isDisabled={!available?.available || available.loading}
         >
           Rename
         </Button>
-        {available?.available === false && (
-          <span>Sorry, that slug is not available.</span>
-        )}
-      </form>
-    </HStack>
+      </HStack>
+    </form>
   );
 };
