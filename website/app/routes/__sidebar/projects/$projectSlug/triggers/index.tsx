@@ -13,6 +13,7 @@ import {
   Spacer,
   Spinner,
   Stack,
+  Table,
   Tag,
   Text,
   Tooltip,
@@ -81,39 +82,44 @@ const humanReadableSizeBytes = (sizeInBytes: number) => {
 };
 
 const RateLimits = ({ jobDocument }: { jobDocument: JobDocument }) => {
-  const s = useRateLimits({ jobDocument });
+  const rateLimitStates = useRateLimits({ jobDocument });
 
-  if (s.loading) {
+  if (rateLimitStates.loading) {
     return <Spinner />;
   }
 
   return (
     <Box p={3} m={2}>
       <H2>Rate Limits</H2>
-      {s.rateLimits.map((rateLimit) => (
-        <HStack key={rateLimit.key} mt={1}>
-          <Tag size={"sm"}>{rateLimit.key.split(":")[0]}</Tag>
-          {rateLimit.satisfiedAt && (
-            <>
-              <Tag size={"sm"} colorScheme={"green"}>
-                ✅
+      {jobDocument.rateLimitKeys?.map((rateLimitKey) => {
+        const rateLimit = rateLimitStates.rateLimits.find(
+          (r) => r.key === rateLimitKey
+        );
+        return (
+          <HStack key={rateLimitKey} mt={1}>
+            <Tag size={"sm"}>{rateLimitKey.split(":")[0]}</Tag>
+            {rateLimit?.satisfiedAt && (
+              <>
+                <Tag size={"sm"} colorScheme={"green"}>
+                  ✅
+                </Tag>
+                <Text>
+                  waited{" "}
+                  {rateLimit.createdAt &&
+                    formatDistance(rateLimit.satisfiedAt, rateLimit.createdAt, {
+                      includeSeconds: true,
+                    })}
+                </Text>
+              </>
+            )}
+            {rateLimit && !rateLimit.satisfiedAt && (
+              <Tag size={"sm"} colorScheme="yellow">
+                ⏳ Waiting...
               </Tag>
-              <Text>
-                waited{" "}
-                {rateLimit.createdAt &&
-                  formatDistance(rateLimit.satisfiedAt, rateLimit.createdAt, {
-                    includeSeconds: true,
-                  })}
-              </Text>
-            </>
-          )}
-          {!rateLimit.satisfiedAt && (
-            <Tag size={"sm"} colorScheme="yellow">
-              ⏳ Waiting...
-            </Tag>
-          )}
-        </HStack>
-      ))}
+            )}
+          </HStack>
+        );
+      })}
     </Box>
   );
 };
@@ -170,14 +176,20 @@ const JobLine = ({ job: jobDocument }: { job: JobDocument }) => {
         {expanded && (
           <Flex alignItems={"flex-start"} flexWrap="wrap" fontSize={"0.7em"}>
             <Box p={2} m={2}>
-              {
+              <Text>
+                Scheduled At{" "}
+                <Code fontSize={"0.8em"}>
+                  {format(jobDocument.jobDefinition.scheduledAt, "PPpp (z)")}
+                </Code>
+              </Text>
+              {jobDocument.status.startedAt && (
                 <Text>
-                  Scheduled At{" "}
+                  Started At{" "}
                   <Code fontSize={"0.8em"}>
-                    {format(jobDocument.jobDefinition.scheduledAt, "PPpp (z)")}
+                    {format(jobDocument.status.startedAt, "PPpp (z)")}
                   </Code>
                 </Text>
-              }
+              )}
               <Spacer h={3} />
               <H2>Request Headers</H2>
               <Text fontSize={"70%"}>
@@ -199,7 +211,31 @@ const JobLine = ({ job: jobDocument }: { job: JobDocument }) => {
                   </Code>
                 )}
             </Box>
-            <RateLimits jobDocument={jobDocument} />
+            {jobDocument.status.value !== "registered" && (
+              <Box p={2} m={2}>
+                <H2>Timings</H2>
+                <Text whiteSpace={"pre"}>
+                  {pipe(
+                    _.zip(
+                      jobDocument.status
+                        .getTimingsMs(jobDocument.jobDefinition.scheduledAt)
+                        .map((t) => `${t} ms`),
+                      [
+                        "registered > rate-limited",
+                        "rate-limited > queued",
+                        "queued > started",
+                        "started > completed",
+                      ]
+                    )
+                      .map(([a, b]) => `${b}: ${a ?? "⏳"}`)
+                      .join("\n")
+                  )}
+                </Text>
+              </Box>
+            )}
+            {jobDocument.status.value !== "registered" && (
+              <RateLimits jobDocument={jobDocument} />
+            )}
           </Flex>
         )}
       </Stack>

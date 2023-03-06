@@ -31,10 +31,13 @@ export class JobStatus {
   getTimingsMs(scheduledAt: ScheduledAt) {
     const result = [] as (number | null)[];
     if (this.queuedAt) {
-      result.push(this.queuedAt.getTime() - scheduledAt.getTime());
       if (this.rateLimitedAt) {
         result.push(this.rateLimitedAt.getTime() - scheduledAt.getTime());
-      } else result.push(null);
+        result.push(this.queuedAt.getTime() - this.rateLimitedAt.getTime());
+      } else {
+        result.push(null);
+        result.push(this.queuedAt.getTime() - scheduledAt.getTime());
+      }
       if (this.startedAt) {
         result.push(this.startedAt.getTime() - this.queuedAt.getTime());
         if (this.completedAt) {

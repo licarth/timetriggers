@@ -1,7 +1,7 @@
+import type { ContainerProps } from "@chakra-ui/react";
 import {
   Box,
   Container,
-  ContainerProps,
   Heading,
   Text,
   useColorModeValue,
