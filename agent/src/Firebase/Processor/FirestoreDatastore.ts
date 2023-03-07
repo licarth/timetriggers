@@ -99,12 +99,10 @@ export class FirestoreDatastore implements Datastore {
                             value: "rate-limited",
                             rateLimitedAt: FieldValue.serverTimestamp(),
                           },
+                          rateLimitKeys: jobDocument.rateLimitKeys,
                         },
                         { merge: true }
                       );
-                      t.update(jobDocRef, {
-                        rateLimitKeys: jobDocument.rateLimitKeys,
-                      });
                       rateLimits.forEach((rateLimit) => {
                         t.create(
                           rateLimitCollection.doc(rateLimit.key),
