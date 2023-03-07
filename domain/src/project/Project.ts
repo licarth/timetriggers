@@ -15,7 +15,7 @@ export class Project {
   readerIds;
   editorIds;
   apiKeys;
-  private pricingPlan;
+  pricingPlan;
   overrideQuotaLimit;
 
   constructor(props: ProjectProps) {
