@@ -45,7 +45,7 @@ import {
   storeApiKey,
   UtcDate
 } from "@timetriggers/domain";
-import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import * as E from "fp-ts/lib/Either";
 import { flow, pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
@@ -332,7 +332,7 @@ const Document = () => {
                   <Td>••••{apiKey.value.slice(-4)}</Td>
                   <Td>
                     <Text isTruncated maxW="sm">
-                      {format(apiKey.createdAt, "dd/MM/yyyy HH:mm")}
+                      {formatInTimeZone(apiKey.createdAt, "Z","dd/MM/yyyy HH:mm 'UTC'")}
                       {/* {apiKey.createdAt} */}
                     </Text>
                   </Td>
