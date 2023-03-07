@@ -15,7 +15,7 @@ export class Project {
   readerIds;
   editorIds;
   apiKeys;
-  pricingPlan;
+  private pricingPlan;
   overrideQuotaLimit;
 
   constructor(props: ProjectProps) {
@@ -48,6 +48,10 @@ export class Project {
     return (
       this.ownerId._tag === "FirebaseUserId" && this.ownerId.id === userId.id
     );
+  }
+
+  getPricingPlan() {
+    return this.pricingPlan || "free";
   }
 
   static propsCodec = (codecType?: CodecType) =>

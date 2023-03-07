@@ -25,7 +25,7 @@ export const checkQuota = ({ project }: Args) =>
     RTE.ask<Dependencies>(),
     // If we're on the flex plan, we don't need to check usage
     RTE.bindW("usage", ({ clock }) =>
-      match(project.pricingPlan || "free")
+      match(project.getPricingPlan() || "free")
         .with("flex", () => RTE.of({ remaining: Infinity }))
         .with("free", () =>
           pipe(

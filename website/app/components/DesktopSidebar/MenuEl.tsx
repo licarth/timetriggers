@@ -38,6 +38,7 @@ export const MenuElements = ({
     navigate(`/projects/${slug}/${currentProjectPath}`);
   };
 
+  const project = projects?.find((p) => p.slug === selectedProjectSlug);
   return (
     <Flex
       p={navSize === "small" ? "3px" : "12px"}
@@ -78,11 +79,12 @@ export const MenuElements = ({
                 </Select>
               </>
             )}
-            {projectMonthlyUsage && (
+            {projectMonthlyUsage && project && (
               <ProjectUsage
                 hidden={navSize === "small"}
                 usage={projectMonthlyUsage}
                 selectedProjectSlug={selectedProjectSlug}
+                project={project}
               />
             )}
             <NavItem
