@@ -1,7 +1,6 @@
-import { json, LoaderFunction } from "@remix-run/server-runtime";
-import { redirect } from "@remix-run/server-runtime";
-import { ProjectSlug } from "@timetriggers/domain";
-import { slugIsAvailable } from "@timetriggers/domain";
+import type { LoaderFunction} from "@remix-run/server-runtime";
+import { json, redirect } from "@remix-run/server-runtime";
+import { ProjectSlug, slugIsAvailable } from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as C from "io-ts/lib/Codec.js";

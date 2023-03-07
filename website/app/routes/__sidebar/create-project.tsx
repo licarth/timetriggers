@@ -5,7 +5,7 @@ import {
   createProject,
   e,
   projectExists,
-  ProjectSlug,
+  ProjectSlug
 } from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
@@ -14,7 +14,7 @@ import {
   adjectives,
   animals,
   colors,
-  uniqueNamesGenerator,
+  uniqueNamesGenerator
 } from "unique-names-generator";
 import { Logo } from "~/components/Logo";
 import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
@@ -82,8 +82,8 @@ export default () => {
         Welcome to <Logo fontSize="30" /> !
       </Text>
       <Text>
-        It's now time to create your first project ! Give it a name, or we'll
-        call it <Code>{name}</Code> for you ! (you can change it later)
+        It's now time to create your first project ! We'll call it{" "}
+        <Code>{name}</Code> for you ! (don't worry, you can change it later)
       </Text>
       <form method="post">
         {/* Hidden input field for name */}

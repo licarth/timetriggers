@@ -15,7 +15,7 @@ export default () => {
   return (
     <Container maxW={"full"} m={0} p={0}>
       <FullScreenPane p={{ base: 3, md: 5 }} bg={backgroundColor}>
-        <Box mt="30vh" ml={{ base: "5", md: "16" }}>
+        <Box mt={{ base: "15vh", md: "30vh" }} ml={{ base: "5", md: "16" }}>
           <BigFont>Schedule HTTP requests</BigFont>
           <Box fontSize={"1.8em"} fontWeight={300} mt={3}>
             <Text>

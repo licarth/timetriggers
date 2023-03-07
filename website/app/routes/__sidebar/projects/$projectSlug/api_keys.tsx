@@ -31,7 +31,7 @@ import {
   UnorderedList,
   useColorModeValue,
   useDisclosure,
-  useToast,
+  useToast
 } from "@chakra-ui/react";
 import { useLoaderData, useLocation, useNavigate } from "@remix-run/react";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
@@ -43,7 +43,7 @@ import {
   FirebaseUser,
   Project,
   storeApiKey,
-  UtcDate,
+  UtcDate
 } from "@timetriggers/domain";
 import { format } from "date-fns";
 import * as E from "fp-ts/lib/Either";

@@ -25,7 +25,13 @@
     "validate": "run-p \"test -- --run\" lint typecheck test:e2e:run",
     "emulators": "firebase emulators:start --only firestore,auth"
   },
-  "prettier": {},
+  "prettier": {
+    "semi": true,
+    "trailingComma": "all",
+    "singleQuote": true,
+    "printWidth": 100,
+    "tabWidth": 4
+  },
   "eslintIgnore": [
     "/node_modules",
     "/build",

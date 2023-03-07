@@ -5,7 +5,7 @@ import {
   ProjectId,
   ProjectSlug,
   renameProject,
-  rte,
+  rte
 } from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";

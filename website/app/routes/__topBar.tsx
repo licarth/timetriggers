@@ -58,7 +58,7 @@ export default () => {
         <Box as="nav" bg="bg-surface" boxShadow="sm">
           <Container
             // py={{ base: "2" }}
-            p={0}
+            px={2}
             maxW="full"
             boxShadow={
               colorMode === "light"
