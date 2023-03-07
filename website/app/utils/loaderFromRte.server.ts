@@ -13,5 +13,7 @@ export const actionFromRte = async <U>(
   rte: RTE.ReaderTaskEither<ReturnType<typeof buildDeps>, any, U>
 ) => {
   const result = rte(buildDeps());
-  return await te.unsafeGetOrThrow(result);
+  const newLocal = await te.unsafeGetOrThrow(result);
+  console.log("newLocal", newLocal);
+  return newLocal;
 };

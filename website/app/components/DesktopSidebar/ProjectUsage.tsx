@@ -44,7 +44,7 @@ export const ProjectUsage = ({
               mb={1}
             />
             <Text fontSize="0.8em">
-              {requestsDone} / {requestMonthlyQuota} requests
+              {requestsDone} / {requestMonthlyQuota} triggers
             </Text>
           </>
         ) : (

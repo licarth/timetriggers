@@ -1,4 +1,9 @@
-import type { User } from "@firebase/auth";
+import {
+  GithubAuthProvider,
+  IdTokenResult,
+  signInWithRedirect,
+  User,
+} from "@firebase/auth";
 import {
   GoogleAuthProvider,
   signInAnonymously,
@@ -64,9 +69,10 @@ type SendPasswordResetEmail = (args: { email: string }) => Promise<void>;
 
 type UseFirebaseAuth = {
   user: User | null;
-  reloadUserData: () => Promise<void>;
-  googleSignIn: () => void;
-  anonymousSignIn: () => void;
+  reloadUserData: () => Promise<IdTokenResult>;
+  googleSignIn: () => Promise<any>;
+  githubSignIn: () => Promise<any>;
+  anonymousSignIn: () => Promise<any>;
   emailPasswordSignIn: (args: {
     email: string;
     password: string;
@@ -104,32 +110,35 @@ function useFirebaseAuth(): UseFirebaseAuth {
       .then(sendIdTokenToServer)
       .then(() => {});
 
+  const google = new GoogleAuthProvider();
+  const github = new GithubAuthProvider();
+
   const sendPasswordResetEmail: SendPasswordResetEmail = ({ email }) =>
     sendPasswordResetEmailFirebase(auth, email);
 
   const anonymousSignIn = () =>
     signInAnonymously(auth)
       .then(sendIdTokenToServer)
+      .then(reloadUserData)
       .catch((error) => {
         // const errorCode = error.code;
         // const errorMessage = error.message;
         // TODO deal with errors
       });
 
-  const googleSignIn = () => {
-    signInWithPopup(auth, provider)
+  const googleSignIn = () =>
+    signInWithPopup(auth, google)
       .then(sendIdTokenToServer)
+      .then(reloadUserData)
+      .catch((error) => {});
+
+  const githubSignIn = () =>
+    signInWithPopup(auth, github)
+      .then(sendIdTokenToServer)
+      .then(reloadUserData)
       .catch((error) => {
-        // // Handle Errors here.
-        // const errorCode = error.code;
-        // const errorMessage = error.message;
-        // // The email of the user's account used.
-        // const email = error.email;
-        // // The AuthCredential type that was used.
-        // const credential = GoogleAuthProvider.credentialFromError(error);
-        // // ...
+        console.log(error);
       });
-  };
 
   const loading = context.user === "loading";
   return {
@@ -137,6 +146,7 @@ function useFirebaseAuth(): UseFirebaseAuth {
     reloadUserData,
     anonymousSignIn,
     googleSignIn,
+    githubSignIn,
     emailPasswordSignIn,
     sendPasswordResetEmail,
     signOut: () =>

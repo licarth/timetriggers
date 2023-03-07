@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  Center,
   Container,
   Divider,
   FormControl,
@@ -9,6 +10,7 @@ import {
   Heading,
   HStack,
   Input,
+  Spinner,
   Stack,
   Text,
 } from "@chakra-ui/react";
@@ -22,6 +24,7 @@ import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { initializeFirebaseWeb } from "~/initializeFirebaseWeb";
 import { NewPasswordField } from "./NewPasswordField";
+import { useState } from "react";
 
 type Inputs = {
   email: string;
@@ -30,7 +33,7 @@ type Inputs = {
 };
 
 export const SignUp = () => {
-  const auth = getAuth(initializeFirebaseWeb().app);
+  const { auth } = initializeFirebaseWeb();
   const {
     register,
     handleSubmit,
@@ -38,6 +41,8 @@ export const SignUp = () => {
     watch,
     formState: { errors },
   } = useForm<Inputs>();
+
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -91,44 +96,52 @@ export const SignUp = () => {
             boxShadow={{ base: "none", sm: "md" }}
             borderRadius={{ base: "none", sm: "xl" }}
           >
-            <Stack spacing="6">
-              <Stack spacing="5">
-                <FormControl isInvalid={!!errors.email}>
-                  <FormLabel htmlFor="email">Email</FormLabel>
-                  <Input id="email" type="email" {...register("email")} />
-                  {errors.email && (
-                    <FormErrorMessage>{errors.email.message}</FormErrorMessage>
-                  )}
-                </FormControl>
-                <NewPasswordField
-                  {...register("password")}
-                  error={errors.password}
-                  label="Password"
-                />
-                <NewPasswordField
-                  {...register("passwordConfirmation", {
-                    validate: (val: string) => {
-                      if (watch("password") != val) {
-                        return "Your passwords do no match";
-                      }
-                    },
-                  })}
-                  error={errors.passwordConfirmation}
-                  label="Confirm Password"
-                />
-              </Stack>
+            {loading ? (
+              <Center>
+                <Spinner />
+              </Center>
+            ) : (
               <Stack spacing="6">
-                <Button type="submit">Create Account</Button>
-                <HStack>
-                  <Divider />
-                  <Text fontSize="sm" whiteSpace="nowrap" color="muted">
-                    or continue with
-                  </Text>
-                  <Divider />
-                </HStack>
-                <OAuthButtonGroup />
+                <Stack spacing="5">
+                  <FormControl isInvalid={!!errors.email}>
+                    <FormLabel htmlFor="email">Email</FormLabel>
+                    <Input id="email" type="email" {...register("email")} />
+                    {errors.email && (
+                      <FormErrorMessage>
+                        {errors.email.message}
+                      </FormErrorMessage>
+                    )}
+                  </FormControl>
+                  <NewPasswordField
+                    {...register("password")}
+                    error={errors.password}
+                    label="Password"
+                  />
+                  <NewPasswordField
+                    {...register("passwordConfirmation", {
+                      validate: (val: string) => {
+                        if (watch("password") != val) {
+                          return "Your passwords do no match";
+                        }
+                      },
+                    })}
+                    error={errors.passwordConfirmation}
+                    label="Confirm Password"
+                  />
+                </Stack>
+                <Stack spacing="6">
+                  <Button type="submit">Create Account</Button>
+                  <HStack>
+                    <Divider />
+                    <Text fontSize="sm" whiteSpace="nowrap" color="muted">
+                      or continue with
+                    </Text>
+                    <Divider />
+                  </HStack>
+                  <OAuthButtonGroup setLoading={setLoading} />
+                </Stack>
               </Stack>
-            </Stack>
+            )}
           </Box>
         </Stack>
       </form>

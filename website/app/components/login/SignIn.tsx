@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  Center,
   Checkbox,
   Container,
   Divider,
@@ -10,6 +11,7 @@ import {
   Heading,
   HStack,
   Input,
+  Spinner,
   Stack,
   Text,
 } from "@chakra-ui/react";
@@ -23,6 +25,7 @@ import type { SubmitHandler } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { useFirebaseAuth } from "~/contexts/FirebaseAuthContext";
+import { useState } from "react";
 
 type Inputs = {
   email: string;
@@ -36,6 +39,8 @@ export const SignIn = () => {
     setError,
     formState: { errors },
   } = useForm<Inputs>();
+
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
   const { emailPasswordSignIn } = useFirebaseAuth();
@@ -89,45 +94,54 @@ export const SignIn = () => {
             bg={{ base: "transparent", sm: "chakra-body-bg" }}
             boxShadow={{ base: "none", sm: "md" }}
             borderRadius={{ base: "none", sm: "xl" }}
+            minH={{ base: "sm" }}
           >
-            <Stack spacing="6">
-              <Stack spacing="5">
-                <RootErrorMessage>{errors.root?.message}</RootErrorMessage>
-                <FormControl isInvalid={!!errors.email}>
-                  <FormLabel htmlFor="email">Email</FormLabel>
-                  <Input id="email" type="email" {...register("email")} />
-                  {errors.email && (
-                    <FormErrorMessage>{errors.email.message}</FormErrorMessage>
-                  )}
-                </FormControl>
-                <PasswordField
-                  {...register("password")}
-                  error={errors.password}
-                />
-              </Stack>
-              <HStack justify="space-between">
-                <Checkbox defaultChecked>Remember me</Checkbox>
-                <Button
-                  variant="link"
-                  colorScheme="blue"
-                  size="sm"
-                  onClick={() => navigate("/account/forgot-password")}
-                >
-                  Forgot password?
-                </Button>
-              </HStack>
+            {loading ? (
+              <Center>
+                <Spinner />
+              </Center>
+            ) : (
               <Stack spacing="6">
-                <Button type="submit">Sign In</Button>
-                <HStack>
-                  <Divider />
-                  <Text fontSize="sm" whiteSpace="nowrap" color="muted">
-                    or continue with
-                  </Text>
-                  <Divider />
+                <Stack spacing="5">
+                  <RootErrorMessage>{errors.root?.message}</RootErrorMessage>
+                  <FormControl isInvalid={!!errors.email}>
+                    <FormLabel htmlFor="email">Email</FormLabel>
+                    <Input id="email" type="email" {...register("email")} />
+                    {errors.email && (
+                      <FormErrorMessage>
+                        {errors.email.message}
+                      </FormErrorMessage>
+                    )}
+                  </FormControl>
+                  <PasswordField
+                    {...register("password")}
+                    error={errors.password}
+                  />
+                </Stack>
+                <HStack justify="space-between">
+                  <Checkbox defaultChecked>Remember me</Checkbox>
+                  <Button
+                    variant="link"
+                    colorScheme="blue"
+                    size="sm"
+                    onClick={() => navigate("/account/forgot-password")}
+                  >
+                    Forgot password?
+                  </Button>
                 </HStack>
-                <OAuthButtonGroup />
+                <Stack spacing="6">
+                  <Button type="submit">Sign In</Button>
+                  <HStack>
+                    <Divider />
+                    <Text fontSize="sm" whiteSpace="nowrap" color="muted">
+                      or continue with
+                    </Text>
+                    <Divider />
+                  </HStack>
+                  <OAuthButtonGroup setLoading={setLoading} />
+                </Stack>
               </Stack>
-            </Stack>
+            )}
           </Box>
         </Stack>
       </form>

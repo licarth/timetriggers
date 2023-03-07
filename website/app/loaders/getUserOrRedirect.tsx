@@ -10,10 +10,10 @@ export const getUserOrRedirect = (
 ) =>
   pipe(
     getUser(request),
-    RTE.orElse(() => RTE.left(redirect(redirectTo || "login"))),
+    RTE.orElse(() => RTE.left(redirect(redirectTo || "/login"))),
     RTE.chainW((user) =>
       user === null
-        ? RTE.left(redirect(redirectTo || "login"))
+        ? RTE.left(redirect(redirectTo || "/login"))
         : RTE.right(user)
     )
   );

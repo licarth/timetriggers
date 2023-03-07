@@ -50,7 +50,7 @@ export const MenuElements = ({
       borderRadius={navSize === "small" ? "15px" : "30px"}
       transition="all 0.5s ease"
     >
-      <Flex flexDir={"row"} mt="5" alignItems={"center"}>
+      <Flex flexDir={"row"} mt="5" alignItems={"center"} mb={2}>
         <IconButton
           aria-label="Home"
           icon={<FiMenu />}
