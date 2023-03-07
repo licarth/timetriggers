@@ -53,6 +53,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
 
   onClusterTopologyChange(clusterTopology: ClusterNodeInformation) {
     console.log(`[Processor] reconfiguring cluster topology`);
+    this.queue.clear();
     this.queueUnsubscribeHooks && unsubscribeAll(this.queueUnsubscribeHooks);
 
     getOrReportToSentry(this.listenToQueue());
