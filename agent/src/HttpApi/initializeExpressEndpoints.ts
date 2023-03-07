@@ -1,6 +1,6 @@
 import { Api } from "@/Api";
 import { rte } from "@/fp-ts";
-import { countUsage } from "@/useCases";
+import { checkQuota, countUsage } from "@/useCases";
 import {
   Clock,
   getProjectByApiKey,
@@ -13,10 +13,9 @@ import {
 import bodyParser from "body-parser";
 import { max } from "date-fns";
 import { Express } from "express";
-import { pipe } from "fp-ts/lib/function.js";
-import * as RT from "fp-ts/lib/ReaderTask.js";
-import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import * as E from "fp-ts/lib/Either.js";
+import { pipe } from "fp-ts/lib/function.js";
+import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 
 export const initializeEndpoints = ({
   app,
@@ -57,25 +56,23 @@ export const initializeEndpoints = ({
             RTE.fromEither
           )
         ),
-        RTE.bindW("project", () =>
+        RTE.bindW("project", () => getProjectByApiKey({ apiKeyValue })),
+
+        RTE.bindW("quota", ({ project }) =>
           pipe(
-            getProjectByApiKey({ apiKeyValue }),
-            RTE.mapLeft((e) => {
-              if (e === "Project not found") {
-                res.status(404).send({ success: false, error: e });
-              } else {
-                res.status(500).send({ success: false, error: e });
-              }
-              return "error-already-handled";
-            })
+            checkQuota({ project }),
+            RTE.chainW((quota) =>
+              quota.remaining > 0
+                ? RTE.of(quota)
+                : RTE.left("Quota exceeded" as const)
+            )
           )
         ),
         RTE.bindW("rawBody", () => {
-          return pipe(
-            { _tag: "RawBody", raw: req.body.toString("utf8") },
-            RawBody.codec.decode,
-            RTE.fromEither
-          );
+          // If it's a buffer, call toString on it
+          const raw =
+            req.body instanceof Buffer ? req.body.toString("utf8") : "";
+          return RTE.of(new RawBody({ raw }));
         }),
         RTE.bindW("jobScheduleArgs", ({ rawBody, scheduledAt }) =>
           RTE.of(
@@ -93,46 +90,52 @@ export const initializeEndpoints = ({
           )
         ),
         RTE.chainFirstW(
-          ({ jobScheduleArgs, project: { id: projectId } }) => {
+          ({ jobScheduleArgs, project: { id: projectId }, quota }) => {
             options.includes("no_noise") || jobScheduleArgs.noizyScheduledAt();
             return pipe(
               api.schedule(jobScheduleArgs, projectId),
               RTE.fromTaskEither,
-              rte.sideEffect((jobId) => res.send({ success: true, jobId }))
+              rte.sideEffect((jobId) => {
+                if (quota.remaining < Infinity) {
+                  res.setHeader(
+                    "X-TimeTriggers-Month-Quota-Remaining",
+                    quota.remaining - 1
+                  );
+                }
+                res.send({ success: true, jobId });
+              }),
+              RTE.mapLeft((e) => "scheduling error" as const)
             );
           }
           // Todo handle errors due to scheduling
         ),
+
         RTE.mapLeft((error) => {
-          if (error === "error-already-handled") {
-            console.log("error already handled");
+          if (error === "Project not found") {
+            res
+              .status(404)
+              .send({ success: false, error: "project not found" });
+          } else if (error === "Quota exceeded") {
+            res.status(402).send({ success: false, error: "quota exceeded" });
           } else {
-            res.sendStatus(500); // TODO useful error message to users
+            console.error(error);
+            res.status(500).send({
+              success: false,
+              error: "internal error, please try again later",
+            });
           }
           return error;
         }),
         // Below this point we don't run res.send anymore.
+
         RTE.chainW(({ project, jobScheduleArgs }) => {
           return countUsage({
             project,
             apiKeyValue,
             jobScheduleArgs,
           });
-        }),
-        logErrors
+        })
       )({ firestore, namespace, clock })();
     });
   return RTE.of(void 0);
 };
-
-const logErrors = <R, E, A>(rte: RTE.ReaderTaskEither<R, E, A>) =>
-  pipe(
-    rte,
-    RTE.foldW(
-      (error) => {
-        console.error(error);
-        return RT.of(void 0);
-      },
-      () => RT.of(void 0)
-    )
-  );

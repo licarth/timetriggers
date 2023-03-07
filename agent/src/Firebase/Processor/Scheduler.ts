@@ -151,7 +151,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
   restart() {
     return pipe(
       async () => {
-        this.clearAllPlannedTimeouts();
+        this.clearAllPlannedTimeouts(); // TODO: do a diff of the shards we're listening to and the shards we're supposed to listen to, and only clear the ones that are no longer needed.
         unsubscribeAll(this.nextPeriodSchedulingHooks);
         unsubscribeAll(this.datastoreNewJobsHooks);
       },

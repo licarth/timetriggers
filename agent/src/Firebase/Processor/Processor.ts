@@ -53,7 +53,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
 
   onClusterTopologyChange(clusterTopology: ClusterNodeInformation) {
     console.log(`[Processor] reconfiguring cluster topology`);
-    this.queue.clear();
+    this.queue.clear(); // TODO: do a diff of the shards we're listening to and the shards we're supposed to listen to, and only clear the ones that are no longer needed.
     this.queueUnsubscribeHooks && unsubscribeAll(this.queueUnsubscribeHooks);
 
     getOrReportToSentry(this.listenToQueue());

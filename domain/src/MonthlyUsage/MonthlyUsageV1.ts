@@ -21,6 +21,13 @@ export class MonthlyUsageV1 {
     return this.done?.api?.schedule?.[year]?.[monthString] ?? 0;
   }
 
+  getScheduleUsageForDate(now: Date) {
+    return this.getScheduleUsageForYearMonth(
+      now.getFullYear(),
+      now.getMonth() + 1
+    );
+  }
+
   static propsCodec = Codec.partial({
     projectId: ProjectId.codec,
     done: Codec.partial({

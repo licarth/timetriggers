@@ -15,6 +15,8 @@ export class Project {
   readerIds;
   editorIds;
   apiKeys;
+  pricingPlan;
+  overrideQuotaLimit;
 
   constructor(props: ProjectProps) {
     this.id = props.id;
@@ -23,6 +25,8 @@ export class Project {
     this.readerIds = props.readerIds;
     this.editorIds = props.editorIds;
     this.apiKeys = props.apiKeys;
+    this.pricingPlan = props.pricingPlan;
+    this.overrideQuotaLimit = props.overrideQuotaLimit;
   }
 
   hasReadAccess(userId: FirebaseUserId) {
@@ -58,6 +62,8 @@ export class Project {
           readerIds: Codec.array(FirebaseUserId.codec),
           editorIds: Codec.array(FirebaseUserId.codec),
           apiKeys: Codec.record(ApiKey.codec(codecType)),
+          pricingPlan: Codec.literal("free", "flex"),
+          overrideQuotaLimit: Codec.number,
         })
       )
     );

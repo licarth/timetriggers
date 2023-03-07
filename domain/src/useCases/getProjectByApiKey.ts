@@ -30,17 +30,17 @@ export const getProjectByApiKey = ({
           return snapshot.docs;
         },
         (reason) => {
-          return new Error(String(reason));
+          return "firebase-error" as const;
         }
       )
     ),
     RTE.filterOrElseW(
       (d) => d.length !== 0,
-      () => "Project not found"
+      () => "Project not found" as const
     ),
     RTE.filterOrElseW(
       (d) => d.length < 2,
-      () => `Multiple projects found for api key ${apiKeyValue}`
+      () => `Multiple projects found for api key ${apiKeyValue}` as const
     ),
     RTE.map((d) => pipe(d[0].data())),
     RTE.chainEitherKW((d) =>

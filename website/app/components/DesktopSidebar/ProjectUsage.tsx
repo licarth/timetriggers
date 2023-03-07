@@ -16,7 +16,7 @@ export const ProjectUsage = ({
   hidden,
 }: ProjectUsageArgs) => {
   const now = new Date();
-  const u = usage?.getScheduleUsageForYearMonth(2023, now.getMonth() + 1) || 0;
+  const requestsDone = usage.getScheduleUsageForDate(now);
   const requestMonthlyQuota = 500;
   let revalidator = useRevalidator();
   const firstRender = useFirstRender();
@@ -36,12 +36,12 @@ export const ProjectUsage = ({
         <>
           <Progress
             colorScheme="green"
-            value={(u / requestMonthlyQuota) * 100}
+            value={(requestsDone / requestMonthlyQuota) * 100}
             borderRadius={3}
             mb={1}
           />
           <Text fontSize="0.8em">
-            {u} / {requestMonthlyQuota} requests
+            {requestsDone} / {requestMonthlyQuota} requests
           </Text>
         </>
       )}

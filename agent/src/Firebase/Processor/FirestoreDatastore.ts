@@ -1,8 +1,6 @@
-import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
-import { externallyResolvablePromise } from "@/externallyResolvablePromise";
-import { e, te } from "@timetriggers/domain";
 import {
   Clock,
+  e,
   getOneFromFirestore,
   HttpCallCompleted,
   HttpCallErrored,
@@ -16,6 +14,7 @@ import {
   RateLimit,
   RegisteredAt,
   SystemClock,
+  te,
 } from "@timetriggers/domain";
 import { format } from "date-fns";
 import type { Firestore } from "firebase-admin/firestore";
@@ -87,7 +86,8 @@ export class FirestoreDatastore implements Datastore {
                       preconditions: [
                         (jobDocument) => ({
                           test: jobDocument.status.value === "registered",
-                          errorMessage: `should be registered, is ${jobDocument.status.value} instead.`,
+                          errorMessage:
+                            `should be registered, is ${jobDocument.status.value} instead.` as const,
                         }),
                       ],
                     }),
@@ -120,7 +120,8 @@ export class FirestoreDatastore implements Datastore {
               )
             );
           }),
-        (reason) => `Failed to mark job ${id} as rate limited: ${reason}`
+        (reason) =>
+          `Failed to mark job ${id} as rate limited: ${reason}` as const
       ),
       TE.map(() => undefined)
     );

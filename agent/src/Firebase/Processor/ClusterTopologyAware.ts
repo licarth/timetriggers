@@ -55,17 +55,6 @@ export abstract class ClusterTopologyDatastoreAware {
   ): void;
 
   protected startListeningToCluster() {
-    this.coordinationClient
-      ? console.log(
-          `Starting, listening to ${
-            this.shardsToListenTo === undefined
-              ? "all shards"
-              : `shards ${this.shardsToListenTo?.nodeIds.join(", ")}`
-          }.`
-        )
-      : console.log(`Starting, listening... (no shards)`);
-
-    // We should wait until shardsToListenTo is set
     return pipe(
       // Run coordination client if it exists
       () => this.clusterTopologyIsReadyPromise,
