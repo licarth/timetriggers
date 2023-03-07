@@ -44,12 +44,24 @@ export const ProjectUsage = ({
               mb={1}
             />
             <Text fontSize="0.8em">
-              {requestsDone} / {requestMonthlyQuota} triggers
+              {formatShortNumber(requestsDone)} / {formatShortNumber(requestMonthlyQuota)} triggers
             </Text>
           </>
         ) : (
-          <Text>{requestsDone} / Unlimited</Text>
+          <Text>{formatShortNumber(requestsDone)} / Unlimited</Text>
         ))}
     </Card>
   );
 };
+
+const formatShortNumber = (num: number) => {
+  if (num >= 1000000) {
+    return (num / 1000000).toPrecision(1) + " M";
+  }
+
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + " k";
+  }
+
+  return num;
+}
