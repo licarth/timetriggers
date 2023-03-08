@@ -1,4 +1,5 @@
-import { addMinutes, format } from "date-fns";
+import { addMinutes } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import code from "./code";
 import { CodeSample } from "./CodeSample";
 
@@ -16,9 +17,10 @@ export const CodeExample = ({
       code={code[example]
         .c({
           apiKey: apiKey || "<YOUR_API_KEY>",
-          formattedDate: format(
+          formattedDate: formatInTimeZone(
             addMinutes(date, 1),
-            "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"
+            "Z",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'"
           ),
         })
         .trim()}
