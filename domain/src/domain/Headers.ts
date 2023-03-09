@@ -1,10 +1,9 @@
-import { pipe } from "fp-ts/lib/function.js";
-import * as Codec from "io-ts/lib/Codec.js";
 import { fromClassCodec } from "@iots";
-import { Header } from "./Header";
-import _ from "lodash";
+import { pipe } from "fp-ts/lib/function.js";
 import { toLowerCase } from "fp-ts/lib/string.js";
-import { key } from "io-ts/lib/DecodeError";
+import * as Codec from "io-ts/lib/Codec.js";
+import _ from "lodash";
+import { Header } from "./Header";
 
 export class Headers {
   headersArray;
@@ -43,7 +42,7 @@ export class Headers {
     return new Headers({
       headersArray: _.compact(
         Object.entries(expressHeaders)
-          .filter(([key]) => !toLowerCase(key).startsWith("x-timetriggers-"))
+          .filter(([key]) => !toLowerCase(key).startsWith("ttr-"))
           .map(([key, value]) => {
             return (
               value &&

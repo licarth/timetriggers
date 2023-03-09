@@ -15,10 +15,6 @@ export class JobScheduleArgs {
     this.http = props.http;
   }
 
-  noizyScheduledAt() {
-    this.scheduledAt.setMilliseconds(Math.random() * 1000);
-  }
-
   static propsCodec = (codecType: CodecType) =>
     pipe(
       Codec.struct({

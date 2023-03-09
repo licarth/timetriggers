@@ -418,15 +418,14 @@ const Document = () => {
               <Text>Add the following headers to your request:</Text>
               <UnorderedList>
                 <ListItem>
-                  <Code>X-TimeTriggers-Key</Code> : your Api Key
+                  <Code>ttr-api-key</Code> : your Api Key
                 </ListItem>
                 <ListItem>
-                  <Code>X-TimeTriggers-Url</Code> : the Url you want
-                  to hit
+                  <Code>ttr-url</Code> : the Url you want to hit
                 </ListItem>
                 <ListItem>
-                  <Code>X-TimeTriggers-At</Code> : the moment we
-                  should schedule the request, in the format{' '}
+                  <Code>ttr-scheduled-at</Code> : the moment we should
+                  schedule the request, in the format{' '}
                   <Code>yyyy-MM-dd'T'HH:mm:ss.SSSxxx</Code>
                 </ListItem>
               </UnorderedList>
@@ -437,8 +436,7 @@ const Document = () => {
             <Text>
               That's it ! No need to change your <Code>method</Code>,{' '}
               <Code>body</Code> or anything else. We'll reply without
-              any body, only with a header{' '}
-              <Code>X-TimeTriggers-TaskId</Code>
+              any body, only with a header <Code>ttr-trigger-id</Code>
             </Text>
           </Alert>
           <Box mt={6}>

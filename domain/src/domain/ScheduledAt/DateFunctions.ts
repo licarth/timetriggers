@@ -1,5 +1,8 @@
 import { Clock } from "@/Clock";
-import { parse } from "date-fns";
+import { isValid, parseISO } from "date-fns";
+import { zonedTimeToUtc } from "date-fns-tz";
+
+const parseIsoUTC = (s: string) => zonedTimeToUtc(parseISO(s), "UTC");
 
 export const evaluate =
   (s: string) =>
@@ -11,7 +14,10 @@ export const evaluate =
     if (dateString === "now") {
       date = clock.now();
     } else {
-      date = parse(dateString, "yyyy-MM-dd'T'HH:mm:ss.SSSxxx", new Date());
+      date = parseIsoUTC(dateString);
+      if (!isValid(date)) {
+        throw new Error(`Cannot parse date '${dateString}'`);
+      }
     }
     if (elements.length === 1) {
       return date;

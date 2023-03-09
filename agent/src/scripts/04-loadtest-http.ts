@@ -93,12 +93,10 @@ async function scheduleJobHttp(scheduledAt: ScheduledAt) {
     method: "GET",
 
     headers: {
-      "X-Timetriggers-At": `${scheduledAt.toISOString()}`,
-      "X-Timetriggers-Key": `${process.env.KEY}`,
-      "X-Timetriggers-Url": `${
-        process.env.TARGET || "https://api.timetriggers.io/1"
-      }`,
-      "X-Timetriggers-Options": "no_noise",
+      "ttr-scheduled-at": `${scheduledAt.toISOString()}`,
+      "ttr-api-key": `${process.env.KEY}`,
+      "ttr-url": `${process.env.TARGET || "https://api.timetriggers.io/1"}`,
+      "ttr-options": "no_noise",
     },
   });
 

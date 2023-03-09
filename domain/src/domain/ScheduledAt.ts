@@ -22,7 +22,9 @@ export namespace ScheduledAt {
         TE.tryCatch(async () => {
           return evaluate(queryLangString)({ clock });
         }, E.toError),
-        TE.map(fromDate)
+        TE.map((d) => {
+          return d as ScheduledAt;
+        })
       );
 
   export const fromDate = (date: Date): ScheduledAt => {

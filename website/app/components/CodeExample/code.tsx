@@ -5,14 +5,14 @@ export default {
     c: ({ apiKey, formattedDate }: CodeArgs) => {
       return `
 curl \\
-  -H "X-TimeTriggers-Url: https://your-domain.com/endpoint" \\
+  -H "ttr-url: https://your-domain.com/endpoint" \\
   -H "Content-type: application/json" \\
   -X PUT \\
   -d '{
     "hello": "world"
   }' \\
-  -H "X-TimeTriggers-At: ${formattedDate}" \\
-  -H "X-TimeTriggers-Key: ${apiKey}" \\
+  -H "ttr-scheduled-at: ${formattedDate}" \\
+  -H "ttr-api-key: ${apiKey}" \\
   'https://api.timetriggers.io/schedule'
   `;
       // # ⬆ Everything above is your original request, let's do a PUT on ⬆
@@ -31,9 +31,9 @@ curl \\
 fetch("https://api.timetriggers.io/schedule", {
   method: "POST",
   headers: {
-    "X-TimeTriggers-Key": "${apiKey}",   // your API key
-    "X-TimeTriggers-Url": "https://yourdomain.com/endpoint",    // The url to call
-    "X-TimeTriggers-At": "${formattedDate}",       // 1 minute from now
+    "ttr-api-key": "${apiKey}",   // your API key
+    "ttr-url": "https://yourdomain.com/endpoint",    // The url to call
+    "ttr-scheduled-at": "${formattedDate}",       // 1 minute from now
   },
 });
   `;

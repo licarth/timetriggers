@@ -37,19 +37,23 @@ export const initializeEndpoints = ({
       })
     )
     .all("/schedule", async (req, res) => {
-      const url = req.headers["x-timetriggers-url"] as string;
-      const apiKeyValue = (req.headers["x-timetriggers-key"] as string) || "";
+      const url = req.headers["ttr-url"] as string;
+      const apiKeyValue = (req.headers["ttr-api-key"] as string) || "";
       const options =
-        ((req.headers["x-timetriggers-options"] as string) || "").split(",") ||
-        [];
+        ((req.headers["ttr-options"] as string) || "").split(",") || [];
 
       await pipe(
         RTE.Do,
         RTE.bindW("scheduledAt", () =>
           pipe(
-            req.headers["x-timetriggers-at"] as string,
+            req.headers["ttr-scheduled-at"] as string,
             ScheduledAt.fromQueryLanguage,
-            RTE.mapLeft((e) => `date-parsing-error: ${e.message}`)
+            RTE.mapLeft((e) => `date-parsing-error: ${e.message}`),
+            rte.sideEffect(
+              (s) =>
+                options.includes("no_noise") ||
+                s.setMilliseconds(Math.random() * 1000)
+            )
           )
         ),
         RTE.bindW("project", () => getProjectByApiKey({ apiKeyValue })),
@@ -86,19 +90,23 @@ export const initializeEndpoints = ({
           )
         ),
         RTE.chainFirstW(
-          ({ jobScheduleArgs, project: { id: projectId }, quota }) => {
-            options.includes("no_noise") || jobScheduleArgs.noizyScheduledAt();
+          ({
+            jobScheduleArgs,
+            project: { id: projectId },
+            quota,
+            scheduledAt,
+          }) => {
             return pipe(
               api.schedule(jobScheduleArgs, projectId),
               RTE.fromTaskEither,
               rte.sideEffect((jobId) => {
                 if (quota.remaining < Infinity) {
                   res.setHeader(
-                    "X-TimeTriggers-Month-Quota-Remaining",
+                    "ttr-month-quota-remaining",
                     quota.remaining - 1
                   );
                 }
-                res.send({ success: true, jobId });
+                res.send({ success: true, jobId, scheduledAt });
               }),
               RTE.mapLeft((e) => "scheduling error" as const)
             );
