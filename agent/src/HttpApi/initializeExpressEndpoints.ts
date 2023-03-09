@@ -11,9 +11,7 @@ import {
   ScheduledAt,
 } from "@timetriggers/domain";
 import bodyParser from "body-parser";
-import { max } from "date-fns";
 import { Express } from "express";
-import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 
@@ -50,10 +48,8 @@ export const initializeEndpoints = ({
         RTE.bindW("scheduledAt", () =>
           pipe(
             req.headers["x-timetriggers-at"] as string,
-            ScheduledAt.parseISOString,
-            E.map((d) => max([d, clock.now()])),
-            E.map(ScheduledAt.fromDate),
-            RTE.fromEither
+            ScheduledAt.fromQueryLanguage,
+            RTE.mapLeft((e) => `date-parsing-error: ${e.message}`)
           )
         ),
         RTE.bindW("project", () => getProjectByApiKey({ apiKeyValue })),
@@ -117,6 +113,11 @@ export const initializeEndpoints = ({
               .send({ success: false, error: "project not found" });
           } else if (error === "Quota exceeded") {
             res.status(402).send({ success: false, error: "quota exceeded" });
+          } else if (
+            typeof error === "string" &&
+            error.startsWith("date-parsing-error")
+          ) {
+            res.status(400).send({ success: false, error: error });
           } else {
             console.error(error);
             res.status(500).send({

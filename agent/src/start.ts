@@ -6,6 +6,7 @@ import { Api } from "./Api";
 import { AxiosWorkerPool } from "./AxiosWorkerPool";
 import { CoordinationClient } from "./Coordination/CoordinationClient";
 import { KubernetesStatefulsetCoordinationClient } from "./Coordination/KubernetesStatefulsetCoordinationClient";
+import { SingleNodeCoordinationClient } from "./Coordination/SingleNodeCoordinationClient";
 import { ZookeeperCoordinationClient } from "./Coordination/ZookeeperCoordinationClient";
 import { DatastoreApi } from "./Firebase/DatastoreApi";
 import { initializeApp } from "./Firebase/initializeApp";
@@ -56,16 +57,7 @@ export const start = (props: StartProps) =>
     ),
     RTE.bindW("coordinationClient", () =>
       props.scheduler?.enabled || props.processor?.enabled
-        ? RTE.fromTaskEither(
-            process.env.COORDINATION === "zookeeper"
-              ? ZookeeperCoordinationClient.build({
-                  namespace: `/${props.namespace}`,
-                })
-              : (KubernetesStatefulsetCoordinationClient.build() as TE.TaskEither<
-                  any,
-                  CoordinationClient
-                >)
-          )
+        ? RTE.fromTaskEither(getCoordinationClient(props))
         : RTE.of(undefined)
     ),
     RTE.bindW(
@@ -109,6 +101,22 @@ export const start = (props: StartProps) =>
     ),
     RTE.chainFirstTaskEitherKW(listenToProcessTermination)
   );
+
+const getCoordinationClient = (props: {
+  namespace: string;
+}): TE.TaskEither<any, CoordinationClient> => {
+  switch (process.env.COORDINATION) {
+    case "zookeeper":
+      return ZookeeperCoordinationClient.build({
+        namespace: `/${props.namespace}`,
+      });
+    case "none":
+      return TE.of(new SingleNodeCoordinationClient());
+
+    default:
+      return KubernetesStatefulsetCoordinationClient.build();
+  }
+};
 
 export const startScheduler = ({
   coordinationClient,

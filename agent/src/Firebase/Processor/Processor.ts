@@ -46,14 +46,14 @@ export class Processor extends ClusterTopologyDatastoreAware {
 
   private constructor(props: ProcessorProps) {
     super(props);
+    this.queue = new PQueue({ concurrency: 300 });
     this.workerPool = props.workerPool;
     this.datastore = props.datastore;
-    this.queue = new PQueue({ concurrency: 300 });
   }
 
   onClusterTopologyChange(clusterTopology: ClusterNodeInformation) {
     console.log(`[Processor] reconfiguring cluster topology`);
-    this.queue.clear(); // TODO: do a diff of the shards we're listening to and the shards we're supposed to listen to, and only clear the ones that are no longer needed.
+    this.queue?.clear(); // TODO: do a diff of the shards we're listening to and the shards we're supposed to listen to, and only clear the ones that are no longer needed.
     this.queueUnsubscribeHooks && unsubscribeAll(this.queueUnsubscribeHooks);
 
     getOrReportToSentry(this.listenToQueue());
