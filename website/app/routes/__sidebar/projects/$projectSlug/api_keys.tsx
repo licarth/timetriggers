@@ -1,4 +1,4 @@
-import type { ModalProps } from "@chakra-ui/react";
+import type { ModalProps } from '@chakra-ui/react';
 import {
   Alert,
   AlertIcon,
@@ -31,11 +31,18 @@ import {
   UnorderedList,
   useColorModeValue,
   useDisclosure,
-  useToast
-} from "@chakra-ui/react";
-import { useLoaderData, useLocation, useNavigate } from "@remix-run/react";
-import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
-import { redirect } from "@remix-run/server-runtime";
+  useToast,
+} from '@chakra-ui/react';
+import {
+  useLoaderData,
+  useLocation,
+  useNavigate,
+} from '@remix-run/react';
+import type {
+  ActionFunction,
+  LoaderFunction,
+} from '@remix-run/server-runtime';
+import { redirect } from '@remix-run/server-runtime';
 import {
   ApiKey,
   deleteApiKey,
@@ -43,51 +50,56 @@ import {
   FirebaseUser,
   Project,
   storeApiKey,
-  UtcDate
-} from "@timetriggers/domain";
-import { formatInTimeZone } from "date-fns-tz";
-import * as E from "fp-ts/lib/Either";
-import { flow, pipe } from "fp-ts/lib/function";
-import * as RTE from "fp-ts/lib/ReaderTaskEither";
-import * as C from "io-ts/lib/Codec";
-import { draw } from "io-ts/lib/Decoder";
-import _ from "lodash";
-import { useEffect, useState } from "react";
-import { BsFillTrash2Fill } from "react-icons/bs";
-import { FaCopy } from "react-icons/fa";
-import { match } from "ts-pattern";
-import { H1 } from "~/components";
-import { CodeExample } from "~/components/CodeExample";
-import { CopyToClipboardButton } from "~/components/CopyToClipboardButton";
-import { useFirebaseAuth } from "~/contexts";
-import { getProjectSlugOrRedirect } from "~/loaders/getProjectIdOrRedirect";
-import { getProjectBySlugOrRedirect } from "~/loaders/getProjectOrRedirect";
-import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
-import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte.server";
+  UtcDate,
+} from '@timetriggers/domain';
+import { formatInTimeZone } from 'date-fns-tz';
+import * as E from 'fp-ts/lib/Either';
+import { flow, pipe } from 'fp-ts/lib/function';
+import * as RTE from 'fp-ts/lib/ReaderTaskEither';
+import * as C from 'io-ts/lib/Codec';
+import { draw } from 'io-ts/lib/Decoder';
+import _ from 'lodash';
+import { useEffect, useState } from 'react';
+import { BsFillTrash2Fill } from 'react-icons/bs';
+import { FaCopy } from 'react-icons/fa';
+import { match } from 'ts-pattern';
+import { H1 } from '~/components';
+import { CodeExample } from '~/components/CodeExample';
+import { CopyToClipboardButton } from '~/components/CopyToClipboardButton';
+import { useFirebaseAuth } from '~/contexts';
+import { getProjectSlugOrRedirect } from '~/loaders/getProjectIdOrRedirect';
+import { getProjectBySlugOrRedirect } from '~/loaders/getProjectOrRedirect';
+import { getUserOrRedirect } from '~/loaders/getUserOrRedirect';
+import {
+  actionFromRte,
+  loaderFromRte,
+} from '~/utils/loaderFromRte.server';
 
 export const loader: LoaderFunction = async ({ params, request }) => {
   return loaderFromRte(
     pipe(
       RTE.Do,
-      RTE.bind("projectSlug", () =>
-        getProjectSlugOrRedirect(params.projectSlug, "/projects")
+      RTE.bind('projectSlug', () =>
+        getProjectSlugOrRedirect(params.projectSlug, '/projects'),
       ),
-      RTE.bind("user", () => getUserOrRedirect(request)),
-      RTE.bindW("project", ({ projectSlug }) =>
-        getProjectBySlugOrRedirect({ projectSlug }, "..")
+      RTE.bind('user', () => getUserOrRedirect(request)),
+      RTE.bindW('project', ({ projectSlug }) =>
+        getProjectBySlugOrRedirect({ projectSlug }, '..'),
       ),
       RTE.map(({ user, project }) => {
         if (project && project.hasReadAccess(user.id)) {
           return {
-            project: Project.codec("string").encode(project),
+            project: Project.codec('string').encode(project),
             user: FirebaseUser.codec.encode(user),
-            now: UtcDate.codec("string").encode(UtcDate.fromDate(new Date())),
+            now: UtcDate.codec('string').encode(
+              UtcDate.fromDate(new Date()),
+            ),
           };
         } else {
-          return redirect("..");
+          return redirect('..');
         }
-      })
-    )
+      }),
+    ),
   );
 };
 
@@ -98,43 +110,45 @@ export const action: ActionFunction = ({ params, request }) =>
   actionFromRte(
     pipe(
       RTE.Do,
-      RTE.bindW("projectSlug", () =>
-        getProjectSlugOrRedirect(params.projectSlug, "projects")
+      RTE.bindW('projectSlug', () =>
+        getProjectSlugOrRedirect(params.projectSlug, 'projects'),
       ),
-      RTE.bindW("user", () => getUserOrRedirect(request)),
+      RTE.bindW('user', () => getUserOrRedirect(request)),
       (x) => x,
-      RTE.bindW("project", ({ projectSlug }) =>
-        getProjectBySlugOrRedirect({ projectSlug }, "..")
+      RTE.bindW('project', ({ projectSlug }) =>
+        getProjectBySlugOrRedirect({ projectSlug }, '..'),
       ),
-      RTE.bindW("apiKey", () =>
+      RTE.bindW('apiKey', () =>
         pipe(
           () => request.json(),
           RTE.fromTask,
           RTE.map((b) => b.apiKey),
-          RTE.chainEitherKW(ApiKey.codec("string").decode),
+          RTE.chainEitherKW(ApiKey.codec('string').decode),
           RTE.mapLeft((e) => {
             console.error(draw(e));
             return e;
-          })
-        )
+          }),
+        ),
       ),
       RTE.chainW(
         ({ apiKey, project: { id: projectId } }) =>
           match(request.method)
-            .with("POST", () => storeApiKey({ apiKey, projectId }))
-            .with("DELETE", () => deleteApiKey({ apiKey, projectId }))
+            .with('POST', () => storeApiKey({ apiKey, projectId }))
+            .with('DELETE', () => deleteApiKey({ apiKey, projectId }))
             .otherwise(() =>
-              RTE.left("Unexpected response")
-            ) as RTE.ReaderTaskEither<any, Error | string, any> // TODO @licarth - fix this. Don't know why we have to type this
+              RTE.left('Unexpected response'),
+            ) as RTE.ReaderTaskEither<any, Error | string, any>, // TODO @licarth - fix this. Don't know why we have to type this
       ),
-      RTE.map((a) => ({}))
-    )
+      RTE.map((a) => ({})),
+    ),
   );
 
-const useIoTsLoaderDataOrThrow = <I, O, A>(codec: C.Codec<I, O, A>) => {
+const useIoTsLoaderDataOrThrow = <I, O, A>(
+  codec: C.Codec<I, O, A>,
+) => {
   const data = useLoaderData();
   return e.unsafeGetOrThrow(
-    pipe(data, codec.decode, E.mapLeft(flow(draw, console.error)))
+    pipe(data, codec.decode, E.mapLeft(flow(draw, console.error))),
   );
 };
 
@@ -143,10 +157,14 @@ const ApiKeyUsageModal = ({
   isOpen,
   apiKey,
   now,
-}: Pick<ModalProps, "isOpen"> &
-  Pick<ModalProps, "onClose"> & { apiKey: ApiKey; now: Date }) => {
+}: Pick<ModalProps, 'isOpen'> &
+  Pick<ModalProps, 'onClose'> & { apiKey: ApiKey; now: Date }) => {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size={{ base: "full", md: "6xl" }}>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size={{ base: 'full', md: '6xl' }}
+    >
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>Api Key Created</ModalHeader>
@@ -154,8 +172,9 @@ const ApiKeyUsageModal = ({
         <ModalBody>
           <Stack spacing={4}>
             <Text>
-              Your new api key has been created ! Please save it, because you
-              won't be able to see it again ! (We only keep a hash of it)
+              Your new api key has been created ! Please save it,
+              because you won't be able to see it again ! (We only
+              keep a hash of it)
             </Text>
 
             {apiKey && (
@@ -163,31 +182,31 @@ const ApiKeyUsageModal = ({
                 <Alert status="warning">
                   <AlertIcon />
                   <Text>
-                    This is a <b>secret</b> ! Please keep it safe and don't
-                    share it with anyone. Don't publish this on a single page
-                    application !
+                    This is a <b>secret</b> ! Please keep it safe and
+                    don't share it with anyone. Don't publish this on
+                    a single page application !
                   </Text>
                 </Alert>
                 <Card
-                  maxW={{ base: "full", md: "xl" }}
+                  maxW={{ base: 'full', md: 'xl' }}
                   p={1}
-                  variant={"outline"}
-                  overflowX={"scroll"}
+                  variant={'outline'}
+                  overflowX={'scroll'}
                 >
                   <CardBody>
                     <HStack>
                       <CopyToClipboardButton
                         textToPutInClipboard={apiKey.value}
-                        size={"sm"}
+                        size={'sm'}
                         rightIcon={<FaCopy />}
                         minW="fit-content"
                       >
                         COPY
                       </CopyToClipboardButton>
                       <Code
-                        fontSize={"1.2em"}
-                        alignSelf={"center"}
-                        colorScheme={"pink"}
+                        fontSize={'1.2em'}
+                        alignSelf={'center'}
+                        colorScheme={'pink'}
                       >
                         {apiKey.value}
                       </Code>
@@ -197,8 +216,12 @@ const ApiKeyUsageModal = ({
               </Stack>
             )}
 
-            <Heading size={"sm"}>Usage examples</Heading>
-            <CodeExample example="curl" apiKey={apiKey.value} date={now} />
+            <Heading size={'sm'}>Usage examples</Heading>
+            <CodeExample
+              example="curl"
+              apiKey={apiKey.value}
+              date={now}
+            />
             <CodeExample
               example="node-fetch-typescript"
               apiKey={apiKey.value}
@@ -222,22 +245,26 @@ const Document = () => {
 
   useEffect(() => {
     const getParams = new URLSearchParams(location.search);
-    if (!loading && getParams.get("reloadUser") === "true") {
-      console.log("reloading user");
+    if (!loading && getParams.get('reloadUser') === 'true') {
+      console.log('reloading user');
       reloadUserData().then(() => {
-        console.log("reloaded user");
-        window.history.replaceState({}, document.title, location.pathname);
+        console.log('reloaded user');
+        window.history.replaceState(
+          {},
+          document.title,
+          location.pathname,
+        );
       });
     }
   }, [loading]);
 
-  const bgColor = useColorModeValue("white", "gray.900");
+  const bgColor = useColorModeValue('white', 'gray.900');
   const { project, user, now } = useIoTsLoaderDataOrThrow(
     C.struct({
-      project: Project.codec("string"),
+      project: Project.codec('string'),
       user: FirebaseUser.codec,
-      now: UtcDate.codec("string"),
-    })
+      now: UtcDate.codec('string'),
+    }),
   );
   const [isCreatingKey, setIsCreatingKey] = useState(false);
   const [apiKey, setApiKey] = useState<ApiKey>();
@@ -245,7 +272,7 @@ const Document = () => {
   const navigate = useNavigate();
 
   const generateKey = () => ApiKey.generate(user.id);
-  const codec = ApiKey.codec("string");
+  const codec = ApiKey.codec('string');
   const toast = useToast();
   const { onOpen, onClose, isOpen } = useDisclosure();
 
@@ -254,8 +281,8 @@ const Document = () => {
     const newApiKey = await generateKey();
 
     // fetch POST request to create the key
-    fetch("", {
-      method: "POST",
+    fetch('', {
+      method: 'POST',
       body: JSON.stringify({ apiKey: codec.encode(newApiKey) }),
     })
       .catch((e) => console.error(e))
@@ -264,30 +291,30 @@ const Document = () => {
         onOpen();
       })
       .finally(() => {
-        navigate(".", { replace: true });
+        navigate('.', { replace: true });
         setIsCreatingKey(false);
       });
   };
 
   const deleteKey = async (apiKey: ApiKey) => {
     setIsCreatingKey(true);
-    fetch("", {
-      method: "DELETE",
+    fetch('', {
+      method: 'DELETE',
       body: JSON.stringify({ apiKey: codec.encode(apiKey) }),
     })
       .catch((e) => console.error(e))
       .then(() => {
         toast({
-          title: "Key deleted.",
-          variant: "top-accent",
-          status: "success",
+          title: 'Key deleted.',
+          variant: 'top-accent',
+          status: 'success',
           duration: 3000,
           isClosable: true,
-          position: "top-right",
+          position: 'top-right',
         });
       })
       .finally(() => {
-        navigate(".", { replace: true });
+        navigate('.', { replace: true });
         setIsCreatingKey(false);
       });
   };
@@ -297,7 +324,7 @@ const Document = () => {
   const createKeyButton = (
     <Button
       w="min-content"
-      colorScheme={"green"}
+      colorScheme={'green'}
       onClick={() => createKey()}
       isLoading={isCreatingKey}
       loadingText="Loading…"
@@ -325,14 +352,18 @@ const Document = () => {
           <Tbody>
             {_(apiKeys)
               .values()
-              .sortBy("createdAt")
+              .sortBy('createdAt')
               .valueOf()
               .map((apiKey) => (
                 <Tr key={apiKey.value}>
                   <Td>••••{apiKey.value.slice(-4)}</Td>
                   <Td>
                     <Text isTruncated maxW="sm">
-                      {formatInTimeZone(apiKey.createdAt, "Z","dd/MM/yyyy HH:mm 'UTC'")}
+                      {formatInTimeZone(
+                        apiKey.createdAt,
+                        'Z',
+                        "dd/MM/yyyy HH:mm 'UTC'",
+                      )}
                       {/* {apiKey.createdAt} */}
                     </Text>
                   </Td>
@@ -342,7 +373,7 @@ const Document = () => {
                       size="xs"
                       icon={<BsFillTrash2Fill />}
                       aria-label="delete"
-                      colorScheme={"red"}
+                      colorScheme={'red'}
                       onClick={() => deleteKey(apiKey)}
                     />
                   </Td>
@@ -380,7 +411,7 @@ const Document = () => {
         <CardBody pt={0}>
           <OrderedList>
             <ListItem>
-              Change your request url to{" "}
+              Change your request url to{' '}
               <Code>https://api.timetriggers.io/schedule</Code>
             </ListItem>
             <ListItem>
@@ -390,11 +421,12 @@ const Document = () => {
                   <Code>X-TimeTriggers-Key</Code> : your Api Key
                 </ListItem>
                 <ListItem>
-                  <Code>X-TimeTriggers-Url</Code> : the Url you want to hit
+                  <Code>X-TimeTriggers-Url</Code> : the Url you want
+                  to hit
                 </ListItem>
                 <ListItem>
-                  <Code>X-TimeTriggers-At</Code> : the moment we should schedule
-                  the request, in the format{" "}
+                  <Code>X-TimeTriggers-At</Code> : the moment we
+                  should schedule the request, in the format{' '}
                   <Code>yyyy-MM-dd'T'HH:mm:ss.SSSxxx</Code>
                 </ListItem>
               </UnorderedList>
@@ -403,9 +435,10 @@ const Document = () => {
           <Alert status="success" mt={6} variant="top-accent">
             <AlertIcon />
             <Text>
-              That's it ! No need to change your <Code>method</Code>,{" "}
-              <Code>body</Code> or anything else. We'll reply without any body,
-              only with a header <Code>X-TimeTriggers-TaskId</Code>
+              That's it ! No need to change your <Code>method</Code>,{' '}
+              <Code>body</Code> or anything else. We'll reply without
+              any body, only with a header{' '}
+              <Code>X-TimeTriggers-TaskId</Code>
             </Text>
           </Alert>
           <Box mt={6}>

@@ -1,3 +1,4 @@
+import type { GridItemProps } from '@chakra-ui/react';
 import {
   Box,
   Button,
@@ -5,7 +6,6 @@ import {
   Center,
   Grid,
   GridItem,
-  GridItemProps,
   HStack,
   Stack,
   Table,
@@ -16,60 +16,65 @@ import {
   Thead,
   Tr,
   useColorModeValue,
-} from "@chakra-ui/react";
-import styled from "@emotion/styled";
-import type { MetaFunction } from "@remix-run/node";
-import { Link } from "@remix-run/react";
-import React from "react";
-import { BsCheck2Circle } from "react-icons/bs";
-import { H1 } from "~/components";
+} from '@chakra-ui/react';
+import styled from '@emotion/styled';
+import type { MetaFunction } from '@remix-run/node';
+import { Link } from '@remix-run/react';
+import React from 'react';
+import { BsCheck2Circle } from 'react-icons/bs';
+import { H1 } from '~/components';
+import { Footer } from '~/components/footer/Footer';
 
 export const meta: MetaFunction = () => {
   return {
-    title: "Pricing",
+    title: 'Pricing',
   };
 };
 
 function DesktopPricing() {
-  const redColor = useColorModeValue("red.400", "red.400");
+  const redColor = useColorModeValue('red.400', 'red.400');
 
-  const GreenCheck = ({ smallCol }: { smallCol?: React.ReactNode }) => {
-    const greenColor = useColorModeValue("green.500", "green.400");
+  const GreenCheck = ({
+    smallCol,
+  }: {
+    smallCol?: React.ReactNode;
+  }) => {
+    const greenColor = useColorModeValue('green.500', 'green.400');
     return (
       <HStack>
         <Box color={greenColor}>
           <BsCheck2Circle />
         </Box>
-        <Box display={{ base: "block", lg: "none" }}>{smallCol}</Box>
+        <Box display={{ base: 'block', lg: 'none' }}>{smallCol}</Box>
       </HStack>
     );
   };
   return (
     <StyledContainer
-      margin={"auto"}
+      margin={'auto'}
       maxW="6xl"
-      py={{ base: "4", md: "8" }}
-      px={{ base: "4", sm: "8" }}
+      py={{ base: '4', md: '8' }}
+      px={{ base: '4', sm: '8' }}
       display="flex"
-      flexDir={"column"}
-      justifyItems={"center"}
+      flexDir={'column'}
+      justifyItems={'center'}
       w="100%"
     >
       <H1 centered>We have 2 plans, Free and Flex</H1>
       <Card
         p={{ base: 0, lg: 10 }}
         display="flex"
-        justifyItems={"center"}
+        justifyItems={'center'}
         w="100%"
       >
         <Grid
           templateColumns={{
-            base: "none",
-            lg: "0.7fr repeat(2, 1fr)",
+            base: 'none',
+            lg: '0.7fr repeat(2, 1fr)',
           }}
-          gridAutoFlow={"column"}
+          gridAutoFlow={'column'}
           // center
-          margin={"auto"}
+          margin={'auto'}
           columnGap={3}
           p={{ base: 2, lg: 5 }}
         >
@@ -103,14 +108,14 @@ function DesktopPricing() {
             </Text>
           </FreePlanGridItem>
           <FreePlanGridItem>
-            <GreenCheck smallCol={"Retry failed triggers"} />
+            <GreenCheck smallCol={'Retry failed triggers'} />
           </FreePlanGridItem>
           <FreePlanGridItem color={redColor}>
             Triggers are sent at max 1 per second
           </FreePlanGridItem>
           <FreePlanGridItem>
             <Link to="/signup">
-              <Button variant={"outline"} colorScheme="green">
+              <Button variant={'outline'} colorScheme="green">
                 Start Now 🚀
               </Button>
             </Link>
@@ -140,12 +145,12 @@ function DesktopPricing() {
             </Stack>
           </BlazeGridItem>
           <BlazeGridItem>
-            <GreenCheck smallCol={"Retry failed triggers"} />
+            <GreenCheck smallCol={'Retry failed triggers'} />
           </BlazeGridItem>
           <BlazeGridItem>Custom rate limits</BlazeGridItem>
           <BlazeGridItem>
             <Link to="/signup">
-              <Button variant={"solid"} colorScheme="green">
+              <Button variant={'solid'} colorScheme="green">
                 Start Now 🚀
               </Button>
             </Link>
@@ -153,12 +158,13 @@ function DesktopPricing() {
           <BlazeGridItem last></BlazeGridItem>
         </Grid>
       </Card>
+      <Footer />
     </StyledContainer>
   );
 }
 
 const VolumePricingTable = () => (
-  <Table variant={"unstyled"} size="sm">
+  <Table variant={'unstyled'} size="sm">
     <Thead>
       <Tr>
         <Th>Volume</Th>
@@ -167,7 +173,7 @@ const VolumePricingTable = () => (
     </Thead>
     <Tbody>
       <Tr>
-        <Td>{"< 1 million"}</Td>
+        <Td>{'< 1 million'}</Td>
         <Td>
           <Fare>
             <Text fontSize="1.6em">2€</Text>
@@ -176,7 +182,7 @@ const VolumePricingTable = () => (
         </Td>
       </Tr>
       <Tr>
-        <Td>{"> 1 million"}</Td>
+        <Td>{'> 1 million'}</Td>
         <Td>
           <Fare>
             <Text fontSize="1.6em">1€</Text>
@@ -190,7 +196,7 @@ const VolumePricingTable = () => (
 
 const FirstColCell = (props: { children?: React.ReactNode }) => (
   <GridItem
-    display={{ base: "none", lg: "flex" }}
+    display={{ base: 'none', lg: 'flex' }}
     flexDir="row"
     justifyContent="right"
     alignItems="center"
@@ -227,10 +233,10 @@ const StyledGridItem = (
     children?: React.ReactNode;
     first?: boolean;
     last?: boolean;
-  } & GridItemProps
+  } & GridItemProps,
 ) => (
   <GridItem
-    display={"flex"}
+    display={'flex'}
     flexDir="column"
     justifyContent="center"
     alignItems="center"
@@ -248,15 +254,15 @@ const BlazeGridItem = (
     children?: React.ReactNode;
     first?: boolean;
     last?: boolean;
-  } & GridItemProps
+  } & GridItemProps,
 ) => {
-  const backgroundColor = useColorModeValue("cyan.200", "cyan.800");
+  const backgroundColor = useColorModeValue('cyan.200', 'cyan.800');
   return (
     <StyledGridItem
       bg={backgroundColor}
       borderTopRadius={props.first ? 10 : 0}
       borderBottomRadius={props.last ? 10 : 0}
-      gridColumn={{ base: "1 / 1", sm: "2 / 2", lg: "3 / 3" }}
+      gridColumn={{ base: '1 / 1', sm: '2 / 2', lg: '3 / 3' }}
     >
       {props.children}
     </StyledGridItem>
@@ -268,13 +274,13 @@ const FreePlanGridItem = (
     children?: React.ReactNode;
     first?: boolean;
     last?: boolean;
-  } & GridItemProps
+  } & GridItemProps,
 ) => {
   return (
     <StyledGridItem
       borderTopRadius={props.first ? 10 : 0}
       borderBottomRadius={props.last ? 10 : 0}
-      gridColumn={{ base: "1 / 1", sm: "1 / 2", lg: "2 / 3" }}
+      gridColumn={{ base: '1 / 1', sm: '1 / 2', lg: '2 / 3' }}
     >
       {props.children}
     </StyledGridItem>

@@ -1,14 +1,14 @@
-import { addMinutes } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
-import code from "./code";
-import { CodeSample } from "./CodeSample";
+import { addMinutes } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
+import code from './code';
+import { CodeSample } from './CodeSample';
 
 export const CodeExample = ({
-  example,
+  example = 'curl',
   apiKey,
-  date,
+  date = new Date(),
 }: {
-  example: "curl" | "node-fetch-typescript";
+  example: 'curl' | 'node-fetch-typescript';
   apiKey?: string;
   date: Date;
 }) => {
@@ -16,11 +16,11 @@ export const CodeExample = ({
     <CodeSample
       code={code[example]
         .c({
-          apiKey: apiKey || "<YOUR_API_KEY>",
+          apiKey: apiKey || '<YOUR_API_KEY>',
           formattedDate: formatInTimeZone(
             addMinutes(date, 1),
-            "Z",
-            "yyyy-MM-dd'T'HH:mm:ss'Z'"
+            'Z',
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
           ),
         })
         .trim()}

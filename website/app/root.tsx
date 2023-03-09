@@ -1,5 +1,5 @@
-import { extendTheme } from "@chakra-ui/react";
-import { mode } from "@chakra-ui/theme-tools";
+import { extendTheme } from '@chakra-ui/react';
+import { mode } from '@chakra-ui/theme-tools';
 import {
   Links,
   LiveReload,
@@ -8,33 +8,37 @@ import {
   Scripts,
   ScrollRestoration,
   useLoaderData,
-} from "@remix-run/react";
+} from '@remix-run/react';
 
 import {
   ChakraProvider,
   cookieStorageManagerSSR,
   localStorageManager,
-} from "@chakra-ui/react";
-import type { GlobalProps } from "@emotion/react";
-import { withEmotionCache } from "@emotion/react";
-import type { LinksFunction, LoaderArgs, MetaFunction } from "@remix-run/node";
-import { json } from "@remix-run/node"; // Depends on the runtime you choose
-import React, { useContext, useEffect } from "react";
+} from '@chakra-ui/react';
+import type { GlobalProps } from '@emotion/react';
+import { withEmotionCache } from '@emotion/react';
+import type {
+  LinksFunction,
+  LoaderArgs,
+  MetaFunction,
+} from '@remix-run/node';
+import { json } from '@remix-run/node'; // Depends on the runtime you choose
+import React, { useContext, useEffect } from 'react';
 
-import styled from "@emotion/styled";
-import _ from "lodash";
-import { ClientStyleContext, ServerStyleContext } from "./context";
-import { FirebaseAuthProvider } from "./contexts/FirebaseAuthContext";
-import { environmentVariable } from "./environmentVariable";
-import { initializeFirebaseWeb } from "./initializeFirebaseWeb";
+import styled from '@emotion/styled';
+import _ from 'lodash';
+import { ClientStyleContext, ServerStyleContext } from './context';
+import { FirebaseAuthProvider } from './contexts/FirebaseAuthContext';
+import { environmentVariable } from './environmentVariable';
+import { initializeFirebaseWeb } from './initializeFirebaseWeb';
 
 export let links: LinksFunction = () => {
   return [
-    { rel: "preconnect", href: "https://fonts.googleapis.com" },
-    { rel: "preconnect", href: "https://fonts.gstatic.com" },
+    { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+    { rel: 'preconnect', href: 'https://fonts.gstatic.com' },
     {
-      rel: "stylesheet",
-      href: "https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap",
+      rel: 'stylesheet',
+      href: 'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap',
     },
   ];
 };
@@ -44,16 +48,18 @@ interface DocumentProps {
 }
 
 export const meta: MetaFunction = () => ({
-  charset: "utf-8",
-  title: "timetriggers.io",
-  viewport: "initial-scale=1,viewport-fit=cover,width=device-width",
+  charset: 'utf-8',
+  title: 'timetriggers.io',
+  viewport: 'initial-scale=1,viewport-fit=cover,width=device-width',
 });
 
 export async function loader({ request }: LoaderArgs) {
   return json({
-    cookies: request.headers.get("cookie") ?? "",
+    cookies: request.headers.get('cookie') ?? '',
     ENV: {
-      ..._.pickBy(process.env, (value, key) => key.startsWith("PUBLIC_")),
+      ..._.pickBy(process.env, (value, key) =>
+        key.startsWith('PUBLIC_'),
+      ),
     },
   });
 }
@@ -79,10 +85,11 @@ const Document = withEmotionCache(
     }, []);
 
     useEffect(() => {
-      if (typeof document !== "undefined") {
+      if (typeof document !== 'undefined') {
         // Execute only on client
         initializeFirebaseWeb({
-          useEmulators: environmentVariable("PUBLIC_USE_EMULATORS") === "true",
+          useEmulators:
+            environmentVariable('PUBLIC_USE_EMULATORS') === 'true',
         });
       }
     }, []);
@@ -95,7 +102,7 @@ const Document = withEmotionCache(
           {serverStyleData?.map(({ key, ids, css }) => (
             <style
               key={key}
-              data-emotion={`${key} ${ids.join(" ")}`}
+              data-emotion={`${key} ${ids.join(' ')}`}
               dangerouslySetInnerHTML={{ __html: css }}
             />
           ))}
@@ -113,7 +120,7 @@ const Document = withEmotionCache(
         </Body>
       </Html>
     );
-  }
+  },
 );
 
 const Body = styled.body`
@@ -131,7 +138,7 @@ export default function App() {
 
   // 2. Add your color mode config
   const config = {
-    initialColorMode: "dark",
+    initialColorMode: 'dark',
     useSystemColorMode: true,
   };
 
@@ -153,7 +160,7 @@ export default function App() {
       global: (props: GlobalProps) => ({
         // Optionally set global CSS styles
         body: {
-          bg: mode("gray.50", "gray.800")(props),
+          bg: mode('gray.50', 'gray.800')(props),
         },
       }),
     },
@@ -164,7 +171,7 @@ export default function App() {
       <ChakraProvider
         theme={theme}
         colorModeManager={
-          typeof cookies === "string"
+          typeof cookies === 'string'
             ? cookieStorageManagerSSR(cookies)
             : localStorageManager
         }

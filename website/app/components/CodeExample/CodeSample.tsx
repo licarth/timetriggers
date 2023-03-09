@@ -1,10 +1,10 @@
-import type { Language } from "prism-react-renderer";
-import Highlight, { defaultProps } from "prism-react-renderer";
-import theme from "prism-react-renderer/themes/vsDark";
-import { FaCopy } from "react-icons/fa";
-import { CopyToClipboardButton } from "../CopyToClipboardButton";
-import styled from "@emotion/styled";
-import { Box, Text } from "@chakra-ui/react";
+import { Box, Text } from '@chakra-ui/react';
+import styled from '@emotion/styled';
+import type { Language } from 'prism-react-renderer';
+import Highlight, { defaultProps } from 'prism-react-renderer';
+import theme from 'prism-react-renderer/themes/vsDark';
+import { FaCopy } from 'react-icons/fa';
+import { CopyToClipboardButton } from '../CopyToClipboardButton';
 
 const Pre = styled.pre`
   text-align: left;
@@ -58,14 +58,23 @@ export const CodeSample = ({
         code={code}
         language={language}
       >
-        {({ className, style, tokens, getLineProps, getTokenProps }) => (
+        {({
+          className,
+          style,
+          tokens,
+          getLineProps,
+          getTokenProps,
+        }) => (
           <Pre className={className} style={style}>
             {tokens.map((line, i) => (
               <Line key={i} {...getLineProps({ line, key: i })}>
                 <LineNo>{i + 1}</LineNo>
                 <LineContent>
                   {line.map((token, key) => (
-                    <span key={key} {...getTokenProps({ token, key })} />
+                    <span
+                      key={key}
+                      {...getTokenProps({ token, key })}
+                    />
                   ))}
                 </LineContent>
               </Line>
@@ -74,16 +83,16 @@ export const CodeSample = ({
         )}
       </Highlight>
       {legend && (
-        <Box bgColor={"yellow.600"}>
+        <Box bgColor={'yellow.600'}>
           <Text pl={1}>{legend}</Text>
         </Box>
       )}
       {copyToClipboardButton && (
         <TopRightButton
-          variant={"solid"}
+          variant={'solid'}
           textToPutInClipboard={code}
           rightIcon={<FaCopy />}
-          size={"xs"}
+          size={'xs'}
         >
           COPY
         </TopRightButton>

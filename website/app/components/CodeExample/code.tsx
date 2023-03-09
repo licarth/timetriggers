@@ -1,5 +1,4 @@
-import { Code } from "@chakra-ui/react";
-import type { CodeArgs } from "./CodeArgs";
+import type { CodeArgs } from './CodeArgs';
 
 export default {
   curl: {
@@ -21,12 +20,12 @@ curl \\
     },
     title: (
       <>
-        Usage with <Code>curl</Code>
+        Usage with <code>curl</code>
       </>
     ),
   },
 
-  "node-fetch-typescript": {
+  'node-fetch-typescript': {
     c: ({ apiKey, formattedDate }: CodeArgs) => {
       return `
 fetch("https://api.timetriggers.io/schedule", {
@@ -41,7 +40,7 @@ fetch("https://api.timetriggers.io/schedule", {
     },
     title: (
       <>
-        Usage with <Code>fetch</Code> in Node.js
+        Usage with <code>fetch</code> in Node.js
       </>
     ),
   },
