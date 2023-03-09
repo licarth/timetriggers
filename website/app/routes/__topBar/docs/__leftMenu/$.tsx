@@ -29,7 +29,9 @@ import { Heading } from '~/components/Headings';
 const getArticleContent = async (article: string) => {
   // get from public folder
   const response = await fetch(
-    `http://localhost:3000/articles/${article}.md`,
+    `http://localhost:${
+      process.env.PORT || 3000
+    }/articles/${article}.md`,
   );
   if (!response.ok) {
     return null;
