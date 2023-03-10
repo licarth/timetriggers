@@ -23,7 +23,6 @@
   },
   "include": ["src/**/*", "newrelic.mjs"],
   "files": ["src/index.d.ts"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"],
   "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node"

@@ -75,12 +75,6 @@ The headers we'll return are:
 | -------------------------------------------- | ----------------------- | ---------------------------------- |
 | {% http_header %}ttr-error{% /http_header %} | `Monthly quota reached` | A (hopefully) useful error message |
 
-### Headers always in response
-
-| Header                                                       | Example | Description                                                                  |
-| ------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------- |
-| {% http_header %}ttr-month-quota-remaining{% /http_header %} | `455`   | The number of triggers remaining in your plan for the current calendar month |
-
 # Advanced Usage
 
 ## Operations on {% http_header %}ttr-scheduled-at{% /http_header %}
