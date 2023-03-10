@@ -22,7 +22,7 @@ export const DateFunctionsCalculator = () => {
       <HStack>
         <HttpHeader>ttr-scheduled-at</HttpHeader>
         <Input
-          htmlSize={15}
+          htmlSize={50}
           width="auto"
           size={'sm'}
           defaultValue={initialValue}
