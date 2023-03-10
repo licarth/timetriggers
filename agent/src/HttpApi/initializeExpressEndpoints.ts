@@ -106,11 +106,12 @@ export const initializeEndpoints = ({
                     quota.remaining - 1
                   );
                 }
-                res.send({
-                  success: true,
-                  jobId,
-                  scheduledAt: ScheduledAt.formatUTCFloorSecond(scheduledAt),
-                });
+                res.setHeader(
+                  "ttr-scheduled-at",
+                  ScheduledAt.formatUTCFloorSecond(scheduledAt)
+                );
+                res.setHeader("ttr-trigger-id", jobId);
+                res.sendStatus(201);
               }),
               RTE.mapLeft((e) => "scheduling error" as const)
             );
