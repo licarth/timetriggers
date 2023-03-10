@@ -1,7 +1,9 @@
 import { Spinner, Tag, Tooltip } from '@chakra-ui/react';
 import type { JobDocument } from '@timetriggers/domain';
-import { StatusCodeTag } from '~/components';
-import { humanReadibleDurationFromNow } from './humanReadibleDurationFromNow';
+import {
+  humanReadibleDurationFromNow,
+  StatusCodeTag,
+} from '~/components';
 
 export const StatusTag = ({ job }: { job: JobDocument }) => {
   return (

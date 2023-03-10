@@ -1,4 +1,4 @@
-import { Box, Text } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 import styled from '@emotion/styled';
 import type { Language } from 'prism-react-renderer';
 import Highlight, { defaultProps } from 'prism-react-renderer';
@@ -84,7 +84,7 @@ export const CodeSample = ({
       </Highlight>
       {legend && (
         <Box bgColor={'yellow.600'}>
-          <Text pl={1}>{legend}</Text>
+          <Box pl={1}>{legend}</Box>
         </Box>
       )}
       {copyToClipboardButton && (

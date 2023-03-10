@@ -4,6 +4,7 @@ export * from './DateFunctionsCalculator';
 export * from './DesktopSidebar';
 export * from './Headings';
 export * from './HttpHeader';
+export * from './humanReadibleDurationFromNow';
 export * from './Logo';
 export * from './MobileTopbar';
 export * from './StatusCodeTag';

@@ -37,7 +37,7 @@ export const DateFunctionsCalculator = () => {
         <HStack>
           <BsClock />
           {ttrScheduledAt && (
-            <>
+            <Text>
               {pipe(
                 ev(ttrScheduledAt, clock),
                 E.foldW(
@@ -57,7 +57,7 @@ export const DateFunctionsCalculator = () => {
                   ),
                 ),
               )}
-            </>
+            </Text>
           )}
         </HStack>
       </Card>

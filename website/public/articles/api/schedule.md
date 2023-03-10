@@ -98,7 +98,7 @@ This is useful when used with Zapier or IFTTT, where it's sometimes tricky to ma
 
 ### Try it out
 
-{% date_functions_calculator %}{% /date_functions_calculator %}
+{% date_functions_calculator/ %}
 
 ## Custom trigger keys
 
