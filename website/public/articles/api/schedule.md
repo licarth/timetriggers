@@ -61,11 +61,10 @@ We support simple operations on dates in the {% http_header %}ttr-scheduled-at{%
 
 You can add or subtract days, hours, minutes or seconds to the date.
 
-For example, if you want to schedule a trigger 2 days before a given date, you can use
-`ttr-scheduled-at: 2023-01-01T00:00:00Z | add -2d`
-
-If you want to schedule a trigger 2 days from now, use:
-`ttr-scheduled-at: now | add 2d`
+| When to schedule           | Header Value                                                          |
+| -------------------------- | --------------------------------------------------------------------- |
+| 2 days before a given date | `2023-01-01T20:00:00Z                                     \| add -2d` |
+| 2 days from now            | `now \| add 2d`                                                       |
 
 This is useful when used with Zapier or IFTTT, where it's sometimes tricky to make operations on dates.
 
