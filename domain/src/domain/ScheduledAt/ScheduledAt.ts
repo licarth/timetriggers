@@ -1,10 +1,13 @@
+import { Clock } from "@/Clock";
+import { e } from "@/fp-ts";
+import { anyOpaqueCodec, CodecType } from "@/iots";
+import { UtcDate } from "@/UtcDate";
 import { formatInTimeZone } from "date-fns-tz";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import * as C from "io-ts/lib/Codec.js";
-import { anyOpaqueCodec, Clock, CodecType, e, UtcDate } from "../";
-import { evaluate } from "./ScheduledAt/DateFunctions";
+import { evaluateDateFunctionsString } from "./DateFunctions";
 
 export namespace ScheduledAt {
   export const codec = (codecType: CodecType) =>
@@ -21,7 +24,7 @@ export namespace ScheduledAt {
     ({ clock }: { clock: Clock }) =>
       pipe(
         TE.tryCatch(async () => {
-          return evaluate(queryLangString)({ clock });
+          return evaluateDateFunctionsString(queryLangString)({ clock });
         }, E.toError),
         TE.map((d) => {
           return d as ScheduledAt;

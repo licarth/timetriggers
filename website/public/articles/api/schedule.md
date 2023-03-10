@@ -96,6 +96,10 @@ You can add or subtract days, hours, minutes or seconds to the date.
 
 This is useful when used with Zapier or IFTTT, where it's sometimes tricky to make operations on dates.
 
+### Try it out
+
+{% date_functions_calculator %}{% /date_functions_calculator %}
+
 ## Custom trigger keys
 
 If you want to schedule a trigger that is idempotent, you can add the header {% http_header %}ttr-custom-key{% /http_header %} with a value that will be used to identify the trigger. If you schedule a trigger with the same idempotency key, we'll return the same task id.

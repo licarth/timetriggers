@@ -4,7 +4,7 @@ import { zonedTimeToUtc } from "date-fns-tz";
 
 const parseIsoUTC = (s: string) => zonedTimeToUtc(parseISO(s), "UTC");
 
-export const evaluate =
+export const evaluateDateFunctionsString =
   (s: string) =>
   ({ clock }: { clock: Clock }) => {
     // s looks like '2021-01-01T00:00:00.000Z | add -1h'

@@ -18,7 +18,6 @@ import {
   Td,
   Text,
   Th,
-  Tooltip,
   Tr,
   UnorderedList,
   useColorModeValue,
@@ -31,7 +30,13 @@ import type { LinkProps } from '@remix-run/react';
 import { Link, useLoaderData } from '@remix-run/react';
 import copy from 'copy-to-clipboard';
 import React from 'react';
-import { CodeExample, H1, StatusCodeTag } from '~/components';
+import {
+  CodeExample,
+  DateFunctionsCalculator,
+  H1,
+  HttpHeader,
+  StatusCodeTag,
+} from '~/components';
 import { Footer } from '~/components/footer/Footer';
 import { Heading } from '~/components/Headings';
 
@@ -80,6 +85,9 @@ export async function loader({ params }: LoaderArgs) {
             code: node.transformChildren(config),
           });
         },
+      },
+      date_functions_calculator: {
+        render: 'DateFunctionsCalculator',
       },
       code_example: {
         render: 'CodeExample',
@@ -305,6 +313,7 @@ export default function Route() {
         <Stack maxW={{ base: 'full', md: 'full' }} m={'auto'} p={3}>
           {Markdoc.renderers.react(content, React, {
             components: {
+              DateFunctionsCalculator,
               CodeExample,
               Heading: Heading,
               InlineCode: (p: CodeProps) => (
@@ -325,34 +334,7 @@ export default function Route() {
               Th,
               Text,
               StatusCodeTag,
-              HttpHeader: ({
-                href,
-                children,
-              }: { href: string } & LinkProps) => (
-                <Tooltip label={'Click to copy'}>
-                  <Box as="span" position="relative" cursor="pointer">
-                    <Code
-                      lineHeight={1}
-                      as="span"
-                      colorScheme={'green'}
-                      onClick={() => {
-                        copy(String(children));
-                      }}
-                      fontSize={'100%'}
-                    >
-                      {children}
-                    </Code>
-                    <SmallCapsText
-                      position="absolute"
-                      right={0}
-                      as="sub"
-                      fontSize={'50%'}
-                    >
-                      HEADER
-                    </SmallCapsText>
-                  </Box>
-                </Tooltip>
-              ),
+              HttpHeader,
               Link: ({
                 href,
                 children,
@@ -385,10 +367,6 @@ export default function Route() {
     </>
   );
 }
-
-const SmallCapsText = styled(Text)`
-  font-variant-caps: petite-caps;
-`;
 
 const SContainer = styled(Container)`
   // Space items inside article
