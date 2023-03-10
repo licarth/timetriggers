@@ -1,15 +1,18 @@
+import {
+  Clock,
+  Http,
+  JobId,
+  JobScheduleArgs,
+  ScheduledAt,
+  SystemClock,
+  Url,
+} from "@timetriggers/domain";
 import { addSeconds } from "date-fns";
 import { pipe } from "fp-ts/lib/function.js";
 import * as T from "fp-ts/lib/Task.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import { Api } from "./Api.js";
-import { Clock } from "@timetriggers/domain";
-import { SystemClock } from "@timetriggers/domain";
-import { Http } from "@timetriggers/domain";
-import { JobId } from "@timetriggers/domain";
-import { JobScheduleArgs } from "@timetriggers/domain";
-import { ScheduledAt } from "@timetriggers/domain";
 import { DatastoreApi } from "./Firebase/DatastoreApi.js";
 import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore";
 import { Processor } from "./Firebase/Processor/Processor.js";
@@ -101,7 +104,7 @@ const createJobs = async ({
           addSeconds(clock.now(), 0).toISOString()
         ),
         http: Http.factory({
-          url: `http://localhost:${callbackReceiverPort}`,
+          url: Url.localhost(callbackReceiverPort),
         }),
       })
     )

@@ -5,6 +5,7 @@ import {
   JobScheduleArgs,
   ScheduledAt,
   SystemClock,
+  Url,
 } from "@timetriggers/domain";
 import { addSeconds } from "date-fns";
 import { pipe } from "fp-ts/lib/function.js";
@@ -83,7 +84,7 @@ const createJobs = async ({
           addSeconds(clock.now(), 10).toISOString()
         ),
         http: Http.factory({
-          url: `http://localhost:${callbackReceiverPort}`,
+          url: Url.localhost(callbackReceiverPort),
         }),
       })
     )

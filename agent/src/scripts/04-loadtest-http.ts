@@ -13,6 +13,7 @@ import {
   JobScheduleArgs,
   ScheduledAt,
   Shard,
+  Url,
 } from "@timetriggers/domain";
 import { initializeApp } from "../Firebase/initializeApp";
 import { parseHumanReadibleDuration, sleep } from "./utils";
@@ -123,7 +124,7 @@ async function scheduleJobDatastore(
         scheduledAt,
         http: new Http({
           options: undefined,
-          url: "https://api.timetriggers.io/1",
+          url: "https://api.timetriggers.io/1" as Url,
         }),
       }),
       (jobId: JobId) =>

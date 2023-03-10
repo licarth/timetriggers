@@ -19,3 +19,4 @@ export * from "./RegisteredAt";
 export * from "./ScheduledAt";
 export * from "./Shard";
 export * from "./StartedAt";
+export * from "./Url";

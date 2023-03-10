@@ -1,18 +1,21 @@
 import { AxiosWorkerPool } from "@/AxiosWorkerPool";
-import { Http, JobDocument, TestClock } from "@timetriggers/domain";
-import { JobDefinition } from "@timetriggers/domain";
-import { JobId } from "@timetriggers/domain";
 import { externallyResolvablePromise } from "@/externallyResolvablePromise";
 import { te } from "@/fp-ts";
-import {
-  HttpCallCompleted,
-  HttpCallResponse,
-  StatusCode,
-} from "@timetriggers/domain";
 import { sleep } from "@/sleep";
 import { CallbackReceiver } from "@/test/CallbackReceiver";
 import { Worker } from "@/Worker";
 import { WorkerPool } from "@/WorkerPool";
+import {
+  Http,
+  HttpCallCompleted,
+  HttpCallResponse,
+  JobDefinition,
+  JobDocument,
+  JobId,
+  StatusCode,
+  TestClock,
+  Url,
+} from "@timetriggers/domain";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { of } from "rxjs";
 import { InMemoryDataStore } from "./InMemoryDataStore";
@@ -55,7 +58,7 @@ describe("Processor (not sharded)", () => {
               jobDefinition: JobDefinition.factory({
                 id: jobId,
                 http: Http.factory({
-                  url: `http://localhost:${callbackReceiver.port}`,
+                  url: Url.localhost(callbackReceiver.port),
                 }),
                 clock,
               }),
@@ -99,7 +102,7 @@ describe("Processor (not sharded)", () => {
             JobDocument.registeredNowWithoutShards({
               jobDefinition: JobDefinition.factory({
                 http: Http.factory({
-                  url: `http://localhost:${callbackReceiver.port}`,
+                  url: Url.localhost(callbackReceiver.port),
                 }),
                 clock,
               }),

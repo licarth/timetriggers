@@ -1,16 +1,19 @@
+import {
+  Clock,
+  Http,
+  JobId,
+  JobScheduleArgs,
+  ScheduledAt,
+  SystemClock,
+  TestClock,
+  Url,
+} from "@timetriggers/domain";
 import { addHours, addMilliseconds } from "date-fns";
 import { pipe } from "fp-ts/lib/function.js";
 import * as T from "fp-ts/lib/Task.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
 import { Api } from "./Api.js";
-import { Clock } from "@timetriggers/domain";
-import { SystemClock } from "@timetriggers/domain";
-import { TestClock } from "@timetriggers/domain";
-import { Http } from "@timetriggers/domain";
-import { JobId } from "@timetriggers/domain";
-import { JobScheduleArgs } from "@timetriggers/domain";
-import { ScheduledAt } from "@timetriggers/domain";
 import { DatastoreApi } from "./Firebase/DatastoreApi.js";
 import { Datastore } from "./Firebase/Processor/Datastore.js";
 import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore";
@@ -94,7 +97,7 @@ describe(`Api tests`, () => {
               JobScheduleArgs.factory({
                 scheduledAt: ScheduledAt.fromUTCString(jobDateUtcString),
                 http: Http.factory({
-                  url: `http://localhost:${callbackReceiver.port}`,
+                  url: Url.localhost(callbackReceiver.port),
                 }),
               })
             )
@@ -115,7 +118,7 @@ describe(`Api tests`, () => {
                   addMilliseconds(clock.now(), 1).toISOString()
                 ),
                 http: Http.factory({
-                  url: `http://localhost:${callbackReceiver.port}`,
+                  url: Url.localhost(callbackReceiver.port),
                 }),
               })
             )

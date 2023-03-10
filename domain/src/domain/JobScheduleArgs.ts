@@ -5,6 +5,7 @@ import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
 import { Http } from "./Http";
 import { ScheduledAt } from "./ScheduledAt";
+import { Url } from "./Url";
 
 export class JobScheduleArgs {
   scheduledAt;
@@ -41,7 +42,7 @@ export class JobScheduleArgs {
       http:
         props.http ||
         Http.factory({
-          url: "http://localhost:3000",
+          url: Url.localhost(3000),
         }),
     });
   };

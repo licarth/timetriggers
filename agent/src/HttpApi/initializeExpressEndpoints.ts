@@ -9,6 +9,7 @@ import {
   JobScheduleArgs,
   RawBody,
   ScheduledAt,
+  Url,
 } from "@timetriggers/domain";
 import bodyParser from "body-parser";
 import { Express } from "express";
@@ -37,18 +38,20 @@ export const initializeEndpoints = ({
       })
     )
     .all("/schedule", async (req, res) => {
-      const url = req.headers["ttr-url"] as string;
       const apiKeyValue = (req.headers["ttr-api-key"] as string) || "";
       const options =
         ((req.headers["ttr-options"] as string) || "").split(",") || [];
 
       await pipe(
         RTE.Do,
+        RTE.bindW("url", () =>
+          pipe(Url.parse(req.headers["ttr-url"]), RTE.fromEither)
+        ),
         RTE.bindW("scheduledAt", () =>
           pipe(
             req.headers["ttr-scheduled-at"] as string,
             ScheduledAt.fromQueryLanguage,
-            RTE.mapLeft((e) => `date-parsing-error: ${e.message}`),
+            RTE.mapLeft((e) => `date-parsing-error: ${e.message}` as const),
             rte.sideEffect(
               (s) =>
                 options.includes("no_noise") ||
@@ -56,6 +59,7 @@ export const initializeEndpoints = ({
             )
           )
         ),
+        // RTE.mapLeft(x => x),
         RTE.bindW("project", () => getProjectByApiKey({ apiKeyValue })),
 
         RTE.bindW("quota", ({ project }) =>
@@ -74,7 +78,7 @@ export const initializeEndpoints = ({
             req.body instanceof Buffer ? req.body.toString("utf8") : "";
           return RTE.of(new RawBody({ raw }));
         }),
-        RTE.bindW("jobScheduleArgs", ({ rawBody, scheduledAt }) =>
+        RTE.bindW("jobScheduleArgs", ({ rawBody, scheduledAt, url }) =>
           RTE.of(
             new JobScheduleArgs({
               scheduledAt,
@@ -121,22 +125,27 @@ export const initializeEndpoints = ({
 
         RTE.mapLeft((error) => {
           if (error === "Project not found") {
-            res
-              .status(404)
-              .send({ success: false, error: "project not found" });
+            res.setHeader("ttr-error", "Project not found");
+            res.sendStatus(404);
+          } else if (error === "not a valid url") {
+            res.setHeader("ttr-error", "invalid URL");
+            res.sendStatus(400);
           } else if (error === "Quota exceeded") {
-            res.status(402).send({ success: false, error: "quota exceeded" });
+            res.setHeader("ttr-error", "quota exceeded");
+            res.sendStatus(402);
           } else if (
             typeof error === "string" &&
             error.startsWith("date-parsing-error")
           ) {
-            res.status(400).send({ success: false, error: error });
+            res.setHeader("ttr-error", error);
+            res.sendStatus(400);
           } else {
             console.error(error);
-            res.status(500).send({
-              success: false,
-              error: "internal error, please try again later",
-            });
+            res.setHeader(
+              "ttr-error",
+              "internal error, please try again later"
+            );
+            res.sendStatus(500);
           }
           return error;
         }),

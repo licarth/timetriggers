@@ -7,6 +7,7 @@ import {
   ScheduledAt,
   Shard,
   te,
+  Url,
 } from "@timetriggers/domain";
 import { addSeconds } from "date-fns";
 import _ from "lodash";
@@ -34,7 +35,7 @@ const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(5);
           scheduledAt: ScheduledAt.fromDate(addSeconds(now, 3)),
           http: new Http({
             options: undefined,
-            url: "https://api.timetriggers.io/1",
+            url: "https://api.timetriggers.io/1" as Url,
           }),
         }),
         (jobId: JobId) =>

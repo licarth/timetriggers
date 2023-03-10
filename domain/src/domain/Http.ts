@@ -1,7 +1,8 @@
+import { fromClassCodec } from "@iots";
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
-import { fromClassCodec } from "@iots";
 import { Options } from "./Options";
+import { Url } from "./Url";
 
 export class Http {
   url;
@@ -14,7 +15,7 @@ export class Http {
 
   static propsCodec = pipe(
     Codec.struct({
-      url: Codec.string,
+      url: Url.codec,
     }),
     Codec.intersect(
       Codec.partial({
@@ -37,7 +38,7 @@ export class Http {
 
   static factory = (props: Partial<HttpProps> = {}) =>
     new Http({
-      url: props.url ?? "http://localhost:3000",
+      url: props.url ?? Url.localhost(3000),
       options: props.options ?? Options.factory(),
     });
 }
