@@ -9,9 +9,16 @@ import {
   Box,
   Code,
   Container,
+  ListItem,
+  OrderedList,
   Spacer,
   Stack,
+  Table,
+  Td,
   Text,
+  Th,
+  Tooltip,
+  Tr,
   UnorderedList,
   useColorModeValue,
 } from '@chakra-ui/react';
@@ -21,6 +28,7 @@ import Markdoc, { Tag } from '@markdoc/markdoc';
 import { json, type LoaderArgs } from '@remix-run/node';
 import type { LinkProps } from '@remix-run/react';
 import { Link, useLoaderData } from '@remix-run/react';
+import copy from 'copy-to-clipboard';
 import React from 'react';
 import { CodeExample, H1 } from '~/components';
 import { Footer } from '~/components/footer/Footer';
@@ -47,7 +55,7 @@ export async function loader({ params }: LoaderArgs) {
     return 'article-not-found';
   }
   let ids: string[] = [];
-  const getId = (candidate: string) => {
+  const makeIdUnique = (candidate: string) => {
     let id: string;
     if (ids.includes(candidate)) {
       let i = 1;
@@ -67,6 +75,18 @@ export async function loader({ params }: LoaderArgs) {
       code_example: {
         render: 'CodeExample',
         attributes: {},
+      },
+      http_header: {
+        render: 'HttpHeader',
+        transform(node, config) {
+          return new Tag(
+            this.render,
+            {
+              children: node.transformChildren(config),
+            },
+            node.transformChildren(config),
+          );
+        },
       },
       callout: {
         render: 'Callout',
@@ -119,6 +139,28 @@ export async function loader({ params }: LoaderArgs) {
           );
         },
       },
+      item: {
+        render: 'Li',
+      },
+      table: {
+        render: 'Table',
+        transform(node, config) {
+          return new Tag(
+            this.render,
+            { size: 'sm' },
+            node.transformChildren(config),
+          );
+        },
+      },
+      tr: {
+        render: 'Tr',
+      },
+      td: {
+        render: 'Td',
+      },
+      th: {
+        render: 'Th',
+      },
       paragraph: {
         render: 'Text',
         transform(node, config) {
@@ -138,22 +180,19 @@ export async function loader({ params }: LoaderArgs) {
       heading: {
         render: 'Heading',
         transform(node, config) {
-          const firstChild =
-            node.children[0].children[0].attributes.content;
-          const id =
-            firstChild && typeof firstChild === 'string'
-              ? firstChild
-                  .toLowerCase()
-                  // remove non-word chars, except spaces
-                  .replace(/[^\w\s]/g, '')
-                  .trim()
-                  .replace(/ /g, '-')
-              : '';
-
           return new Tag(
             this.render,
             {
-              id: getId(id),
+              id: makeIdUnique(
+                transformChildrenToString(
+                  node.transformChildren(config),
+                )
+                  .toLowerCase()
+                  // remove non-word chars, except spaces
+                  .replace(/[^\w\s-]/g, '')
+                  .trim()
+                  .replace(/ /g, '-'),
+              ),
               level: node.attributes.level,
               as: `h${node.attributes.level}`,
             },
@@ -180,14 +219,11 @@ function collectHeadings(
 ) {
   if (node && node instanceof Tag) {
     if (node.name.match(/(Heading)/)) {
-      const title = node.children[0];
-      if (typeof title === 'string') {
-        sections.push({
-          title,
-          level: node.attributes.level,
-          id: node.attributes.id,
-        });
-      }
+      sections.push({
+        title: transformNodeToString(node),
+        level: node.attributes.level,
+        id: node.attributes.id,
+      });
     }
 
     if (node.children) {
@@ -198,6 +234,25 @@ function collectHeadings(
   }
 
   return sections;
+}
+
+const transformChildrenToString = (children: RenderableTreeNode[]) =>
+  children.map((child) => transformNodeToString(child)).join('');
+
+function transformNodeToString(node: RenderableTreeNode) {
+  if (typeof node === 'string') return node;
+  if (node instanceof Tag) {
+    const childrenAsString = node.children.map((child) => {
+      return typeof child === 'string'
+        ? child
+        : child instanceof Tag &&
+          child.name.match(/(HttpHeader|InlineCode)/)
+        ? child.children[0]
+        : '';
+    });
+    const newLocal = childrenAsString.join('');
+    return newLocal;
+  } else return '';
 }
 
 export default function Route() {
@@ -225,13 +280,43 @@ export default function Route() {
   return (
     <>
       <StyledContainer>
-        <Stack maxW={{ base: 'full', md: '3xl' }} m={'auto'}>
+        <Stack maxW={{ base: 'full', md: 'full' }} m={'auto'} p={3}>
           {Markdoc.renderers.react(content, React, {
             components: {
               CodeExample,
               Heading: Heading,
               InlineCode: Code,
+              Table,
+              Tr,
+              Td,
+              Th,
               Text,
+              HttpHeader: ({
+                href,
+                children,
+              }: { href: string } & LinkProps) => (
+                <Tooltip label={'Click to copy'}>
+                  <Box as="span" position="relative" cursor="pointer">
+                    <Code
+                      as="span"
+                      colorScheme={'green'}
+                      onClick={() => {
+                        copy(String(children));
+                      }}
+                    >
+                      {children}
+                    </Code>
+                    <SmallCapsText
+                      position="absolute"
+                      right={0}
+                      as="sub"
+                      fontSize={'50%'}
+                    >
+                      HEADER
+                    </SmallCapsText>
+                  </Box>
+                </Tooltip>
+              ),
               Link: ({
                 href,
                 children,
@@ -243,6 +328,8 @@ export default function Route() {
                 </Link>
               ),
               Ul: UnorderedList,
+              Ol: OrderedList,
+              Li: ListItem,
               Callout: ({
                 type,
                 children,
@@ -262,6 +349,10 @@ export default function Route() {
     </>
   );
 }
+
+const SmallCapsText = styled(Text)`
+  font-variant-caps: petite-caps;
+`;
 
 const SContainer = styled(Container)`
   // Space items inside article

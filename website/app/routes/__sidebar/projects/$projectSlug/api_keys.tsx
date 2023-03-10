@@ -424,9 +424,8 @@ const Document = () => {
                   <Code>ttr-url</Code> : the Url you want to hit
                 </ListItem>
                 <ListItem>
-                  <Code>ttr-scheduled-at</Code> : the moment we should
-                  schedule the request, in the format{' '}
-                  <Code>yyyy-MM-dd'T'HH:mm:ss.SSSxxx</Code>
+                  <Code>ttr-scheduled-at</Code> : the date we should
+                  schedule the request, ISO-8601-compliant.
                 </ListItem>
               </UnorderedList>
             </ListItem>

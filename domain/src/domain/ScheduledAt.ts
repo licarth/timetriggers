@@ -1,3 +1,4 @@
+import { formatInTimeZone } from "date-fns-tz";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/lib/TaskEither.js";
@@ -30,6 +31,10 @@ export namespace ScheduledAt {
   export const fromDate = (date: Date): ScheduledAt => {
     return e.unsafeGetOrThrow(codec("string").decode(date.toISOString()));
   };
+
+  export const formatUTCFloorSecond = (date: ScheduledAt): string =>
+    formatInTimeZone(date, "Z", "yyyy-MM-dd'T'HH:mm:ss'Z'");
+
   export const factory = (date?: Date): ScheduledAt => {
     return date ? fromDate(date) : fromDate(new Date());
   };
