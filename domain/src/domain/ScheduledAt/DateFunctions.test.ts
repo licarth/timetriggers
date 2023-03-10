@@ -1,7 +1,27 @@
 import { TestClock } from "@/Clock";
-import { evaluateDateFunctionsString as ev } from "./DateFunctions";
+import {
+  evaluateDateFunctionsString as ev,
+  parseIsoUTC,
+} from "./DateFunctions";
 
 describe("DateFunctions", () => {
+  describe("parseIsoUTC", () => {
+    it('should parse "2021-01-01T14:00:00Z" in UTC', () => {
+      expect(parseIsoUTC("2021-01-01T14:00:00Z")).toEqual(
+        new Date("2021-01-01T14:00:00Z")
+      );
+    });
+    it('should parse "2021-01-01T14:00:00" in UTC', () => {
+      expect(parseIsoUTC("2021-01-01T14:00:00")).toEqual(
+        new Date("2021-01-01T14:00:00Z")
+      );
+    });
+    it('should parse "2021-01-01" in UTC', () => {
+      expect(parseIsoUTC("2021-01-01")).toEqual(
+        new Date("2021-01-01T00:00:00Z")
+      );
+    });
+  });
   describe("evaluate", () => {
     const refDateString = "2021-01-01T14:00:00.000Z";
     const refDateStringPlus1h = "2021-01-01T15:00:00.000Z";

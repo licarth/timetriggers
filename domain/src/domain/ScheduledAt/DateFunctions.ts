@@ -1,8 +1,10 @@
 import { Clock } from "@/Clock";
-import { isValid, parseISO } from "date-fns";
-import { zonedTimeToUtc } from "date-fns-tz";
+import { isValid } from "date-fns";
+import { DateTime } from "luxon";
 
-const parseIsoUTC = (s: string) => zonedTimeToUtc(parseISO(s), "UTC");
+export const parseIsoUTC = (s: string) => {
+  return DateTime.fromISO(s, { zone: "utc" }).toJSDate();
+};
 
 export const evaluateDateFunctionsString =
   (s: string) =>

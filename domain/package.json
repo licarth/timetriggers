@@ -4,6 +4,7 @@
   "module": "built/esm/index.js",
   "version": "1.0.0",
   "dependencies": {
+    "@types/luxon": "^3.2.0",
     "axios": "^1.3.4",
     "bcryptjs": "^2.4.3",
     "date-fns": "^2.29.3",
@@ -11,6 +12,7 @@
     "fp-ts": "^2.12.3",
     "io-ts": "^2.2.20",
     "lodash": "^4.17.21",
+    "luxon": "^3.3.0",
     "uuidv4": "^6.2.13"
   },
   "peerDependencies": {
