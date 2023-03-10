@@ -1,6 +1,7 @@
 import type {
   AlertProps,
   AlertStatus,
+  CodeProps,
   ContainerProps,
 } from '@chakra-ui/react';
 import {
@@ -30,7 +31,7 @@ import type { LinkProps } from '@remix-run/react';
 import { Link, useLoaderData } from '@remix-run/react';
 import copy from 'copy-to-clipboard';
 import React from 'react';
-import { CodeExample, H1 } from '~/components';
+import { CodeExample, H1, StatusCodeTag } from '~/components';
 import { Footer } from '~/components/footer/Footer';
 import { Heading } from '~/components/Headings';
 
@@ -72,9 +73,16 @@ export async function loader({ params }: LoaderArgs) {
   let ast = Markdoc.parse(markdown);
   let content = Markdoc.transform(ast, {
     tags: {
+      status_code: {
+        render: 'StatusCodeTag',
+        transform(node, config) {
+          return new Tag(this.render, {
+            code: node.transformChildren(config),
+          });
+        },
+      },
       code_example: {
         render: 'CodeExample',
-        attributes: {},
       },
       http_header: {
         render: 'HttpHeader',
@@ -111,6 +119,20 @@ export async function loader({ params }: LoaderArgs) {
           },
         },
       },
+      ...Object.fromEntries(
+        ['sub', 'sup'].map((as) => [
+          as,
+          {
+            render: 'Text',
+            transform(node, config) {
+              return new Tag('Text', {
+                as,
+                children: node.transformChildren(config),
+              });
+            },
+          },
+        ]),
+      ),
     },
     nodes: {
       link: {
@@ -147,7 +169,7 @@ export async function loader({ params }: LoaderArgs) {
         transform(node, config) {
           return new Tag(
             this.render,
-            { size: 'sm' },
+            { size: 'sm', lineHeight: 10 },
             node.transformChildren(config),
           );
         },
@@ -285,12 +307,24 @@ export default function Route() {
             components: {
               CodeExample,
               Heading: Heading,
-              InlineCode: Code,
+              InlineCode: (p: CodeProps) => (
+                <Code
+                  lineHeight={'120%'}
+                  cursor="pointer"
+                  onClick={() => {
+                    copy(String(p.children));
+                  }}
+                  {...p}
+                >
+                  {p.children}
+                </Code>
+              ),
               Table,
               Tr,
               Td,
               Th,
               Text,
+              StatusCodeTag,
               HttpHeader: ({
                 href,
                 children,
@@ -298,11 +332,13 @@ export default function Route() {
                 <Tooltip label={'Click to copy'}>
                   <Box as="span" position="relative" cursor="pointer">
                     <Code
+                      lineHeight={1}
                       as="span"
                       colorScheme={'green'}
                       onClick={() => {
                         copy(String(children));
                       }}
+                      fontSize={'100%'}
                     >
                       {children}
                     </Code>
@@ -359,6 +395,10 @@ const SContainer = styled(Container)`
   article > * {
     margin-bottom: 16px;
     font-weight: 300;
+  }
+  /* line height in table rows to 10 */
+  table tr td {
+    line-height: 1.5;
   }
 `;
 const StyledContainer = ({ children }: ContainerProps) => {

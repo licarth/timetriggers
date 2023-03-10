@@ -340,7 +340,7 @@ const Document = () => {
       <Text>Manage your API keys from here.</Text>
       {!_.isEmpty(apiKeys) && createKeyButton}
       <Card bgColor={bgColor} maxW="xxl" overflowY="scroll">
-        <Table size="sm">
+        <Table size="sm" lineHeight={20}>
           <Thead>
             <Tr>
               <Th>Key</Th>
@@ -391,6 +391,16 @@ const Document = () => {
                 </Td>
               </Tr>
             )}
+            <Tr>
+              Some long content over 2 lines. Some long content over 2
+              lines. Some long content over 2 lines. Some long content
+              over 2 lines. Some long content over 2 lines. Some long
+              content over 2 lines. Some long content over 2 lines.
+              Some long content over 2 lines. Some long content over 2
+              lines. Some long content over 2 lines. Some long content
+              over 2 lines. Some long content over 2 lines. Some long
+              content over 2 lines. Some long content over 2 lines.{' '}
+            </Tr>
           </Tbody>
         </Table>
       </Card>

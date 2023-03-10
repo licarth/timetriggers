@@ -1,7 +1,6 @@
-import { Spinner, Tag, Text, Tooltip } from '@chakra-ui/react';
+import { Spinner, Tag, Tooltip } from '@chakra-ui/react';
 import type { JobDocument } from '@timetriggers/domain';
-import { colorByStatusCode } from './colorByStatusCode';
-import { httpCodeExplanation } from './httpCodeExplanation';
+import { StatusCodeTag } from '~/components';
 import { humanReadibleDurationFromNow } from './humanReadibleDurationFromNow';
 
 export const StatusTag = ({ job }: { job: JobDocument }) => {
@@ -9,29 +8,9 @@ export const StatusTag = ({ job }: { job: JobDocument }) => {
     <>
       {job.lastStatusUpdate?._tag === 'HttpCallCompleted' &&
         job.lastStatusUpdate?.response && (
-          <>
-            <Tag
-              size={'sm'}
-              colorScheme={colorByStatusCode(
-                job.lastStatusUpdate.response.statusCode.codeInt,
-              )}
-            >
-              <Tooltip
-                label={
-                  <Text>
-                    {httpCodeExplanation(
-                      job.lastStatusUpdate.response.statusCode
-                        .codeInt,
-                    )}
-                  </Text>
-                }
-              >
-                <Text>
-                  {job.lastStatusUpdate.response.statusCode.codeInt}
-                </Text>
-              </Tooltip>
-            </Tag>
-          </>
+          <StatusCodeTag
+            code={job.lastStatusUpdate.response.statusCode.codeInt}
+          />
         )}
       {job.status.value === 'registered' &&
         job.jobDefinition.scheduledAt < new Date() &&
