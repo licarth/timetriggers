@@ -3,6 +3,7 @@ import type {
   AlertStatus,
   CodeProps,
   ContainerProps,
+  TableProps,
 } from '@chakra-ui/react';
 import {
   Alert,
@@ -328,7 +329,7 @@ export default function Route() {
                   {p.children}
                 </Code>
               ),
-              Table,
+              Table: StyledTable,
               Tr,
               Td,
               Th,
@@ -367,6 +368,12 @@ export default function Route() {
     </>
   );
 }
+
+const StyledTable = (props: TableProps) => (
+  <Box overflowX={'scroll'}>
+    <Table {...props}>{props.children}</Table>
+  </Box>
+);
 
 const SContainer = styled(Container)`
   // Space items inside article
