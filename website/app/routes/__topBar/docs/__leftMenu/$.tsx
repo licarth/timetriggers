@@ -26,10 +26,13 @@ import {
 import styled from '@emotion/styled';
 import type { RenderableTreeNode } from '@markdoc/markdoc';
 import Markdoc, { Tag } from '@markdoc/markdoc';
+import type { MetaFunction } from '@remix-run/node';
 import { json, type LoaderArgs } from '@remix-run/node';
 import type { LinkProps } from '@remix-run/react';
 import { Link, useLoaderData } from '@remix-run/react';
 import copy from 'copy-to-clipboard';
+import yaml from 'js-yaml'; // or 'toml', etc.
+
 import React from 'react';
 import {
   CodeExample,
@@ -56,10 +59,11 @@ const getArticleContent = async (article: string) => {
 
 export async function loader({ params }: LoaderArgs) {
   // here get the MD from your fs using or a database
-  if (!params['*']) return json({ content: '' }, { status: 404 });
+  if (!params['*']) return json('article-not-found' as const);
+
   let markdown = await getArticleContent(params['*']);
   if (!markdown) {
-    return 'article-not-found';
+    return json('article-not-found' as const);
   }
   let ids: string[] = [];
   const makeIdUnique = (candidate: string) => {
@@ -77,7 +81,15 @@ export async function loader({ params }: LoaderArgs) {
     return id;
   };
   let ast = Markdoc.parse(markdown);
+  const frontmatter = (
+    ast.attributes.frontmatter
+      ? yaml.load(ast.attributes.frontmatter)
+      : {}
+  ) as Record<string, string>;
   let content = Markdoc.transform(ast, {
+    variables: {
+      frontmatter,
+    },
     tags: {
       status_code: {
         render: 'StatusCodeTag',
@@ -235,7 +247,7 @@ export async function loader({ params }: LoaderArgs) {
   });
   const headings = collectHeadings(content);
 
-  return json({ content, headings });
+  return json({ content, headings, frontmatter });
 }
 
 type HeadingSection = {
@@ -286,9 +298,26 @@ function transformNodeToString(node: RenderableTreeNode) {
   } else return '';
 }
 
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  if (data === 'article-not-found' || data === null) {
+    return {
+      title: 'Article not found | TimeTriggers.io',
+      description: 'The article you are looking for does not exist.',
+    };
+  }
+  const d = data.frontmatter;
+  return {
+    title: `${d.title || 'Docs'} | TimeTriggers.io`,
+    description: d.description,
+    'twitter:card': 'summary_large_image',
+    'og:description': d.description || 'Documentation',
+    // 'og:image': d.coverImage,
+  };
+};
+
 export default function Route() {
   const response = useLoaderData<typeof loader>();
-  if (response === 'article-not-found') {
+  if (response === 'article-not-found' || response === null) {
     return (
       <>
         <StyledContainer>
@@ -307,7 +336,9 @@ export default function Route() {
       </>
     );
   }
+
   const { content, headings } = response;
+
   return (
     <>
       <StyledContainer>

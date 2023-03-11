@@ -1,4 +1,10 @@
-# Schedule a trigger
+---
+title: Schedule a trigger
+description: How to schedule a trigger with timetriggers.io
+date: 2023-03-11
+---
+
+# {% $frontmatter.title %}
 
 A 'trigger' is a scheduled HTTP request.
 
