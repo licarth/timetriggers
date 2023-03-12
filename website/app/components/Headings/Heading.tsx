@@ -1,8 +1,8 @@
 import type { HeadingProps } from '@chakra-ui/react';
 import {
-  Box,
   Heading as ChakraHeading,
   Icon,
+  LinkBox,
 } from '@chakra-ui/react';
 import { Link } from '@remix-run/react';
 import { FaLink } from 'react-icons/fa';
@@ -19,10 +19,10 @@ export const Heading = function (
   const linkProps = p.id ? { as: Link, to: `#${p.id}` } : {};
   return (
     // @ts-ignore
-    <Box
+    <LinkBox
       role="group"
       position={'relative'}
-      display={'flex'}
+      display={'inline-block'}
       {...linkProps}
     >
       {p.id && (
@@ -48,7 +48,7 @@ export const Heading = function (
       >
         {p.children}
       </ChakraHeading>
-    </Box>
+    </LinkBox>
   );
 };
 
