@@ -1,11 +1,7 @@
-import { JobDocument, JobScheduleArgs, TestClock } from "@timetriggers/domain";
-import { JobDefinition } from "@timetriggers/domain";
-import { ScheduledAt } from "@timetriggers/domain";
-import { Shard } from "@timetriggers/domain";
 import { te } from "@/fp-ts";
+import { JobDocument, ScheduledAt, TestClock } from "@timetriggers/domain";
 import { addMilliseconds } from "date-fns";
 import { firstValueFrom } from "rxjs";
-import { Datastore } from "./Datastore";
 import { InMemoryDataStore } from "./InMemoryDataStore";
 
 describe("InMemoryDataStore", () => {
@@ -19,10 +15,11 @@ describe("InMemoryDataStore", () => {
       });
       await te.unsafeGetOrThrow(
         datastore.schedule(
-          JobScheduleArgs.factory({
+          JobDocument.factory({
             scheduledAt: ScheduledAt.fromDate(
               addMilliseconds(clock.now(), 1000)
             ),
+            clock,
           })
         )
       );
@@ -53,10 +50,11 @@ describe("InMemoryDataStore", () => {
       });
       await te.unsafeGetOrThrow(
         datastore.schedule(
-          JobScheduleArgs.factory({
+          JobDocument.factory({
             scheduledAt: ScheduledAt.fromDate(
               addMilliseconds(clock.now(), 1000)
             ),
+            clock,
           })
         )
       );
@@ -88,14 +86,26 @@ describe("Sharded InMemoryDatastore", () => {
       });
       await Promise.all([
         te.unsafeGetOrThrow(
-          datastore.schedule(JobScheduleArgs.factory({ clock }), (id) => [
-            Shard.of(0, 2),
-          ])
+          datastore.schedule(
+            JobDocument.factory({
+              scheduledAt: ScheduledAt.fromDate(
+                addMilliseconds(clock.now(), 1000)
+              ),
+              shards: ["2-0"],
+              clock,
+            })
+          )
         ),
         te.unsafeGetOrThrow(
-          datastore.schedule(JobScheduleArgs.factory({ clock }), (id) => [
-            Shard.of(1, 2),
-          ])
+          datastore.schedule(
+            JobDocument.factory({
+              scheduledAt: ScheduledAt.fromDate(
+                addMilliseconds(clock.now(), 1000)
+              ),
+              shards: ["2-1"],
+              clock,
+            })
+          )
         ),
       ]);
       const obs = await te.unsafeGetOrThrow(
@@ -121,14 +131,26 @@ describe("Sharded InMemoryDatastore", () => {
       });
       await Promise.all([
         te.unsafeGetOrThrow(
-          datastore.schedule(JobScheduleArgs.factory({ clock }), () => [
-            Shard.of(0, 2),
-          ])
+          datastore.schedule(
+            JobDocument.factory({
+              scheduledAt: ScheduledAt.fromDate(
+                addMilliseconds(clock.now(), 1000)
+              ),
+              shards: ["2-0"],
+              clock,
+            })
+          )
         ),
         te.unsafeGetOrThrow(
-          datastore.schedule(JobScheduleArgs.factory({ clock }), () => [
-            Shard.of(1, 2),
-          ])
+          datastore.schedule(
+            JobDocument.factory({
+              scheduledAt: ScheduledAt.fromDate(
+                addMilliseconds(clock.now(), 1000)
+              ),
+              shards: ["2-1"],
+              clock,
+            })
+          )
         ),
       ]);
       const obs = await te.unsafeGetOrThrow(

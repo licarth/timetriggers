@@ -11,7 +11,7 @@ export class JobScheduleArgs {
   scheduledAt;
   http;
 
-  constructor(props: JobScheduleHttpArgsProps) {
+  constructor(props: JobScheduleArgsProps) {
     this.scheduledAt = props.scheduledAt;
     this.http = props.http;
   }
@@ -35,7 +35,7 @@ export class JobScheduleArgs {
     );
 
   static factory = (
-    props: Partial<JobScheduleHttpArgsProps> & { clock?: Clock } = {}
+    props: Partial<JobScheduleArgsProps> & { clock?: Clock } = {}
   ) => {
     return new JobScheduleArgs({
       scheduledAt: props.scheduledAt || ScheduledAt.factory(props.clock?.now()),
@@ -48,7 +48,7 @@ export class JobScheduleArgs {
   };
 }
 
-export type JobScheduleHttpArgsProps = Codec.TypeOf<
+export type JobScheduleArgsProps = Codec.TypeOf<
   ReturnType<typeof JobScheduleArgs.propsCodec>
 >;
 

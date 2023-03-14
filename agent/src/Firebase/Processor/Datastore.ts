@@ -3,9 +3,7 @@ import {
   JobDefinition,
   JobDocument,
   JobId,
-  JobScheduleArgs,
   JobStatus,
-  ProjectId,
   RateLimit,
   RegisteredAt,
   ScheduledAt,
@@ -43,11 +41,7 @@ export type GetJobsScheduledBeforeArgs = {
 };
 
 export interface Datastore {
-  schedule(
-    args: JobScheduleArgs,
-    shardingAlgorithm?: ShardingAlgorithm,
-    projectId?: ProjectId
-  ): TE.TaskEither<any, JobId>;
+  schedule(args: JobDocument): TE.TaskEither<any, JobId>;
   cancel(jobId: JobId): TE.TaskEither<any, void>;
 
   /**

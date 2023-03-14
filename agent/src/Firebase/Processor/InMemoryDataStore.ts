@@ -4,12 +4,10 @@ import {
   JobDefinition,
   JobDocument,
   JobId,
-  JobScheduleArgs,
   JobStatus,
   QueuedAt,
   RateLimit,
   RegisteredAt,
-  Shard,
   StartedAt,
   SystemClock,
 } from "@timetriggers/domain";
@@ -21,7 +19,6 @@ import { interval, Observable, Subscriber } from "rxjs";
 import {
   Datastore,
   GetJobsScheduledBeforeArgs,
-  ShardingAlgorithm,
   WaitForRegisteredJobsByRegisteredAtArgs,
 } from "./Datastore";
 import { distinctArray } from "./distinctArray";
@@ -44,7 +41,7 @@ export class InMemoryDataStore implements Datastore {
   runningJobs;
   private queuesJobByShardIndex = new Multimap<string, JobId>(); // shardIndex "${nodeCount}-${nodeId}" -> jobId
   completedJobs;
-  private shardsByJobId = new Map<JobId, Shard[]>();
+  private shardsByJobId = new Map<JobId, string[]>();
 
   constructor(props: InMemoryDataStoreProps) {
     this.clock = props.clock || new SystemClock();
@@ -116,7 +113,9 @@ export class InMemoryDataStore implements Datastore {
           ];
           if (
             matchingShard &&
-            shardsToListenTo.nodeIds.includes(matchingShard.nodeId)
+            shardsToListenTo.nodeIds.includes(
+              Number(matchingShard.split("-")[1])
+            )
           ) {
             return true;
           } else {
@@ -232,42 +231,17 @@ export class InMemoryDataStore implements Datastore {
     return TE.right(undefined);
   }
 
-  schedule(
-    jobDefinition: JobScheduleArgs,
-    shardingAlgorithm?: ShardingAlgorithm
-  ): TE.TaskEither<Error, JobId> {
+  schedule(jobDocument: JobDocument): TE.TaskEither<Error, JobId> {
     const jobId = JobId.factory();
-    const shards = shardingAlgorithm ? shardingAlgorithm(jobId) : undefined;
     // Make sure shards start at 2 and increment 1 by 1:
-    if (shards) {
-      if (
-        !_.isEqual(
-          shards.map((s) => s.nodeCount),
-          _.range(2, shards.length + 2)
-        )
-      ) {
-        return TE.left(
-          new Error("Shards must start at 2 and increment 1 by 1")
-        );
-      }
+    const shards = jobDocument.shards;
+    if (shards.length > 0) {
       this.shardsByJobId.set(jobId, shards);
-    }
-    if (shardingAlgorithm && shards) {
       for (const shard of shards) {
-        this.queuesJobByShardIndex.set(shard.toString(), jobId);
+        this.queuesJobByShardIndex.set(shard, jobId);
       }
     }
-    this.registeredJobs.set(
-      jobId,
-      new JobDocument({
-        jobDefinition: { ...jobDefinition, id: jobId },
-        shards: shards?.map((s) => String(s)) || [],
-        status: new JobStatus({
-          value: "registered",
-          registeredAt: RegisteredAt.fromDate(this.clock.now()),
-        }),
-      })
-    );
+    this.registeredJobs.set(jobId, jobDocument);
     return TE.of(jobId);
   }
 

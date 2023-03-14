@@ -1,9 +1,16 @@
 import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
-import { JobScheduleArgs, ProjectId, Shard } from "@timetriggers/domain";
+import {
+  JobDefinition,
+  JobDocument,
+  JobId,
+  JobScheduleArgs,
+  JobStatus,
+  ProjectId,
+  ScheduledWithin,
+  Shard,
+} from "@timetriggers/domain";
 import * as TE from "fp-ts/lib/TaskEither.js";
-import { JobDefinition } from "@timetriggers/domain";
-import { JobId } from "@timetriggers/domain";
 import { Datastore } from "./Processor/Datastore";
 
 const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(11);
@@ -21,20 +28,32 @@ export class DatastoreApi extends AbstractApi {
   }
 
   schedule(args: JobScheduleArgs, projectId?: ProjectId) {
-    return this.datastore.schedule(
-      args,
-      (jobId: JobId) =>
-        preloadedHashingFunction(jobId)
-          .slice(1)
-          .map((s) => {
-            const parts = s.split("-");
-            return new Shard({
-              nodeCount: Number(parts[0]),
-              nodeId: Number(parts[1]),
-            });
-          }),
-      projectId
-    );
+    const id = JobId.factory();
+    const shardingAlgorithm = (jobId: JobId) =>
+      preloadedHashingFunction(jobId)
+        .slice(1)
+        .map((s) => {
+          const parts = s.split("-");
+          return new Shard({
+            nodeCount: Number(parts[0]),
+            nodeId: Number(parts[1]),
+          });
+        });
+
+    const jobDocument = new JobDocument({
+      jobDefinition: new JobDefinition({ ...args, id }),
+      projectId,
+      shards: shardingAlgorithm
+        ? shardingAlgorithm(id).map((s) => s.toString())
+        : [],
+      status: JobStatus.registeredNow(this.clock),
+      scheduledWithin: ScheduledWithin.fromScheduledAt(
+        args.scheduledAt,
+        this.clock
+      ),
+    });
+
+    return this.datastore.schedule(jobDocument);
   }
 
   cancel(args: { jobId: JobId }) {

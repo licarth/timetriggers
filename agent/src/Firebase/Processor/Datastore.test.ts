@@ -1,15 +1,12 @@
-import { JobScheduleArgs, TestClock } from "@timetriggers/domain";
-import { JobDefinition } from "@timetriggers/domain";
-import { ScheduledAt } from "@timetriggers/domain";
-import { Shard } from "@timetriggers/domain";
 import { te } from "@/fp-ts";
 import { randomString } from "@/test/randomString";
+import { JobDocument, ScheduledAt, TestClock } from "@timetriggers/domain";
 import { addHours, addMilliseconds } from "date-fns";
 import * as TE from "fp-ts/TaskEither";
 import { firstValueFrom, Observable } from "rxjs";
+import { emulatorFirestore } from "../emulatorFirestore";
 import { Datastore } from "./Datastore";
 import { FirestoreDatastore } from "./FirestoreDatastore";
-import { emulatorFirestore } from "../emulatorFirestore";
 
 const HOUR_IN_MS = 1000 * 60 * 60;
 
@@ -65,7 +62,7 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
         it(`should find previously scheduled jobs ${expected} results for a job scheduled in ${scheduledMsFromNow}`, async () => {
           await te.unsafeGetOrThrow(
             datastore.schedule(
-              JobScheduleArgs.factory({
+              JobDocument.factory({
                 scheduledAt: ScheduledAt.fromDate(
                   addMilliseconds(clock.now(), scheduledMsFromNow)
                 ),
@@ -98,14 +95,14 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
       it("should not return a job that's planned beyond", async () => {
         await te.unsafeGetOrThrow(
           datastore.schedule(
-            JobScheduleArgs.factory({
+            JobDocument.factory({
               scheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 10)),
             })
           )
         );
         await te.unsafeGetOrThrow(
           datastore.schedule(
-            JobScheduleArgs.factory({
+            JobDocument.factory({
               scheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 0)),
             })
           )
@@ -128,14 +125,10 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
       it("should return jobs in shard", async () => {
         await Promise.all([
           te.unsafeGetOrThrow(
-            datastore.schedule(JobScheduleArgs.factory({ clock }), (id) => [
-              Shard.of(0, 2),
-            ])
+            datastore.schedule(JobDocument.factory({ clock, shards: ["2-0"] }))
           ),
           te.unsafeGetOrThrow(
-            datastore.schedule(JobScheduleArgs.factory({ clock }), (id) => [
-              Shard.of(1, 2),
-            ])
+            datastore.schedule(JobDocument.factory({ clock, shards: ["2-1"] }))
           ),
         ]);
 
@@ -153,14 +146,10 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
       it("should all jobs if nodeCount is 1", async () => {
         await Promise.all([
           te.unsafeGetOrThrow(
-            datastore.schedule(JobScheduleArgs.factory({ clock }), (id) => [
-              Shard.of(0, 2),
-            ])
+            datastore.schedule(JobDocument.factory({ clock, shards: ["2-0"] }))
           ),
           te.unsafeGetOrThrow(
-            datastore.schedule(JobScheduleArgs.factory({ clock }), (id) => [
-              Shard.of(1, 2),
-            ])
+            datastore.schedule(JobDocument.factory({ clock, shards: ["2-1"] }))
           ),
         ]);
 

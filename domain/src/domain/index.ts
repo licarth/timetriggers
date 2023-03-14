@@ -17,6 +17,7 @@ export * from "./RateLimit";
 export * from "./RawBody";
 export * from "./RegisteredAt";
 export * from "./ScheduledAt";
+export * from "./ScheduledWithin";
 export * from "./Shard";
 export * from "./StartedAt";
 export * from "./Url";

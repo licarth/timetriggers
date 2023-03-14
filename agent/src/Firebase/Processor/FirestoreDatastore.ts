@@ -8,11 +8,8 @@ import {
   JobDefinition,
   JobDocument,
   JobId,
-  JobScheduleArgs,
   JobStatus,
-  ProjectId,
   RateLimit,
-  RegisteredAt,
   SystemClock,
   te,
 } from "@timetriggers/domain";
@@ -30,7 +27,6 @@ import { shardedFirestoreQuery } from "../shardedFirestoreQuery";
 import {
   Datastore,
   GetJobsScheduledBeforeArgs as GetJobsScheduledBetweenArgs,
-  ShardingAlgorithm,
   WaitForRegisteredJobsByRegisteredAtArgs,
 } from "./Datastore";
 import { ShardsToListenTo, toShards } from "./ShardsToListenTo";
@@ -125,47 +121,17 @@ export class FirestoreDatastore implements Datastore {
     );
   }
 
-  schedule(
-    args: JobScheduleArgs,
-    shardingAlgorithm?: ShardingAlgorithm | undefined,
-    projectId?: ProjectId
-  ) {
+  schedule(jobDocument: JobDocument) {
     return TE.tryCatch(
       async () => {
-        const id = JobId.factory();
-        const jobDefinition = new JobDefinition({ ...args, id });
-        const jobDocumentRef = this.jobDocRef(id);
-        const scheduledWithin =
-          jobDefinition.scheduledAt.getTime() - this.clock.now().getTime();
-        const doc = {
-          ...JobDocument.codec("firestore").encode(
-            new JobDocument({
-              jobDefinition,
-              projectId,
-              shards: shardingAlgorithm
-                ? shardingAlgorithm(id).map((s) => s.toString())
-                : [],
-              status: new JobStatus({
-                value: "registered",
-                registeredAt: RegisteredAt.fromDate(this.clock.now()), // Will be overriden by server timestamp !
-              }),
-            })
-          ),
-          scheduledWithin: {
-            "1s": scheduledWithin < 1000,
-            "1m": scheduledWithin < 1000 * 60,
-            "10m": scheduledWithin < 1000 * 60 * 10,
-            "1h": scheduledWithin < 1000 * 60 * 60,
-            "2h": scheduledWithin < 1000 * 60 * 60 * 2,
-          },
-        };
-        const newLocal = {
+        const doc = JobDocument.codec("firestore").encode(jobDocument);
+        const jobDocumentRef = this.jobDocRef(jobDocument.id());
+        await jobDocumentRef.set({
           ..._.merge(doc, {
             status: { registeredAt: FieldValue.serverTimestamp() },
           }),
-        };
-        await jobDocumentRef.set(newLocal);
-        return id;
+        });
+        return jobDocument.id();
       },
       (reason) => `Failed to schedule job: ${reason}`
     );

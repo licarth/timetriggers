@@ -1,15 +1,16 @@
+import { Clock } from "@/Clock";
+import { e } from "@/fp-ts";
+import { CodecType } from "@/project";
+import { fromClassCodec } from "@iots/index.js";
+import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
-import { fromClassCodec } from "@iots/index.js";
-import { RegisteredAt } from "./RegisteredAt";
-import { QueuedAt } from "./QueuedAt";
-import { CodecType } from "@/project";
-import { StartedAt } from "./StartedAt";
 import { CompletedAt } from "./CompletedAt";
-import * as E from "fp-ts/lib/Either.js";
-import { e } from "@/fp-ts";
-import { ScheduledAt } from "./ScheduledAt";
+import { QueuedAt } from "./QueuedAt";
 import { RateLimitedAt } from "./RateLimit";
+import { RegisteredAt } from "./RegisteredAt";
+import { ScheduledAt } from "./ScheduledAt";
+import { StartedAt } from "./StartedAt";
 
 export class JobStatus {
   value;
@@ -47,6 +48,12 @@ export class JobStatus {
     }
     return result;
   }
+
+  static registeredNow = (clock: Clock) =>
+    new JobStatus({
+      value: "registered",
+      registeredAt: RegisteredAt.fromDate(clock.now()), // Will be overriden by server timestamp !
+    });
 
   enqueue(queuedAt: QueuedAt) {
     this.value = "queued";

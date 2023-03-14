@@ -3,20 +3,20 @@
 //
 // https://github.com/chakra-ui/chakra-ui/issues/5166
 
-import { renderToString } from "react-dom/server";
-import { CacheProvider } from "@emotion/react";
-import createEmotionServer from "@emotion/server/create-instance";
-import { RemixServer } from "@remix-run/react";
-import type { EntryContext } from "@remix-run/node"; // Depends on the runtime you choose
+import { CacheProvider } from '@emotion/react';
+import createEmotionServer from '@emotion/server/create-instance';
+import type { EntryContext } from '@remix-run/node'; // Depends on the runtime you choose
+import { RemixServer } from '@remix-run/react';
+import { renderToString } from 'react-dom/server';
 
-import { ServerStyleContext } from "./context";
-import createEmotionCache from "./createEmotionCache";
+import { ServerStyleContext } from './context';
+import createEmotionCache from './createEmotionCache';
 
 export default function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
-  remixContext: EntryContext
+  remixContext: EntryContext,
 ) {
   const cache = createEmotionCache();
   const { extractCriticalToChunks } = createEmotionServer(cache);
@@ -26,7 +26,7 @@ export default function handleRequest(
       <CacheProvider value={cache}>
         <RemixServer context={remixContext} url={request.url} />
       </CacheProvider>
-    </ServerStyleContext.Provider>
+    </ServerStyleContext.Provider>,
   );
 
   const chunks = extractCriticalToChunks(html);
@@ -36,10 +36,10 @@ export default function handleRequest(
       <CacheProvider value={cache}>
         <RemixServer context={remixContext} url={request.url} />
       </CacheProvider>
-    </ServerStyleContext.Provider>
+    </ServerStyleContext.Provider>,
   );
 
-  responseHeaders.set("Content-Type", "text/html");
+  responseHeaders.set('Content-Type', 'text/html');
 
   return new Response(`<!DOCTYPE html>${markup}`, {
     status: responseStatusCode,

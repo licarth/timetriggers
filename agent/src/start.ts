@@ -8,6 +8,7 @@ import { CoordinationClient } from "./Coordination/CoordinationClient";
 import { KubernetesStatefulsetCoordinationClient } from "./Coordination/KubernetesStatefulsetCoordinationClient";
 import { SingleNodeCoordinationClient } from "./Coordination/SingleNodeCoordinationClient";
 import { ZookeeperCoordinationClient } from "./Coordination/ZookeeperCoordinationClient";
+import { environmentVariable } from "./environmentVariable";
 import { DatastoreApi } from "./Firebase/DatastoreApi";
 import { initializeApp } from "./Firebase/initializeApp";
 import { Datastore } from "./Firebase/Processor/Datastore";
@@ -16,6 +17,7 @@ import { Processor } from "./Firebase/Processor/Processor";
 import { Scheduler } from "./Firebase/Processor/Scheduler";
 import { te } from "./fp-ts";
 import { HttpApi, initializeHttpApi } from "./HttpApi/initializeHttpApi";
+import { PrismaDatastore } from "./Prisma";
 
 type StartProps = {
   namespace: string;
@@ -44,13 +46,15 @@ export const start = (props: StartProps) =>
       namespace: props.namespace,
       rootDocumentPath: `/namespaces/${props.namespace}/jobs`,
     })),
-    RTE.bind("datastore", ({ firestore, rootDocumentPath }) =>
-      RTE.of(
-        new FirestoreDatastore({
-          firestore,
-          namespace: props.namespace,
-        })
-      )
+    RTE.bind("datastore", ({ firestore }) =>
+      environmentVariable("DATASTORE") === "PRISMA"
+        ? RTE.of(PrismaDatastore.build() as Datastore)
+        : RTE.of(
+            new FirestoreDatastore({
+              firestore,
+              namespace: props.namespace,
+            }) as Datastore
+          )
     ),
     RTE.bindW("api", (other) =>
       props.api.enabled ? buildApi({ ...props, ...other }) : RTE.of(undefined)

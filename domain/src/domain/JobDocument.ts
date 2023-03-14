@@ -1,4 +1,4 @@
-import { Clock } from "@/Clock";
+import { Clock, SystemClock } from "@/Clock";
 import { taggedVersionedClassCodec } from "@/iots/taggedVersionClassCodec/taggedVersionedClassCodec";
 import { CodecType, ProjectId } from "@/project";
 import { pipe } from "fp-ts/lib/function";
@@ -7,6 +7,7 @@ import { HttpCallLastStatus } from "./HttpCallStatusUpdate";
 import { JobDefinition } from "./JobDefinition";
 import { JobStatus } from "./JobStatus";
 import { RegisteredAt } from "./RegisteredAt";
+import { ScheduledWithin } from "./ScheduledWithin";
 
 export class JobDocument {
   _tag = "JobDocument" as const;
@@ -19,6 +20,7 @@ export class JobDocument {
   lastStatusUpdate;
   projectId;
   rateLimitKeys;
+  scheduledWithin;
 
   constructor(props: JobDocumentProps) {
     this._props = props;
@@ -28,7 +30,31 @@ export class JobDocument {
     this.lastStatusUpdate = props.lastStatusUpdate;
     this.projectId = props.projectId;
     this.rateLimitKeys = props.rateLimitKeys;
+    this.scheduledWithin = props.scheduledWithin;
   }
+
+  id() {
+    return this.jobDefinition.id;
+  }
+
+  static factory = (
+    props: Partial<
+      Parameters<typeof JobDefinition.factory>[0] & {
+        shards: string[];
+        clock?: Clock;
+      }
+    >
+  ) => {
+    const clock = props.clock || new SystemClock();
+    return new JobDocument({
+      jobDefinition: JobDefinition.factory({
+        ...props,
+        clock,
+      }),
+      shards: props.shards || [],
+      status: JobStatus.registeredNow(clock),
+    });
+  };
 
   static propsCodec = (codecType: CodecType) =>
     pipe(
@@ -42,6 +68,7 @@ export class JobDocument {
           projectId: ProjectId.codec,
           lastStatusUpdate: HttpCallLastStatus.codec,
           rateLimitKeys: Codec.array(Codec.string),
+          scheduledWithin: ScheduledWithin.codec(codecType),
         })
       )
     );

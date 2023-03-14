@@ -1,0 +1,41 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fieldReference"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model JobStatus {
+  jobId         String       @unique
+  value         String
+  registeredAt  DateTime
+  rateLimitedAt DateTime?
+  queuedAt      DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  jobDocument   JobDocument?
+}
+
+model JobDocument {
+  jobId     String    @id
+  project   Project?  @relation(fields: [projectId], references: [projectId], onDelete: Cascade, onUpdate: Cascade)
+  projectId String?
+  status    JobStatus @relation(fields: [statusId], references: [jobId], onDelete: Cascade, onUpdate: Cascade)
+  statusId  String    @unique
+  // shards
+  // lastStatusUpdate
+  // rateLimitKeys
+}
+
+model Project {
+  projectId    String        @id @default(cuid())
+  name         String
+  description  String?
+  jobDocuments JobDocument[]
+}

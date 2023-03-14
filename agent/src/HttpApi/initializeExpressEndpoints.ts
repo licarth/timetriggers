@@ -117,7 +117,10 @@ export const initializeEndpoints = ({
                 res.setHeader("ttr-trigger-id", jobId);
                 res.sendStatus(201);
               }),
-              RTE.mapLeft((e) => "scheduling error" as const)
+              RTE.mapLeft((e) => {
+                console.error(e);
+                "scheduling error" as const;
+              })
             );
           }
           // Todo handle errors due to scheduling

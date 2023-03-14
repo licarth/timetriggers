@@ -1,11 +1,10 @@
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
+import { DatastoreApi } from "@/Firebase/DatastoreApi";
 import { FirestoreDatastore } from "@/Firebase/Processor/FirestoreDatastore";
 import {
   Http,
-  JobId,
   JobScheduleArgs,
   ScheduledAt,
-  Shard,
   te,
   Url,
 } from "@timetriggers/domain";
@@ -27,27 +26,18 @@ const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(5);
     firestore,
     namespace: `doi-production`,
   });
+  const api = new DatastoreApi({ datastore });
 
   const jobSchedulePromise = () =>
     te.unsafeGetOrThrow(
-      datastore.schedule(
+      api.schedule(
         new JobScheduleArgs({
           scheduledAt: ScheduledAt.fromDate(addSeconds(now, 3)),
           http: new Http({
             options: undefined,
             url: "https://api.timetriggers.io/1" as Url,
           }),
-        }),
-        (jobId: JobId) =>
-          preloadedHashingFunction(jobId)
-            .slice(1)
-            .map((s) => {
-              const parts = s.split("-");
-              return new Shard({
-                nodeCount: Number(parts[0]),
-                nodeId: Number(parts[1]),
-              });
-            })
+        })
       )
     );
 

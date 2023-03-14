@@ -22,5 +22,6 @@ module.exports = {
   rules: {
     'react-hooks/exhaustive-deps': 'off',
     'prettier/prettier': 'warn',
+    'testing-library/render-result-naming-convention': 'off',
   },
 };

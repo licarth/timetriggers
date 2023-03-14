@@ -1,4 +1,5 @@
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
+import { DatastoreApi } from "@/Firebase/DatastoreApi";
 import { emulatorFirestore } from "@/Firebase/emulatorFirestore";
 import { Datastore } from "@/Firebase/Processor/Datastore";
 import { FirestoreDatastore } from "@/Firebase/Processor/FirestoreDatastore";
@@ -7,14 +8,7 @@ import {
   humanReadibleMs,
 } from "@/Firebase/Processor/humanReadibleMs";
 import { te } from "@/fp-ts";
-import {
-  Http,
-  JobId,
-  JobScheduleArgs,
-  ScheduledAt,
-  Shard,
-  Url,
-} from "@timetriggers/domain";
+import { Http, JobScheduleArgs, ScheduledAt, Url } from "@timetriggers/domain";
 import { initializeApp } from "../Firebase/initializeApp";
 import { parseHumanReadibleDuration, sleep } from "./utils";
 
@@ -117,26 +111,18 @@ async function scheduleJobDatastore(
   datastore: Datastore,
   scheduledAt: ScheduledAt
 ) {
+  const api = new DatastoreApi({ datastore });
   const now = new Date();
+
   const jobId = await te.unsafeGetOrThrow(
-    datastore.schedule(
+    api.schedule(
       new JobScheduleArgs({
         scheduledAt,
         http: new Http({
           options: undefined,
           url: "https://api.timetriggers.io/1" as Url,
         }),
-      }),
-      (jobId: JobId) =>
-        preloadedHashingFunction(jobId)
-          .slice(1)
-          .map((s) => {
-            const parts = s.split("-");
-            return new Shard({
-              nodeCount: Number(parts[0]),
-              nodeId: Number(parts[1]),
-            });
-          })
+      })
     )
   );
 
