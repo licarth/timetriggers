@@ -25,7 +25,6 @@ export type LastKnownRegisteredJob = {
 };
 
 export type WaitForRegisteredJobsByRegisteredAtArgs = {
-  registeredAfter?: RegisteredAt;
   maxNoticePeriodMs: number; // Max Notice period for the job (ScheduledAt - RegisteredAt) in milliseconds
 };
 
@@ -33,7 +32,6 @@ export type WaitForRegisteredJobsByRegisteredAtArgs = {
 // Each processor will take more than one shard.
 
 export type GetJobsScheduledBeforeArgs = {
-  offset?: number;
   limit: number;
   minScheduledAt?: ScheduledAt;
   maxScheduledAt: ScheduledAt;

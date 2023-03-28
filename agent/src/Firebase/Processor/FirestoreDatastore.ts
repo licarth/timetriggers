@@ -156,7 +156,6 @@ export class FirestoreDatastore implements Datastore {
     {
       minScheduledAt,
       maxScheduledAt,
-      offset,
       limit,
       lastKnownJob,
     }: GetJobsScheduledBetweenArgs,
@@ -180,9 +179,7 @@ export class FirestoreDatastore implements Datastore {
           .orderBy("jobDefinition.id", "asc")
           .orderBy("status.registeredAt", "asc")
           .limit(limit);
-        if (offset) {
-          query = query.offset(offset);
-        }
+
         if (lastKnownJob) {
           query = query.startAfter(lastKnownJob.scheduledAt, lastKnownJob.id);
         }
@@ -205,7 +202,7 @@ export class FirestoreDatastore implements Datastore {
     args: WaitForRegisteredJobsByRegisteredAtArgs,
     shardsToListenTo?: ShardsToListenTo
   ) {
-    const { registeredAfter, maxNoticePeriodMs } = args;
+    const { maxNoticePeriodMs } = args;
     return TE.tryCatch(
       async () => {
         return new Observable<JobDocument[]>((subscriber) => {
@@ -219,13 +216,6 @@ export class FirestoreDatastore implements Datastore {
             this.firestore.collection(`${this.rootJobsCollectionPath}`),
             toShards(shardsToListenTo)
           );
-          if (registeredAfter) {
-            queryRoot = queryRoot.where(
-              "status.registeredAt",
-              ">=",
-              registeredAfter
-            );
-          }
           if (maxNoticePeriodMs > 60 * 60 * 1000) {
             throw new Error(
               `maxNoticePeriodMs must be less than 1h for Firestore, got ${maxNoticePeriodMs} ms`

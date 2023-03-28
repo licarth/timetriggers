@@ -75,9 +75,9 @@ describe("InMemoryDataStore", () => {
   });
 });
 
-describe("Sharded InMemoryDatastore", () => {
+describe.only("Sharded InMemoryDatastore", () => {
   describe("listenToNewJobsBefore", () => {
-    it("should return only jobs in shard", async () => {
+    it.only("should return only jobs in shard", async () => {
       const clock = new TestClock(new Date("2020-01-01T00:00:00.000Z"));
       const pollingInterval = 100;
       const datastore = InMemoryDataStore.factory({

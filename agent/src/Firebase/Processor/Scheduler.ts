@@ -12,7 +12,6 @@ import {
   JobId,
   RateLimit,
   RateLimitKey,
-  RegisteredAt,
   ScheduledAt,
 } from "@timetriggers/domain";
 import chalk from "chalk";
@@ -198,7 +197,7 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
         this.schedulePeriod(originPeriod),
         TE.chainFirstW(() =>
           pipe(
-            this.listenToShortNoticeJobs({}),
+            this.listenToShortNoticeJobs(),
             TE.orElse((reason) => {
               if (reason === "not implemented") {
                 console.log(
@@ -243,15 +242,10 @@ Reaffecting shards..., now listening to: ${this.shardsToListenTo}`
    * These jobs are not caught by long polling, so we need to listen to them somehow.
    *
    */
-  private listenToShortNoticeJobs({
-    registeredAfter,
-  }: {
-    registeredAfter?: RegisteredAt;
-  }) {
+  private listenToShortNoticeJobs() {
     return pipe(
       this.datastore.waitForRegisteredJobsByRegisteredAt(
         {
-          registeredAfter,
           maxNoticePeriodMs: 60 * 1000, // 1 minute
         },
         this.shardsToListenTo

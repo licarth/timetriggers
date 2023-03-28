@@ -101,8 +101,12 @@ export class InMemoryDataStore implements Datastore {
     jobMap: Map<JobId, JobDocument>,
     shardsToListenTo?: ShardsToListenTo
   ) {
+    console.log(shardsToListenTo);
+    console.log(this.shardsByJobId);
+
     return _(
       all(jobMap).filter((job) => {
+        console.log(`job: ${job.jobDefinition.id}`);
         if (
           shardsToListenTo &&
           shardsToListenTo.prefix > 1 &&
@@ -111,6 +115,9 @@ export class InMemoryDataStore implements Datastore {
           const matchingShard = this.shardsByJobId.get(job.jobDefinition.id)?.[
             shardsToListenTo.prefix - 2
           ];
+
+          console.log(`has: ${this.shardsByJobId.has(job.jobDefinition.id)}`);
+          console.log(`matchingShard: ${matchingShard}`);
           if (
             matchingShard &&
             shardsToListenTo.nodeIds.includes(
@@ -130,10 +137,7 @@ export class InMemoryDataStore implements Datastore {
   }
 
   waitForRegisteredJobsByRegisteredAt(
-    {
-      maxNoticePeriodMs,
-      registeredAfter,
-    }: WaitForRegisteredJobsByRegisteredAtArgs,
+    { maxNoticePeriodMs }: WaitForRegisteredJobsByRegisteredAtArgs,
     shardsToListenTo?: ShardsToListenTo
   ): TE.TaskEither<never, Observable<JobDocument[]>> {
     return TE.of(
@@ -150,6 +154,7 @@ export class InMemoryDataStore implements Datastore {
             });
 
             subscriber.next(jobs);
+            console.log(jobs);
           };
 
           const intervalId = this.clock.setInterval(

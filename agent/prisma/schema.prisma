@@ -23,11 +23,13 @@ model JobStatus {
 }
 
 model JobDocument {
-  jobId     String    @id
-  project   Project?  @relation(fields: [projectId], references: [projectId], onDelete: Cascade, onUpdate: Cascade)
-  projectId String?
-  status    JobStatus @relation(fields: [statusId], references: [jobId], onDelete: Cascade, onUpdate: Cascade)
-  statusId  String    @unique
+  jobId         String    @id
+  project       Project?  @relation(fields: [projectId], references: [projectId], onDelete: Cascade, onUpdate: Cascade)
+  projectId     String?
+  status        JobStatus @relation(fields: [statusId], references: [jobId], onDelete: Cascade, onUpdate: Cascade)
+  statusId      String    @unique
+  scheduledAt   DateTime
+  jobDefinition Bytes
   // shards
   // lastStatusUpdate
   // rateLimitKeys
