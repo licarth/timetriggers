@@ -1,3 +1,3 @@
-import { ForgotPassword } from "~/components/login/ForgotPassword";
+import { ForgotPassword } from '~/components/login/ForgotPassword';
 
 export default () => <ForgotPassword />;

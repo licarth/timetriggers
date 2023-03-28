@@ -1,11 +1,11 @@
-import type { Project } from "@timetriggers/domain";
-import * as React from "react";
+import type { Project } from '@timetriggers/domain';
+import * as React from 'react';
 
 type ContextState = { project: Project };
 
-const ProjectJobsContext = React.createContext<ContextState | undefined>(
-  undefined
-);
+const ProjectJobsContext = React.createContext<
+  ContextState | undefined
+>(undefined);
 
 const ProjectProvider = ({
   children,
@@ -21,7 +21,9 @@ const ProjectProvider = ({
 function useProject() {
   const context = React.useContext(ProjectJobsContext);
   if (context === undefined) {
-    throw new Error("useProject must be used within a ProjectProvider");
+    throw new Error(
+      'useProject must be used within a ProjectProvider',
+    );
   }
   return context;
 }

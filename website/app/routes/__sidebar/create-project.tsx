@@ -1,29 +1,35 @@
-import { Button, Code, Stack, Text } from "@chakra-ui/react";
-import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
-import { redirect } from "@remix-run/server-runtime";
+import { Button, Code, Stack, Text } from '@chakra-ui/react';
+import type {
+  ActionFunction,
+  LoaderFunction,
+} from '@remix-run/server-runtime';
+import { redirect } from '@remix-run/server-runtime';
 import {
   createProject,
   e,
   projectExists,
-  ProjectSlug
-} from "@timetriggers/domain";
-import { pipe } from "fp-ts/lib/function";
-import * as RTE from "fp-ts/lib/ReaderTaskEither";
-import { useLoaderData } from "react-router";
+  ProjectSlug,
+} from '@timetriggers/domain';
+import { pipe } from 'fp-ts/lib/function';
+import * as RTE from 'fp-ts/lib/ReaderTaskEither';
+import { useLoaderData } from 'react-router';
 import {
   adjectives,
   animals,
   colors,
-  uniqueNamesGenerator
-} from "unique-names-generator";
-import { Logo } from "~/components/Logo";
-import { getUserOrRedirect } from "~/loaders/getUserOrRedirect";
-import { actionFromRte, loaderFromRte } from "~/utils/loaderFromRte.server";
+  uniqueNamesGenerator,
+} from 'unique-names-generator';
+import { Logo } from '~/components/Logo';
+import { getUserOrRedirect } from '~/loaders/getUserOrRedirect';
+import {
+  actionFromRte,
+  loaderFromRte,
+} from '~/utils/loaderFromRte.server';
 
 export const loader: LoaderFunction = ({ request }) =>
   loaderFromRte(
     pipe(
-      getUserOrRedirect(request, "/login"),
+      getUserOrRedirect(request, '/login'),
       RTE.map(() => {
         const randomName = uniqueNamesGenerator({
           dictionaries: [adjectives, colors, animals],
@@ -39,38 +45,43 @@ export const loader: LoaderFunction = ({ request }) =>
           }),
           //   RTE.orElse(() => RTE.right(undefined)), // If not exists, continue
           RTE.chainW((exists) =>
-            exists ? RTE.left(redirect("")) : RTE.of(name)
-          ) // If exists, retry (via redirect)
-        )
-      )
-    )
+            exists ? RTE.left(redirect('')) : RTE.of(name),
+          ), // If exists, retry (via redirect)
+        ),
+      ),
+    ),
   );
 
 export const action: ActionFunction = ({ params, request }) =>
   actionFromRte(
     pipe(
       RTE.Do,
-      RTE.bindW("creator", () => getUserOrRedirect(request, "/login")),
-      RTE.bindW("slug", () =>
+      RTE.bindW('creator', () =>
+        getUserOrRedirect(request, '/login'),
+      ),
+      RTE.bindW('slug', () =>
         pipe(
-          async () => (await request.formData()).get("projectName")?.toString(),
+          async () =>
+            (await request.formData()).get('projectName')?.toString(),
           RTE.fromTask,
           RTE.map((x) => x),
           RTE.filterOrElseW(
             (slug) => slug !== undefined,
-            () => RTE.left("Slug is undefined")
+            () => RTE.left('Slug is undefined'),
           ),
-          RTE.chainEitherKW((slug) => ProjectSlug.parse(slug!)) // @licarth we should be able to remove the `!` here, but it does not infer for some reason
-        )
+          RTE.chainEitherKW((slug) => ProjectSlug.parse(slug!)), // @licarth we should be able to remove the `!` here, but it does not infer for some reason
+        ),
       ),
       RTE.chainFirstW(({ slug, creator }) =>
         createProject({
           slug,
           creator: creator.id,
-        })
+        }),
       ),
-      RTE.map(({ slug }) => redirect(`/projects/${slug}?reloadUser=true`))
-    )
+      RTE.map(({ slug }) =>
+        redirect(`/projects/${slug}?reloadUser=true`),
+      ),
+    ),
   );
 
 export default () => {
@@ -82,8 +93,9 @@ export default () => {
         Welcome to <Logo fontSize="30" /> !
       </Text>
       <Text>
-        It's now time to create your first project ! We'll call it{" "}
-        <Code>{name}</Code> for you ! (don't worry, you can change it later)
+        It's now time to create your first project ! We'll call it{' '}
+        <Code>{name}</Code> for you ! (don't worry, you can change it
+        later)
       </Text>
       <form method="post">
         {/* Hidden input field for name */}

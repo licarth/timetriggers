@@ -1,10 +1,14 @@
-import { Flex } from "@chakra-ui/react";
-import { useLocation } from "@remix-run/react";
-import type { FirebaseUser, MonthlyUsage, Project } from "@timetriggers/domain";
-import { useEffect, useState } from "react";
-import { MenuElements } from "./MenuEl";
-import type { NavSize } from "./NavItemProps";
-import { SidebarBottom } from "./SidebarBottom";
+import { Flex } from '@chakra-ui/react';
+import { useLocation } from '@remix-run/react';
+import type {
+  FirebaseUser,
+  MonthlyUsage,
+  Project,
+} from '@timetriggers/domain';
+import { useEffect, useState } from 'react';
+import { MenuElements } from './MenuEl';
+import type { NavSize } from './NavItemProps';
+import { SidebarBottom } from './SidebarBottom';
 
 type SidebarProps = {
   user?: FirebaseUser;
@@ -21,19 +25,20 @@ export const DesktopSidebar = ({
   const [screenWidth, setScreenWidth] = useState<number>();
 
   useEffect(() => {
-    typeof window !== "undefined" && setScreenWidth(window.innerWidth);
+    typeof window !== 'undefined' &&
+      setScreenWidth(window.innerWidth);
   }, []);
 
-  const [navSize, setNavSize] = useState<NavSize>("large");
+  const [navSize, setNavSize] = useState<NavSize>('large');
 
   useEffect(() => {
     if (screenWidth && screenWidth < 768) {
-      setNavSize("small");
+      setNavSize('small');
     }
   }, [screenWidth]);
 
-  const selectedProjectSlug = pathname.startsWith("/projects/")
-    ? pathname.split("/")[2]
+  const selectedProjectSlug = pathname.startsWith('/projects/')
+    ? pathname.split('/')[2]
     : undefined;
 
   return (
@@ -41,11 +46,11 @@ export const DesktopSidebar = ({
       pos="sticky"
       direction="column"
       top="0"
-      maxW={"fit-content"}
+      maxW={'fit-content'}
       flexGrow={1}
-      justifyContent={"space-between"}
+      justifyContent={'space-between'}
       boxShadow="0 4px 12px 0 rgba(0,0,0,0.5)"
-      display={{ base: "none", sm: "flex" }}
+      display={{ base: 'none', sm: 'flex' }}
     >
       <MenuElements
         user={user}

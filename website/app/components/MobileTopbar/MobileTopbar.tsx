@@ -9,32 +9,35 @@ import {
   ModalOverlay,
   Select,
   useDisclosure,
-} from "@chakra-ui/react";
-import { useLocation } from "@remix-run/react";
-import type { FirebaseUser, Project } from "@timetriggers/domain";
+} from '@chakra-ui/react';
+import { useLocation } from '@remix-run/react';
+import type { FirebaseUser, Project } from '@timetriggers/domain';
 import {
   BsBook,
   BsCollectionPlayFill,
   BsGearFill,
   BsKey,
-} from "react-icons/bs";
-import { useProjectNavigation } from "~/contexts";
-import { Logo } from "../Logo";
-import { MenuElements } from "./MenuEl";
-import { NavItem } from "./NavItem";
-import { TopBarRight } from "./TopbarRight";
+} from 'react-icons/bs';
+import { useProjectNavigation } from '~/contexts';
+import { Logo } from '../Logo';
+import { MenuElements } from './MenuEl';
+import { NavItem } from './NavItem';
+import { TopBarRight } from './TopbarRight';
 
 type MobileSidebarProps = {
   user?: FirebaseUser;
   projects?: Project[];
 };
 
-export const MobileTopbar = ({ user, projects }: MobileSidebarProps) => {
+export const MobileTopbar = ({
+  user,
+  projects,
+}: MobileSidebarProps) => {
   const { pathname } = useLocation();
   const { onOpen, onClose, isOpen } = useDisclosure();
   const { navigateToProject } = useProjectNavigation();
-  const selectedProjectSlug = pathname.startsWith("/projects/")
-    ? pathname.split("/")[2]
+  const selectedProjectSlug = pathname.startsWith('/projects/')
+    ? pathname.split('/')[2]
     : undefined;
 
   return (
@@ -43,12 +46,12 @@ export const MobileTopbar = ({ user, projects }: MobileSidebarProps) => {
       zIndex={100}
       direction="row"
       top="0"
-      maxH={"fit-content"}
+      maxH={'fit-content'}
       flexGrow={1}
-      justifyContent={"space-between"}
-      alignItems={"center"}
+      justifyContent={'space-between'}
+      alignItems={'center'}
       boxShadow="0 4px 12px 0 rgba(0,0,0,0.5)"
-      display={{ base: "flex", sm: "none" }}
+      display={{ base: 'flex', sm: 'none' }}
       bg="chakra-body-bg"
     >
       <MenuElements
@@ -60,7 +63,7 @@ export const MobileTopbar = ({ user, projects }: MobileSidebarProps) => {
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        size={{ base: "full", md: "6xl" }}
+        size={{ base: 'full', md: '6xl' }}
       >
         <ModalOverlay hidden />
         <ModalContent>
@@ -69,12 +72,12 @@ export const MobileTopbar = ({ user, projects }: MobileSidebarProps) => {
           </ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <Flex flexDir={"column"} overflowY="scroll" w="full">
+            <Flex flexDir={'column'} overflowY="scroll" w="full">
               {selectedProjectSlug && (
                 <>
                   {projects && projects?.length > 1 && (
                     <>
-                      <Heading size={"md"}>Change Project</Heading>
+                      <Heading size={'md'}>Change Project</Heading>
                       <Select
                         mt={8}
                         defaultValue={selectedProjectSlug}
@@ -92,7 +95,7 @@ export const MobileTopbar = ({ user, projects }: MobileSidebarProps) => {
                     </>
                   )}
 
-                  <Heading size={"md"} mt={4}>
+                  <Heading size={'md'} mt={4}>
                     Navigation
                   </Heading>
                   <NavItem
@@ -106,13 +109,22 @@ export const MobileTopbar = ({ user, projects }: MobileSidebarProps) => {
                     icon={BsCollectionPlayFill}
                     href="triggers"
                   />
-                  <NavItem title="Settings" icon={BsGearFill} href="settings" />
+                  <NavItem
+                    title="Settings"
+                    icon={BsGearFill}
+                    href="settings"
+                  />
                 </>
               )}
               <Heading mt={8} size="md">
                 Resources
               </Heading>
-              <NavItem title="Docs" icon={BsBook} disabled comingSoon />
+              <NavItem
+                title="Docs"
+                icon={BsBook}
+                disabled
+                comingSoon
+              />
             </Flex>
           </ModalBody>
         </ModalContent>

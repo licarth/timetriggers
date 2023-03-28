@@ -1,5 +1,5 @@
-import type { ProjectId, ScheduledAt } from "@timetriggers/domain";
-import { e, JobDocument } from "@timetriggers/domain";
+import type { ProjectId, ScheduledAt } from '@timetriggers/domain';
+import { e, JobDocument } from '@timetriggers/domain';
 import {
   collection,
   limit as fbLimit,
@@ -8,13 +8,13 @@ import {
   query,
   startAfter,
   where,
-} from "firebase/firestore";
-import { pipe } from "fp-ts/lib/function";
-import { draw } from "io-ts/lib/Decoder";
-import { useEffect, useState } from "react";
-import { environmentVariable } from "~/environmentVariable";
-import { initializeFirebaseWeb } from "~/initializeFirebaseWeb";
-import { useProject } from "./ProjectContext";
+} from 'firebase/firestore';
+import { pipe } from 'fp-ts/lib/function';
+import { draw } from 'io-ts/lib/Decoder';
+import { useEffect, useState } from 'react';
+import { environmentVariable } from '~/environmentVariable';
+import { initializeFirebaseWeb } from '~/initializeFirebaseWeb';
+import { useProject } from './ProjectContext';
 
 const { firestore } = initializeFirebaseWeb();
 
@@ -23,7 +23,7 @@ type ProjectJobs =
       jobs: JobDocument[];
       errors: string[];
     }
-  | "loading";
+  | 'loading';
 
 type HookReturn =
   | {
@@ -35,7 +35,9 @@ type HookReturn =
     }
   | { loading: true };
 
-const jobsRef = `namespaces/${environmentVariable("PUBLIC_NAMESPACE")}/jobs`;
+const jobsRef = `namespaces/${environmentVariable(
+  'PUBLIC_NAMESPACE',
+)}/jobs`;
 
 export const usePastProjectTriggers = ({
   startAfterScheduledAt,
@@ -47,49 +49,51 @@ export const usePastProjectTriggers = ({
   const {
     project: { id: projectId },
   } = useProject();
-  const [results, setResults] = useState<ProjectJobs>("loading");
+  const [results, setResults] = useState<ProjectJobs>('loading');
   const theLimit = limit || 10;
 
   useEffect(() => {
-    setResults("loading");
+    setResults('loading');
     return onSnapshot(
       query(
         collection(firestore, jobsRef),
-        where("projectId", "==", projectId),
-        where("status.value", "in", [
-          "queued",
-          "rate-limited",
-          "running",
-          "completed",
-          "dead",
+        where('projectId', '==', projectId),
+        where('status.value', 'in', [
+          'queued',
+          'rate-limited',
+          'running',
+          'completed',
+          'dead',
         ]),
-        orderBy("jobDefinition.scheduledAt", "desc"),
-        ...(startAfterScheduledAt ? [startAfter(startAfterScheduledAt)] : []),
-        fbLimit(theLimit + 1)
+        orderBy('jobDefinition.scheduledAt', 'desc'),
+        ...(startAfterScheduledAt
+          ? [startAfter(startAfterScheduledAt)]
+          : []),
+        fbLimit(theLimit + 1),
       ),
       (snapshot) => {
         pipe(
           snapshot.docs.map((doc) =>
-            JobDocument.codec("firestore").decode(doc.data())
+            JobDocument.codec('firestore').decode(doc.data()),
           ),
           e.split,
           ({ successes, errors }) => {
             console.log(
-              `🚀 Found ${successes.length} jobs (${errors.length} errors) for project ${projectId}.`
+              `🚀 Found ${successes.length} jobs (${errors.length} errors) for project ${projectId}.`,
             );
             errors.forEach((e) => console.error(draw(e)));
             setResults({ jobs: successes, errors: errors.map(draw) });
-          }
+          },
         );
       },
       (error) => {
         console.error(error);
         setResults({ jobs: [], errors: [error.message] });
-      }
+      },
     );
   }, [projectId, startAfterScheduledAt]);
 
-  return results !== "loading"
+  return results !== 'loading'
     ? {
         loading: false,
         projectId,
@@ -110,43 +114,45 @@ export const useFutureProjectTriggers = ({
   const {
     project: { id: projectId },
   } = useProject();
-  const [results, setResults] = useState<ProjectJobs>("loading");
+  const [results, setResults] = useState<ProjectJobs>('loading');
   const theLimit = limit || 10;
 
   useEffect(() => {
-    setResults("loading");
+    setResults('loading');
     return onSnapshot(
       query(
         collection(firestore, jobsRef),
-        where("projectId", "==", projectId),
-        where("status.value", "in", ["registered"]),
-        orderBy("jobDefinition.scheduledAt", "asc"),
-        ...(startAfterScheduledAt ? [startAfter(startAfterScheduledAt)] : []),
-        fbLimit(theLimit + 1)
+        where('projectId', '==', projectId),
+        where('status.value', 'in', ['registered']),
+        orderBy('jobDefinition.scheduledAt', 'asc'),
+        ...(startAfterScheduledAt
+          ? [startAfter(startAfterScheduledAt)]
+          : []),
+        fbLimit(theLimit + 1),
       ),
       (snapshot) => {
         pipe(
           snapshot.docs.map((doc) =>
-            JobDocument.codec("firestore").decode(doc.data())
+            JobDocument.codec('firestore').decode(doc.data()),
           ),
           e.split,
           ({ successes, errors }) => {
             console.log(
-              `🚀 Found ${successes.length} jobs (${errors.length} errors) for project ${projectId}.`
+              `🚀 Found ${successes.length} jobs (${errors.length} errors) for project ${projectId}.`,
             );
             errors.forEach((e) => console.error(draw(e)));
             setResults({ jobs: successes, errors: errors.map(draw) });
-          }
+          },
         );
       },
       (error) => {
         console.error(error);
         setResults({ jobs: [], errors: [error.message] });
-      }
+      },
     );
   }, [projectId, startAfterScheduledAt]);
 
-  return results !== "loading"
+  return results !== 'loading'
     ? {
         loading: false,
         projectId,

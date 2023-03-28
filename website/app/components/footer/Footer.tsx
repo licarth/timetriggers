@@ -4,13 +4,17 @@ import {
   IconButton,
   Stack,
   Text,
-} from "@chakra-ui/react";
-import { FaGithub } from "react-icons/fa";
-import { Logo } from "../Logo";
+} from '@chakra-ui/react';
+import { FaGithub } from 'react-icons/fa';
+import { Logo } from '../Logo';
 
 export const Footer = () => (
-  <Container as="footer" role="contentinfo" py={{ base: "12", md: "16" }}>
-    <Stack spacing={{ base: "4", md: "5" }}>
+  <Container
+    as="footer"
+    role="contentinfo"
+    py={{ base: '12', md: '16' }}
+  >
+    <Stack spacing={{ base: '4', md: '5' }}>
       <Stack justify="space-between" direction="row" align="center">
         <Logo fontSize="1rem" />
         <ButtonGroup variant="ghost">
@@ -35,7 +39,8 @@ export const Footer = () => (
         </ButtonGroup>
       </Stack>
       <Text fontSize="sm" color="subtle">
-        &copy; {new Date().getFullYear()} timetriggers. All rights reserved.
+        &copy; {new Date().getFullYear()} timetriggers. All rights
+        reserved.
       </Text>
     </Stack>
   </Container>

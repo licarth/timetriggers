@@ -1,6 +1,6 @@
-import type { As } from "@chakra-ui/react";
+import type { As } from '@chakra-ui/react';
 
-export type NavSize = "small" | "large";
+export type NavSize = 'small' | 'large';
 
 export type NavItemProps = {
   navSize: NavSize;

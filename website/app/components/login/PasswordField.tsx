@@ -1,4 +1,4 @@
-import type { InputProps } from "@chakra-ui/react";
+import type { InputProps } from '@chakra-ui/react';
 
 import {
   FormControl,
@@ -11,10 +11,10 @@ import {
   Stack,
   useDisclosure,
   useMergeRefs,
-} from "@chakra-ui/react";
-import { forwardRef, useRef } from "react";
-import type { FieldError } from "react-hook-form";
-import { HiEye, HiEyeOff } from "react-icons/hi";
+} from '@chakra-ui/react';
+import { forwardRef, useRef } from 'react';
+import type { FieldError } from 'react-hook-form';
+import { HiEye, HiEyeOff } from 'react-icons/hi';
 
 export const PasswordField = forwardRef<
   HTMLInputElement,
@@ -38,14 +38,14 @@ export const PasswordField = forwardRef<
         <InputRightElement>
           <IconButton
             variant="link"
-            aria-label={isOpen ? "Mask password" : "Reveal password"}
+            aria-label={isOpen ? 'Mask password' : 'Reveal password'}
             icon={isOpen ? <HiEyeOff /> : <HiEye />}
             onClick={onClickReveal}
           />
         </InputRightElement>
         <Input
           ref={mergeRef}
-          type={isOpen ? "text" : "password"}
+          type={isOpen ? 'text' : 'password'}
           required
           {...props}
         />
@@ -54,4 +54,4 @@ export const PasswordField = forwardRef<
   );
 });
 
-PasswordField.displayName = "PasswordField";
+PasswordField.displayName = 'PasswordField';

@@ -1,14 +1,14 @@
-import dotenv from "dotenv";
-import type { App } from "firebase-admin/app";
+import dotenv from 'dotenv';
+import type { App } from 'firebase-admin/app';
 import {
   cert,
   getApp,
   getApps,
   initializeApp as firebaseInit,
-} from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
-import { environmentVariable } from "./environmentVariable";
+} from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
+import { environmentVariable } from './environmentVariable';
 
 dotenv.config();
 
@@ -29,24 +29,26 @@ export function initializeApp({
   } else {
     if (
       useEmulators ||
-      environmentVariable("PUBLIC_USE_EMULATORS") === "true"
+      environmentVariable('PUBLIC_USE_EMULATORS') === 'true'
     ) {
-      console.log("🔸 Using Emulators in the Website (Node.js)");
-      process.env["FIRESTORE_EMULATOR_HOST"] = "0.0.0.0:8080";
-      process.env["FIREBASE_AUTH_EMULATOR_HOST"] = "0.0.0.0:8081";
+      console.log('🔸 Using Emulators in the Website (Node.js)');
+      process.env['FIRESTORE_EMULATOR_HOST'] = '0.0.0.0:8080';
+      process.env['FIREBASE_AUTH_EMULATOR_HOST'] = '0.0.0.0:8081';
       initializationOptions = {
         ...initializationOptions,
-        projectId: "doi-production",
+        projectId: 'doi-production',
       };
     } else {
-      delete process.env["FIRESTORE_EMULATOR_HOST"];
-      delete process.env["FIREBASE_AUTH_EMULATOR_HOST"];
+      delete process.env['FIRESTORE_EMULATOR_HOST'];
+      delete process.env['FIREBASE_AUTH_EMULATOR_HOST'];
       initializationOptions = {
         ...initializationOptions,
         credential: cert(
           JSON.parse(
-            serviceAccount || process.env.FIREBASE_SERVICE_ACCOUNT_KEY || ""
-          )
+            serviceAccount ||
+              process.env.FIREBASE_SERVICE_ACCOUNT_KEY ||
+              '',
+          ),
         ),
       };
     }
@@ -66,6 +68,6 @@ export function initializeApp({
     app,
     firestore,
     auth,
-    namespace: environmentVariable("PUBLIC_NAMESPACE"),
+    namespace: environmentVariable('PUBLIC_NAMESPACE'),
   };
 }

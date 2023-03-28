@@ -1,5 +1,5 @@
-import type { ProjectId, ScheduledAt } from "@timetriggers/domain";
-import { e, JobDocument } from "@timetriggers/domain";
+import type { ProjectId, ScheduledAt } from '@timetriggers/domain';
+import { e, JobDocument } from '@timetriggers/domain';
 import {
   collection,
   limit,
@@ -8,13 +8,13 @@ import {
   query,
   startAfter,
   where,
-} from "firebase/firestore";
-import { pipe } from "fp-ts/lib/function";
-import * as React from "react";
-import { environmentVariable } from "~/environmentVariable";
+} from 'firebase/firestore';
+import { pipe } from 'fp-ts/lib/function';
+import * as React from 'react';
+import { environmentVariable } from '~/environmentVariable';
 // import { FullStoryAPI } from "react-fullstory";
-import { draw } from "io-ts/lib/Decoder";
-import { initializeFirebaseWeb } from "../initializeFirebaseWeb";
+import { draw } from 'io-ts/lib/Decoder';
+import { initializeFirebaseWeb } from '../initializeFirebaseWeb';
 
 const { firestore, auth } = initializeFirebaseWeb();
 
@@ -40,9 +40,10 @@ const ProjectJobsProvider = ({
         jobs: JobDocument[];
         errors: string[];
       }
-    | "loading";
+    | 'loading';
 
-  const [results, setResults] = React.useState<ProjectJobs>("loading");
+  const [results, setResults] =
+    React.useState<ProjectJobs>('loading');
 
   const [startAfterScheduledAt, setStartAfterScheduledAt] =
     React.useState<ScheduledAt | null>(null);
@@ -51,47 +52,51 @@ const ProjectJobsProvider = ({
     `✅ auth.currentUser`,
     auth.currentUser?.uid,
     `projectId`,
-    projectId
+    projectId,
   );
 
-  const jobsRef = `namespaces/${environmentVariable("PUBLIC_NAMESPACE")}/jobs`;
+  const jobsRef = `namespaces/${environmentVariable(
+    'PUBLIC_NAMESPACE',
+  )}/jobs`;
 
   React.useEffect(() => {
-    setResults("loading");
+    setResults('loading');
     return onSnapshot(
       query(
         collection(firestore, jobsRef),
-        where("projectId", "==", projectId),
-        orderBy("jobDefinition.scheduledAt", "desc"),
-        ...(startAfterScheduledAt ? [startAfter(startAfterScheduledAt)] : []),
-        limit(10)
+        where('projectId', '==', projectId),
+        orderBy('jobDefinition.scheduledAt', 'desc'),
+        ...(startAfterScheduledAt
+          ? [startAfter(startAfterScheduledAt)]
+          : []),
+        limit(10),
       ),
       (snapshot) => {
         pipe(
           snapshot.docs.map((doc) =>
-            JobDocument.codec("firestore").decode(doc.data())
+            JobDocument.codec('firestore').decode(doc.data()),
           ),
           e.split,
           ({ successes, errors }) => {
             console.log(
-              `🚀 Found ${successes.length} jobs (${errors.length} errors) for project ${projectId}.`
+              `🚀 Found ${successes.length} jobs (${errors.length} errors) for project ${projectId}.`,
             );
             errors.forEach((e) => console.error(draw(e)));
             setResults({ jobs: successes, errors: errors.map(draw) });
-          }
+          },
         );
       },
       (error) => {
         console.error(error);
         setResults({ jobs: [], errors: [error.message] });
-      }
+      },
     );
   }, [projectId]);
 
   return (
     <ProjectJobsContext.Provider
       value={
-        results !== "loading"
+        results !== 'loading'
           ? {
               loading: false,
               projectId,

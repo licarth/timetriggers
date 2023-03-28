@@ -1,7 +1,7 @@
-import styled from "@emotion/styled";
+import styled from '@emotion/styled';
 
 export const Logo = ({ fontSize }: { fontSize?: string }) => (
-  <LogoFont $fontSize={fontSize || "2rem"}>timetriggers.io</LogoFont>
+  <LogoFont $fontSize={fontSize || '2rem'}>timetriggers.io</LogoFont>
 );
 
 export const LogoFont = styled.span<{ $fontSize: string }>`

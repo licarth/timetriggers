@@ -1,17 +1,21 @@
-import { Flex, Heading, IconButton, Select } from "@chakra-ui/react";
-import { useLocation, useNavigate } from "@remix-run/react";
-import type { FirebaseUser, MonthlyUsage, Project } from "@timetriggers/domain";
+import { Flex, Heading, IconButton, Select } from '@chakra-ui/react';
+import { useLocation, useNavigate } from '@remix-run/react';
+import type {
+  FirebaseUser,
+  MonthlyUsage,
+  Project,
+} from '@timetriggers/domain';
 import {
   BsBook,
   BsCollectionPlayFill,
   BsGearFill,
   BsKey,
-} from "react-icons/bs";
-import { FiMenu } from "react-icons/fi";
-import { Logo } from "../Logo";
-import { NavItem } from "./NavItem";
-import type { NavSize } from "./NavItemProps";
-import { ProjectUsage } from "./ProjectUsage";
+} from 'react-icons/bs';
+import { FiMenu } from 'react-icons/fi';
+import { Logo } from '../Logo';
+import { NavItem } from './NavItem';
+import type { NavSize } from './NavItemProps';
+import { ProjectUsage } from './ProjectUsage';
 
 type MenuElementsProps = {
   user?: FirebaseUser;
@@ -33,34 +37,38 @@ export const MenuElements = ({
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const currentProjectPath = pathname.split("/").slice(3).join("/");
+  const currentProjectPath = pathname.split('/').slice(3).join('/');
   const navigateToProject = (slug: string) => {
     navigate(`/projects/${slug}/${currentProjectPath}`);
   };
 
-  const project = projects?.find((p) => p.slug === selectedProjectSlug);
+  const project = projects?.find(
+    (p) => p.slug === selectedProjectSlug,
+  );
   return (
     <Flex
-      p={navSize === "small" ? "3px" : "12px"}
+      p={navSize === 'small' ? '3px' : '12px'}
       flexDir="column"
       alignItems="flex-start"
       as="nav"
       overflowY="hidden"
-      w={navSize === "small" ? "60px" : "200px"}
-      borderRadius={navSize === "small" ? "15px" : "30px"}
+      w={navSize === 'small' ? '60px' : '200px'}
+      borderRadius={navSize === 'small' ? '15px' : '30px'}
       transition="all 0.5s ease"
     >
-      <Flex flexDir={"row"} mt="5" alignItems={"center"} mb={2}>
+      <Flex flexDir={'row'} mt="5" alignItems={'center'} mb={2}>
         <IconButton
           aria-label="Home"
           icon={<FiMenu />}
           bg="none"
-          _hover={{ bg: "none" }}
-          onClick={() => setNavSize(navSize === "small" ? "large" : "small")}
+          _hover={{ bg: 'none' }}
+          onClick={() =>
+            setNavSize(navSize === 'small' ? 'large' : 'small')
+          }
         />
-        {navSize === "large" && <Logo fontSize="1rem" />}
+        {navSize === 'large' && <Logo fontSize="1rem" />}
       </Flex>
-      <Flex flexDir={"column"} overflowY="scroll" w="full">
+      <Flex flexDir={'column'} overflowY="scroll" w="full">
         {selectedProjectSlug && (
           <>
             {projects && projects?.length > 1 && (
@@ -81,7 +89,7 @@ export const MenuElements = ({
             )}
             {projectMonthlyUsage && project && (
               <ProjectUsage
-                hidden={navSize === "small"}
+                hidden={navSize === 'small'}
                 usage={projectMonthlyUsage}
                 selectedProjectSlug={selectedProjectSlug}
                 project={project}
@@ -91,26 +99,26 @@ export const MenuElements = ({
               navSize={navSize}
               title="Api Keys"
               icon={BsKey}
-              active={currentProjectPath === "api_keys"}
+              active={currentProjectPath === 'api_keys'}
               href="api_keys"
             />
             <NavItem
               navSize={navSize}
               title="Triggers"
               icon={BsCollectionPlayFill}
-              active={currentProjectPath === "triggers"}
+              active={currentProjectPath === 'triggers'}
               href="triggers"
             />
             <NavItem
               navSize={navSize}
               title="Settings"
               icon={BsGearFill}
-              active={currentProjectPath === "settings"}
+              active={currentProjectPath === 'settings'}
               href="settings"
             />
           </>
         )}
-        <Heading mt={8} size="md" hidden={navSize === "small"}>
+        <Heading mt={8} size="md" hidden={navSize === 'small'}>
           Resources
         </Heading>
         <NavItem

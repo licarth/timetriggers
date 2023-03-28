@@ -1,4 +1,4 @@
-import { HStack, InputProps } from "@chakra-ui/react";
+import { HStack, InputProps } from '@chakra-ui/react';
 
 import {
   FormControl,
@@ -8,9 +8,9 @@ import {
   InputGroup,
   Stack,
   useMergeRefs,
-} from "@chakra-ui/react";
-import { forwardRef, useRef } from "react";
-import type { FieldError } from "react-hook-form";
+} from '@chakra-ui/react';
+import { forwardRef, useRef } from 'react';
+import type { FieldError } from 'react-hook-form';
 
 export const NewPasswordField = forwardRef<
   HTMLInputElement,
@@ -21,10 +21,17 @@ export const NewPasswordField = forwardRef<
 
   return (
     <FormControl isInvalid={!!props.error}>
-      {props.label && <FormLabel htmlFor="password">{props.label}</FormLabel>}
+      {props.label && (
+        <FormLabel htmlFor="password">{props.label}</FormLabel>
+      )}
       <InputGroup>
         <Stack w="100%">
-          <Input ref={mergeRef} type={"password"} required {...props} />
+          <Input
+            ref={mergeRef}
+            type={'password'}
+            required
+            {...props}
+          />
           {props.error && (
             <FormErrorMessage>{props.error.message}</FormErrorMessage>
           )}
@@ -34,4 +41,4 @@ export const NewPasswordField = forwardRef<
   );
 });
 
-NewPasswordField.displayName = "PasswordField";
+NewPasswordField.displayName = 'PasswordField';

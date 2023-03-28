@@ -1,8 +1,14 @@
-import { Card, Heading, Progress, Skeleton, Text } from "@chakra-ui/react";
-import { useRevalidator } from "@remix-run/react";
-import type { MonthlyUsage, Project } from "@timetriggers/domain";
-import { useEffect } from "react";
-import { useFirstRender } from "./useFirstRender";
+import {
+  Card,
+  Heading,
+  Progress,
+  Skeleton,
+  Text,
+} from '@chakra-ui/react';
+import { useRevalidator } from '@remix-run/react';
+import type { MonthlyUsage, Project } from '@timetriggers/domain';
+import { useEffect } from 'react';
+import { useFirstRender } from './useFirstRender';
 
 type ProjectUsageArgs = {
   usage: MonthlyUsage;
@@ -20,7 +26,8 @@ export const ProjectUsage = ({
   const now = new Date();
   const requestsDone = usage.getScheduleUsageForDate(now);
   const requestMonthlyQuota = project.overrideQuotaLimit || 500;
-  let revalidator = useRevalidator();
+  const revalidator = useRevalidator();
+
   const firstRender = useFirstRender();
 
   // Force re-render on selectedProjectSlug change
@@ -30,12 +37,13 @@ export const ProjectUsage = ({
 
   return (
     <Card p={2} variant="outline" hidden={hidden}>
-      <Heading mb={2} size={"xs"}>
-        Api Quota Usage ({now.toLocaleString("default", { month: "short" })})
+      <Heading mb={2} size={'xs'}>
+        Api Quota Usage (
+        {now.toLocaleString('default', { month: 'short' })})
       </Heading>
-      <Skeleton height="20px" hidden={revalidator.state === "idle"} />
-      {revalidator.state === "idle" &&
-        (project.getPricingPlan() === "free" ? (
+      <Skeleton height="20px" hidden={revalidator.state === 'idle'} />
+      {revalidator.state === 'idle' &&
+        (project.getPricingPlan() === 'free' ? (
           <>
             <Progress
               colorScheme="green"
@@ -44,7 +52,8 @@ export const ProjectUsage = ({
               mb={1}
             />
             <Text fontSize="0.8em">
-              {formatShortNumber(requestsDone)} / {formatShortNumber(requestMonthlyQuota)} triggers
+              {formatShortNumber(requestsDone)} /{' '}
+              {formatShortNumber(requestMonthlyQuota)} triggers
             </Text>
           </>
         ) : (
@@ -56,12 +65,12 @@ export const ProjectUsage = ({
 
 const formatShortNumber = (num: number) => {
   if (num >= 1000000) {
-    return (num / 1000000).toPrecision(1) + " M";
+    return (num / 1000000).toPrecision(1) + ' M';
   }
 
   if (num >= 1000) {
-    return (num / 1000).toFixed(1) + " k";
+    return (num / 1000).toFixed(1) + ' k';
   }
 
   return num;
-}
+};

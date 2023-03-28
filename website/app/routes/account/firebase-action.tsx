@@ -1,3 +1,3 @@
-import { PasswordReset } from "~/components/login/PasswordReset";
+import { PasswordReset } from '~/components/login/PasswordReset';
 
 export default () => <PasswordReset />;

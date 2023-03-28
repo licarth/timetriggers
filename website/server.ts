@@ -1,29 +1,32 @@
-import path from "path";
-import express from "express";
-import compression from "compression";
-import morgan from "morgan";
-import { createRequestHandler } from "@remix-run/express";
-import prom from "@isaacs/express-prometheus-middleware";
+import path from 'path';
+import express from 'express';
+import compression from 'compression';
+import morgan from 'morgan';
+import { createRequestHandler } from '@remix-run/express';
+import prom from '@isaacs/express-prometheus-middleware';
 
 const app = express();
 const metricsApp = express();
 app.use(
   prom({
-    metricsPath: "/metrics",
+    metricsPath: '/metrics',
     collectDefaultMetrics: true,
     metricsApp,
-  })
+  }),
 );
 
 app.use((req, res, next) => {
   // helpful headers:
-  res.set("x-fly-region", process.env.FLY_REGION ?? "unknown");
-  res.set("Strict-Transport-Security", `max-age=${60 * 60 * 24 * 365 * 100}`);
+  res.set('x-fly-region', process.env.FLY_REGION ?? 'unknown');
+  res.set(
+    'Strict-Transport-Security',
+    `max-age=${60 * 60 * 24 * 365 * 100}`,
+  );
 
   // /clean-urls/ -> /clean-urls
-  if (req.path.endsWith("/") && req.path.length > 1) {
+  if (req.path.endsWith('/') && req.path.length > 1) {
     const query = req.url.slice(req.path.length);
-    const safepath = req.path.slice(0, -1).replace(/\/+/g, "/");
+    const safepath = req.path.slice(0, -1).replace(/\/+/g, '/');
     res.redirect(301, safepath + query);
     return;
   }
@@ -34,11 +37,13 @@ app.use((req, res, next) => {
 // non-GET/HEAD/OPTIONS requests hit the primary region rather than read-only
 // Postgres DBs.
 // learn more: https://fly.io/docs/getting-started/multi-region-databases/#replay-the-request
-app.all("*", function getReplayResponse(req, res, next) {
+app.all('*', function getReplayResponse(req, res, next) {
   const { method, path: pathname } = req;
   const { PRIMARY_REGION, FLY_REGION } = process.env;
 
-  const isMethodReplayable = !["GET", "OPTIONS", "HEAD"].includes(method);
+  const isMethodReplayable = !['GET', 'OPTIONS', 'HEAD'].includes(
+    method,
+  );
   const isReadOnlyRegion =
     FLY_REGION && PRIMARY_REGION && FLY_REGION !== PRIMARY_REGION;
 
@@ -53,33 +58,33 @@ app.all("*", function getReplayResponse(req, res, next) {
     FLY_REGION,
   };
   console.info(`Replaying:`, logInfo);
-  res.set("fly-replay", `region=${PRIMARY_REGION}`);
+  res.set('fly-replay', `region=${PRIMARY_REGION}`);
   return res.sendStatus(409);
 });
 
 app.use(compression());
 
 // http://expressjs.com/en/advanced/best-practice-security.html#at-a-minimum-disable-x-powered-by-header
-app.disable("x-powered-by");
+app.disable('x-powered-by');
 
 // Remix fingerprints its assets so we can cache forever.
 app.use(
-  "/build",
-  express.static("public/build", { immutable: true, maxAge: "1y" })
+  '/build',
+  express.static('public/build', { immutable: true, maxAge: '1y' }),
 );
 
 // Everything else (like favicon.ico) is cached for an hour. You may want to be
 // more aggressive with this caching.
-app.use(express.static("public", { maxAge: "1h" }));
+app.use(express.static('public', { maxAge: '1h' }));
 
-app.use(morgan("tiny"));
+app.use(morgan('tiny'));
 
 const MODE = process.env.NODE_ENV;
-const BUILD_DIR = path.join(process.cwd(), "build");
+const BUILD_DIR = path.join(process.cwd(), 'build');
 
 app.all(
-  "*",
-  MODE === "production"
+  '*',
+  MODE === 'production'
     ? createRequestHandler({ build: require(BUILD_DIR) })
     : (...args) => {
         purgeRequireCache();
@@ -88,7 +93,7 @@ app.all(
           mode: MODE,
         });
         return requestHandler(...args);
-      }
+      },
 );
 
 const port = process.env.PORT || 3000;
@@ -102,7 +107,9 @@ app.listen(port, () => {
 const metricsPort = process.env.METRICS_PORT || 3001;
 
 metricsApp.listen(metricsPort, () => {
-  console.log(`✅ metrics ready: http://localhost:${metricsPort}/metrics`);
+  console.log(
+    `✅ metrics ready: http://localhost:${metricsPort}/metrics`,
+  );
 });
 
 function purgeRequireCache() {

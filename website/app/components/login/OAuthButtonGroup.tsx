@@ -1,7 +1,11 @@
-import { Button, ButtonGroup, VisuallyHidden } from "@chakra-ui/react";
-import { useNavigate } from "@remix-run/react";
-import { useFirebaseAuth } from "~/contexts";
-import { GitHubIcon, GoogleIcon } from "./ProviderIcons";
+import {
+  Button,
+  ButtonGroup,
+  VisuallyHidden,
+} from '@chakra-ui/react';
+import { useNavigate } from '@remix-run/react';
+import { useFirebaseAuth } from '~/contexts';
+import { GitHubIcon, GoogleIcon } from './ProviderIcons';
 
 export const OAuthButtonGroup = ({
   setLoading,
@@ -13,28 +17,32 @@ export const OAuthButtonGroup = ({
   const { googleSignIn, githubSignIn } = useFirebaseAuth();
   const providers = [
     {
-      name: "Google",
+      name: 'Google',
       icon: <GoogleIcon boxSize="5" />,
       action: async () => {
         setLoading(true);
         await googleSignIn();
-        navigate("/projects");
+        navigate('/projects');
       },
     },
     {
-      name: "GitHub",
+      name: 'GitHub',
       icon: <GitHubIcon boxSize="5" />,
       action: async () => {
         setLoading(true);
         await githubSignIn();
-        navigate("/projects");
+        navigate('/projects');
       },
     },
   ];
   return (
     <ButtonGroup variant="outline" spacing="4" width="full">
       {providers.map(({ name, icon, action }) => (
-        <Button key={name} width="full" onClick={() => action && action()}>
+        <Button
+          key={name}
+          width="full"
+          onClick={() => action && action()}
+        >
           <VisuallyHidden>Sign in with {name}</VisuallyHidden>
           {icon}
         </Button>

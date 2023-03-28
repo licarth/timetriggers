@@ -3,7 +3,7 @@ import {
   IdTokenResult,
   signInWithRedirect,
   User,
-} from "@firebase/auth";
+} from '@firebase/auth';
 import {
   GoogleAuthProvider,
   signInAnonymously,
@@ -12,27 +12,27 @@ import {
   signOut,
   sendPasswordResetEmail as sendPasswordResetEmailFirebase,
   reload,
-} from "@firebase/auth";
-import * as React from "react";
+} from '@firebase/auth';
+import * as React from 'react';
 // import { FullStoryAPI } from "react-fullstory";
-import { initializeFirebaseWeb } from "../initializeFirebaseWeb";
+import { initializeFirebaseWeb } from '../initializeFirebaseWeb';
 
 const provider = new GoogleAuthProvider();
 
-type UserState = "loading" | User | null;
+type UserState = 'loading' | User | null;
 
 type ContextState = {
   user: UserState;
 };
 
-const FirebaseAuthContext = React.createContext<ContextState | undefined>(
-  undefined
-);
+const FirebaseAuthContext = React.createContext<
+  ContextState | undefined
+>(undefined);
 
 const FirebaseAuthProvider: React.FC<React.PropsWithChildren> = ({
   children,
 }) => {
-  const [user, setUser] = React.useState<UserState>("loading");
+  const [user, setUser] = React.useState<UserState>('loading');
 
   React.useEffect(() => {
     const auth = initializeFirebaseWeb().auth;
@@ -58,14 +58,16 @@ const FirebaseAuthProvider: React.FC<React.PropsWithChildren> = ({
 
 const sendIdTokenToServer = async ({ user }: { user: User }) => {
   return user.getIdToken().then((idToken) => {
-    return fetch("/session", {
-      method: "POST",
+    return fetch('/session', {
+      method: 'POST',
       body: JSON.stringify({ idToken }),
     });
   });
 };
 
-type SendPasswordResetEmail = (args: { email: string }) => Promise<void>;
+type SendPasswordResetEmail = (args: {
+  email: string;
+}) => Promise<void>;
 
 type UseFirebaseAuth = {
   user: User | null;
@@ -87,7 +89,7 @@ function useFirebaseAuth(): UseFirebaseAuth {
   const context = React.useContext(FirebaseAuthContext);
   if (context === undefined) {
     throw new Error(
-      "useFirebaseAuth must be used within a FirebaseAuthProvider"
+      'useFirebaseAuth must be used within a FirebaseAuthProvider',
     );
   }
 
@@ -95,7 +97,9 @@ function useFirebaseAuth(): UseFirebaseAuth {
     if (auth.currentUser) {
       return auth.currentUser.getIdTokenResult(true);
     } else {
-      throw new Error("Cannot reload user data when user is not logged in");
+      throw new Error(
+        'Cannot reload user data when user is not logged in',
+      );
     }
   };
 
@@ -113,8 +117,9 @@ function useFirebaseAuth(): UseFirebaseAuth {
   const google = new GoogleAuthProvider();
   const github = new GithubAuthProvider();
 
-  const sendPasswordResetEmail: SendPasswordResetEmail = ({ email }) =>
-    sendPasswordResetEmailFirebase(auth, email);
+  const sendPasswordResetEmail: SendPasswordResetEmail = ({
+    email,
+  }) => sendPasswordResetEmailFirebase(auth, email);
 
   const anonymousSignIn = () =>
     signInAnonymously(auth)
@@ -140,7 +145,7 @@ function useFirebaseAuth(): UseFirebaseAuth {
         console.log(error);
       });
 
-  const loading = context.user === "loading";
+  const loading = context.user === 'loading';
   return {
     user: loading ? null : (context.user as User),
     reloadUserData,
@@ -151,7 +156,7 @@ function useFirebaseAuth(): UseFirebaseAuth {
     sendPasswordResetEmail,
     signOut: () =>
       signOut(auth)
-        .then(async () => await fetch("/logout"))
+        .then(async () => await fetch('/logout'))
         .then(() => {}),
     loading,
   };
