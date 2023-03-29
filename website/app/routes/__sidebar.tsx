@@ -10,13 +10,16 @@ import {
   getProjectUsageFromSlug,
   MonthlyUsage,
   Project,
+  UserPrefs,
 } from '@timetriggers/domain';
 import { pipe } from 'fp-ts/lib/function';
 import * as RTE from 'fp-ts/lib/ReaderTaskEither';
+import * as TE from 'fp-ts/lib/TaskEither';
 import * as C from 'io-ts/lib/Codec.js';
 import { DesktopSidebar } from '~/components/DesktopSidebar';
 import { Footer } from '~/components/footer/Footer';
 import { MobileTopbar } from '~/components/MobileTopbar';
+import { userPrefs } from '~/cookies.server';
 import { getUserOrRedirect } from '~/loaders/getUserOrRedirect';
 import { loaderFromRte } from '~/utils/loaderFromRte.server';
 
@@ -28,14 +31,14 @@ const wireCodec = pipe(
   C.intersect(
     C.partial({
       projectMonthlyUsage: MonthlyUsage.codec,
+      userPrefs: UserPrefs.codec('string'),
     }),
   ),
 );
 
 export default () => {
-  const { projects, user, projectMonthlyUsage } = e.unsafeGetOrThrow(
-    pipe(useLoaderData(), wireCodec.decode),
-  );
+  const { projects, user, projectMonthlyUsage, userPrefs } =
+    e.unsafeGetOrThrow(pipe(useLoaderData(), wireCodec.decode));
 
   return (
     <RootStyledFlex flexDir="column" maxW="full" top={0}>
@@ -45,6 +48,7 @@ export default () => {
           user={user}
           projects={projects}
           projectMonthlyUsage={projectMonthlyUsage}
+          initialNavSize={userPrefs?.initialNavSize}
         />
         <Flex
           overflow="scroll"
@@ -66,6 +70,18 @@ export default () => {
   );
 };
 
+const getUserPrefs = (request: Request) =>
+  pipe(
+    TE.tryCatch(
+      async () => {
+        return await userPrefs.parse(request.headers.get('Cookie'));
+      },
+      (e) => e as Error,
+    ),
+    TE.chainEitherKW(UserPrefs.codec('string').decode),
+    RTE.fromTaskEither,
+  );
+
 export const loader: LoaderFunction = async ({ request }) =>
   loaderFromRte(
     pipe(
@@ -84,9 +100,8 @@ export const loader: LoaderFunction = async ({ request }) =>
           ? getProjectUsageFromSlug({ projectSlug })
           : RTE.right(undefined),
       ),
-      RTE.map(({ projects, user, projectMonthlyUsage }) =>
-        wireCodec.encode({ projects, user, projectMonthlyUsage }),
-      ),
+      RTE.bindW('userPrefs', () => getUserPrefs(request)),
+      RTE.map(wireCodec.encode),
     ),
   );
 

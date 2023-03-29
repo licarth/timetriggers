@@ -8,6 +8,7 @@ import {
   Tooltip,
   useColorModeValue,
 } from '@chakra-ui/react';
+import { FiExternalLink } from 'react-icons/fi';
 import type { NavItemProps } from './NavItemProps';
 
 export const NavItem = ({
@@ -18,6 +19,7 @@ export const NavItem = ({
   disabled,
   comingSoon,
   href,
+  externalLink,
 }: NavItemProps) => {
   const activeColor = useColorModeValue('gray.200', 'gray.700');
   const textColor = useColorModeValue('gray.900', 'white');
@@ -48,6 +50,13 @@ export const NavItem = ({
                 >
                   {title}
                 </Text>
+                {externalLink && navSize === 'large' && (
+                  <Icon
+                    as={FiExternalLink}
+                    alignSelf="center"
+                    ml={2}
+                  />
+                )}
               </Flex>
             </MenuButton>
           </Tooltip>

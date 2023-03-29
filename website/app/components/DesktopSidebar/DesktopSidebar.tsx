@@ -14,12 +14,14 @@ type SidebarProps = {
   user?: FirebaseUser;
   projects?: Project[];
   projectMonthlyUsage?: MonthlyUsage;
+  initialNavSize?: NavSize;
 };
 
 export const DesktopSidebar = ({
   user,
   projects,
   projectMonthlyUsage,
+  initialNavSize = 'large',
 }: SidebarProps) => {
   const { pathname } = useLocation();
   const [screenWidth, setScreenWidth] = useState<number>();
@@ -29,9 +31,23 @@ export const DesktopSidebar = ({
       setScreenWidth(window.innerWidth);
   }, []);
 
-  const [navSize, setNavSize] = useState<NavSize>('large');
+  const [navSize, setNavSizeState] =
+    useState<NavSize>(initialNavSize);
+
+  const setNavSize = (navSize: NavSize) => {
+    setNavSizeState(navSize);
+    // Save in Cookies
+    fetch('/api/user-prefs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ initialNavSize: navSize }),
+    });
+  };
 
   useEffect(() => {
+    // If the screen is too small, set navSize to small
     if (screenWidth && screenWidth < 768) {
       setNavSize('small');
     }

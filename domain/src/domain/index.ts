@@ -20,3 +20,4 @@ export * from "./ScheduledAt";
 export * from "./Shard";
 export * from "./StartedAt";
 export * from "./Url";
+export * from "./UserPrefs";

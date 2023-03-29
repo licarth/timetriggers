@@ -71,8 +71,9 @@ export const MenuElements = ({
       <Flex flexDir={'column'} overflowY="scroll" w="full">
         {selectedProjectSlug && (
           <>
-            {projects && projects?.length > 1 && (
-              <>
+            {projects &&
+              projects?.length > 1 &&
+              navSize === 'large' && (
                 <Select
                   mt={8}
                   mb={4}
@@ -85,8 +86,7 @@ export const MenuElements = ({
                     </option>
                   ))}
                 </Select>
-              </>
-            )}
+              )}
             {projectMonthlyUsage && project && (
               <ProjectUsage
                 hidden={navSize === 'small'}
@@ -125,8 +125,8 @@ export const MenuElements = ({
           navSize={navSize}
           title="Docs"
           icon={BsBook}
-          disabled
-          comingSoon
+          href="/docs"
+          externalLink
         />
       </Flex>
     </Flex>

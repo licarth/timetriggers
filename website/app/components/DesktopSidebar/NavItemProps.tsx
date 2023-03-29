@@ -1,6 +1,7 @@
 import type { As } from '@chakra-ui/react';
+import type { UserPrefs } from '@timetriggers/domain';
 
-export type NavSize = 'small' | 'large';
+export type NavSize = UserPrefs['initialNavSize'];
 
 export type NavItemProps = {
   navSize: NavSize;
@@ -10,4 +11,5 @@ export type NavItemProps = {
   disabled?: boolean;
   comingSoon?: boolean;
   href?: string;
+  externalLink?: boolean;
 };
