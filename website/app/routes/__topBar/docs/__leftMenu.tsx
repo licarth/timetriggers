@@ -74,7 +74,7 @@ const DocsTableOfContents = () => {
         as="h5"
         onClick={() => !isDesktop && setIsOpen((v) => !v)}
       >
-        {smallCaps('TABLE OF CONTENTS')}
+        {smallCaps(`${isOpen ? '▲' : '▼'} TABLE OF CONTENTS`)}
       </Heading>
       {(isOpen || isDesktop) &&
         links.map(({ text, link, children }) => (
