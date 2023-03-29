@@ -25,6 +25,8 @@ export class UserPrefs {
 
   static codec = (codecType: CodecType) =>
     taggedVersionedClassCodec(this.propsCodec(codecType), this);
+
+  static default = () => new UserPrefs({ initialNavSize: "large" });
 }
 
 export type UserPrefsProps = Codec.TypeOf<

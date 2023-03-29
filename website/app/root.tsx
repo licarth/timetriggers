@@ -18,6 +18,7 @@ import {
 import type { GlobalProps } from '@emotion/react';
 import { withEmotionCache } from '@emotion/react';
 import type {
+  ErrorBoundaryComponent,
   LinksFunction,
   LoaderArgs,
   MetaFunction,
@@ -32,7 +33,7 @@ import { FirebaseAuthProvider } from './contexts/FirebaseAuthContext';
 import { environmentVariable } from './environmentVariable';
 import { initializeFirebaseWeb } from './initializeFirebaseWeb';
 
-export let links: LinksFunction = () => {
+export const links: LinksFunction = () => {
   return [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com' },
@@ -63,6 +64,24 @@ export async function loader({ request }: LoaderArgs) {
     },
   });
 }
+
+export const ErrorBoundary: ErrorBoundaryComponent = ({ error }) => {
+  return (
+    <html>
+      <head>
+        <title>Oh no!</title>
+        <Meta />
+        <Links />
+      </head>
+      <body>
+        <p>
+          Something really wrong happened. Sorry. We're working on it.
+        </p>
+        <Scripts />
+      </body>
+    </html>
+  );
+};
 
 const Document = withEmotionCache(
   ({ children }: DocumentProps, emotionCache) => {
@@ -143,13 +162,7 @@ export default function App() {
   };
 
   const components = {};
-  const colors = {
-    // brand: {
-    //   900: "#1a365d",
-    //   800: "#153e75",
-    //   700: "#2a69ac",
-    // },
-  };
+  const colors = {};
 
   // 3. extend the theme
   const theme = extendTheme({

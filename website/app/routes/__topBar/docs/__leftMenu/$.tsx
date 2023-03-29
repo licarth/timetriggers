@@ -37,7 +37,6 @@ import React from 'react';
 import {
   CodeExample,
   DateFunctionsCalculator,
-  H1,
   HttpHeader,
   StatusCodeTag,
 } from '~/components';
@@ -459,13 +458,5 @@ const smallCaps = (text: string) => {
     <Text as="span" textTransform="uppercase" fontSize="xs">
       {text}
     </Text>
-  );
-};
-
-export const ErrorBoundary = ({ error }: { error: Error }) => {
-  return (
-    <Container>
-      <H1 mt="5">Oops ! {error.message}</H1>
-    </Container>
   );
 };

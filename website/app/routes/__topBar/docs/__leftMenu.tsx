@@ -1,10 +1,4 @@
-import {
-  Box,
-  HStack,
-  Stack,
-  Text,
-  useColorModeValue,
-} from '@chakra-ui/react';
+import { HStack, Stack, useColorModeValue } from '@chakra-ui/react';
 import { Link, Outlet } from '@remix-run/react';
 
 export default function Route() {
@@ -73,13 +67,5 @@ const DocsTableOfContents = () => {
         </Stack>
       ))}
     </Stack>
-  );
-};
-
-export const ErrorBoundary = ({ error }: { error: Error }) => {
-  return (
-    <Box>
-      <Text>{error.message}</Text>
-    </Box>
   );
 };

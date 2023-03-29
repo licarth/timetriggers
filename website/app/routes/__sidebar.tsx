@@ -3,6 +3,8 @@ import styled from '@emotion/styled';
 import { Outlet, useLoaderData } from '@remix-run/react';
 import type { LoaderFunction } from '@remix-run/server-runtime';
 import type { ProjectSlug } from '@timetriggers/domain';
+import { loaderFromRte } from '~/utils/loaderFromRte.server';
+
 import {
   e,
   FirebaseUser,
@@ -12,16 +14,18 @@ import {
   Project,
   UserPrefs,
 } from '@timetriggers/domain';
-import { pipe } from 'fp-ts/lib/function';
+import * as E from 'fp-ts/lib/Either.js';
+import { flow, pipe } from 'fp-ts/lib/function';
 import * as RTE from 'fp-ts/lib/ReaderTaskEither';
 import * as TE from 'fp-ts/lib/TaskEither';
 import * as C from 'io-ts/lib/Codec.js';
+import * as D from 'io-ts/lib/Decoder.js';
 import { DesktopSidebar } from '~/components/DesktopSidebar';
+import { ErrorContainer } from '~/components/ErrorContainer';
 import { Footer } from '~/components/footer/Footer';
 import { MobileTopbar } from '~/components/MobileTopbar';
 import { userPrefs } from '~/cookies.server';
 import { getUserOrRedirect } from '~/loaders/getUserOrRedirect';
-import { loaderFromRte } from '~/utils/loaderFromRte.server';
 
 const wireCodec = pipe(
   C.struct({
@@ -70,7 +74,7 @@ export default () => {
   );
 };
 
-const getUserPrefs = (request: Request) =>
+const getUserPrefsOrDefault = (request: Request) =>
   pipe(
     TE.tryCatch(
       async () => {
@@ -78,12 +82,18 @@ const getUserPrefs = (request: Request) =>
       },
       (e) => e as Error,
     ),
-    TE.chainEitherKW(UserPrefs.codec('string').decode),
+    TE.chainEitherKW(
+      flow(
+        UserPrefs.codec('string').decode,
+        E.mapLeft((e) => new Error(D.draw(e))),
+      ),
+    ),
     RTE.fromTaskEither,
+    RTE.orElseW(() => RTE.right(UserPrefs.default())),
   );
 
-export const loader: LoaderFunction = async ({ request }) =>
-  loaderFromRte(
+export const loader: LoaderFunction = async ({ request }) => {
+  return loaderFromRte(
     pipe(
       RTE.Do,
       RTE.bindW('user', () => getUserOrRedirect(request, '/login')),
@@ -100,10 +110,16 @@ export const loader: LoaderFunction = async ({ request }) =>
           ? getProjectUsageFromSlug({ projectSlug })
           : RTE.right(undefined),
       ),
-      RTE.bindW('userPrefs', () => getUserPrefs(request)),
+      RTE.bindW('userPrefs', () => getUserPrefsOrDefault(request)),
       RTE.map(wireCodec.encode),
     ),
   );
+};
+
+export const ErrorBoundary = ({ error }: { error: Error }) => {
+  console.error(error);
+  return <ErrorContainer error={"That's all we know :/"} />;
+};
 
 const RootStyledFlex = styled(Flex)`
   height: 100%;
