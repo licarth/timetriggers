@@ -119,12 +119,7 @@ export const MobileTopbar = ({
               <Heading mt={8} size="md">
                 Resources
               </Heading>
-              <NavItem
-                title="Docs"
-                icon={BsBook}
-                disabled
-                comingSoon
-              />
+              <NavItem title="Docs" icon={BsBook} href="/docs" />
             </Flex>
           </ModalBody>
         </ModalContent>
