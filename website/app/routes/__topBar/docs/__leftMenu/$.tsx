@@ -3,7 +3,7 @@ import type {
   AlertStatus,
   CodeProps,
   ContainerProps,
-  TableProps,
+  TableProps
 } from '@chakra-ui/react';
 import {
   Alert,
@@ -21,7 +21,7 @@ import {
   Th,
   Tr,
   UnorderedList,
-  useColorModeValue,
+  useColorModeValue
 } from '@chakra-ui/react';
 import styled from '@emotion/styled';
 import type { RenderableTreeNode } from '@markdoc/markdoc';
@@ -38,10 +38,11 @@ import {
   CodeExample,
   DateFunctionsCalculator,
   HttpHeader,
-  StatusCodeTag,
+  StatusCodeTag
 } from '~/components';
 import { Footer } from '~/components/footer/Footer';
 import { Heading } from '~/components/Headings';
+import { smallCaps } from './smallCaps';
 
 const getArticleContent = async (article: string) => {
   // get from public folder
@@ -452,11 +453,3 @@ const PageTableOfContents = ({
     </Stack>
   </Stack>
 );
-
-const smallCaps = (text: string) => {
-  return (
-    <Text as="span" textTransform="uppercase" fontSize="xs">
-      {text}
-    </Text>
-  );
-};
