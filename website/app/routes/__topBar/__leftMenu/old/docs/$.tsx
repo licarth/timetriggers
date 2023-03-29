@@ -3,7 +3,7 @@ import type {
   AlertStatus,
   CodeProps,
   ContainerProps,
-  TableProps
+  TableProps,
 } from '@chakra-ui/react';
 import {
   Alert,
@@ -21,7 +21,7 @@ import {
   Th,
   Tr,
   UnorderedList,
-  useColorModeValue
+  useColorModeValue,
 } from '@chakra-ui/react';
 import styled from '@emotion/styled';
 import type { RenderableTreeNode } from '@markdoc/markdoc';
@@ -38,18 +38,19 @@ import {
   CodeExample,
   DateFunctionsCalculator,
   HttpHeader,
-  StatusCodeTag
+  StatusCodeTag,
 } from '~/components';
 import { Footer } from '~/components/footer/Footer';
 import { Heading } from '~/components/Headings';
-import { smallCaps } from './smallCaps';
+import { smallCaps } from '../../../smallCaps';
 
 const getArticleContent = async (article: string) => {
   // get from public folder
+
+  const a = article || 'index';
+
   const response = await fetch(
-    `http://localhost:${
-      process.env.PORT || 3000
-    }/articles/${article}.md`,
+    `http://localhost:${process.env.PORT || 3000}/md/docs/${a}.md`,
   );
   if (!response.ok) {
     return null;
@@ -59,13 +60,14 @@ const getArticleContent = async (article: string) => {
 
 export async function loader({ params }: LoaderArgs) {
   // here get the MD from your fs using or a database
+  console.log('params', params['*']);
   if (!params['*']) return json('article-not-found' as const);
 
-  let markdown = await getArticleContent(params['*']);
+  const markdown = await getArticleContent(params['*']);
   if (!markdown) {
     return json('article-not-found' as const);
   }
-  let ids: string[] = [];
+  const ids: string[] = [];
   const makeIdUnique = (candidate: string) => {
     let id: string;
     if (ids.includes(candidate)) {
@@ -80,13 +82,13 @@ export async function loader({ params }: LoaderArgs) {
     ids.push(id);
     return id;
   };
-  let ast = Markdoc.parse(markdown);
+  const ast = Markdoc.parse(markdown);
   const frontmatter = (
     ast.attributes.frontmatter
       ? yaml.load(ast.attributes.frontmatter)
       : {}
   ) as Record<string, string>;
-  let content = Markdoc.transform(ast, {
+  const content = Markdoc.transform(ast, {
     variables: {
       frontmatter,
     },

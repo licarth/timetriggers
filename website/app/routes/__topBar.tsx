@@ -97,6 +97,9 @@ export default () => {
                       <Link to="/docs">
                         <MenuItem>Docs</MenuItem>
                       </Link>
+                      <Link to="/blog">
+                        <MenuItem>Blog</MenuItem>
+                      </Link>
                       <MenuDivider />
                       <Link to={'login'}>
                         <MenuItem>Sign In</MenuItem>
@@ -118,6 +121,9 @@ export default () => {
                     </Link>
                     <Link to="/docs">
                       <Button variant={'link'}>Docs</Button>
+                    </Link>
+                    <Link to="/blog">
+                      <Button variant={'link'}>Blog</Button>
                     </Link>
                   </HStack>
                 )}
