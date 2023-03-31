@@ -100,21 +100,21 @@ export const MenuElements = ({
               title="Api Keys"
               icon={BsKey}
               active={currentProjectPath === 'api_keys'}
-              href="api_keys"
+              href="../api_keys"
             />
             <NavItem
               navSize={navSize}
               title="Triggers"
               icon={BsCollectionPlayFill}
               active={currentProjectPath === 'triggers'}
-              href="triggers"
+              href="../triggers"
             />
             <NavItem
               navSize={navSize}
               title="Settings"
               icon={BsGearFill}
               active={currentProjectPath === 'settings'}
-              href="settings"
+              href="../settings"
             />
           </>
         )}

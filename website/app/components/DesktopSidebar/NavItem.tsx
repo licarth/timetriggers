@@ -1,13 +1,14 @@
 import {
   Flex,
   Icon,
-  Link,
+  Link as ChakraLink,
   Menu,
   MenuButton,
   Text,
   Tooltip,
   useColorModeValue,
 } from '@chakra-ui/react';
+import { Link as RemixLink } from '@remix-run/react';
 import { FiExternalLink } from 'react-icons/fi';
 import type { NavItemProps } from './NavItemProps';
 
@@ -24,6 +25,8 @@ export const NavItem = ({
   const activeColor = useColorModeValue('gray.200', 'gray.700');
   const textColor = useColorModeValue('gray.900', 'white');
   const disabledColor = useColorModeValue('gray.300', 'gray.600');
+
+  console.log(href);
   return (
     <Flex
       mt={15}
@@ -32,8 +35,10 @@ export const NavItem = ({
       alignItems={navSize === 'small' ? 'center' : 'flex-start'}
     >
       <Menu placement="right">
-        <Link
-          href={href}
+        <ChakraLink
+          relative="path"
+          as={RemixLink}
+          to={href || '#'}
           padding={3}
           borderRadius={8}
           bgColor={active ? activeColor : 'none'}
@@ -60,7 +65,7 @@ export const NavItem = ({
               </Flex>
             </MenuButton>
           </Tooltip>
-        </Link>
+        </ChakraLink>
       </Menu>
     </Flex>
   );
