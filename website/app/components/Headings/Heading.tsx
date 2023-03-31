@@ -1,10 +1,14 @@
 import type { HeadingProps } from '@chakra-ui/react';
 import {
+  Box,
   Heading as ChakraHeading,
   Icon,
   LinkBox,
+  useBreakpointValue,
 } from '@chakra-ui/react';
+import styled from '@emotion/styled';
 import { Link } from '@remix-run/react';
+import _ from 'lodash';
 import { FaLink } from 'react-icons/fa';
 
 type SupportedHeadingType = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
@@ -16,41 +20,58 @@ export const Heading = function (
     centered?: boolean;
   } & HeadingProps,
 ) {
-  const linkProps = p.id ? { as: Link, to: `#${p.id}` } : {};
+  const linkProps = p.id ? { as: Link, to: `#${p.id}` } : { to: '#' };
+
+  const anchorOffset = useBreakpointValue({
+    base: '-4em',
+    md: '0',
+  });
+
   return (
     // @ts-ignore
-    <LinkBox
-      role="group"
-      position={'relative'}
-      display={'inline-block'}
-      {...linkProps}
-    >
-      {p.id && (
-        <Icon
-          as={FaLink}
-          display={'none'}
-          position={'absolute'}
-          top={'50%'}
-          size={iconSizeFromAs(p.as || 'h1')}
-          w={iconSizeFromAs(p.as || 'h1')}
-          _groupHover={{ display: 'block' }}
-          transform={'translate(-200%, 0)'}
-        />
-      )}
-      <ChakraHeading
-        mb={mbFromLevel(p.as || 'h1')}
-        mt={mtFromLevel(p.as || 'h1')}
-        as={p.as || 'h1'}
-        fontWeight={'200'}
-        textAlign={p.centered ? 'center' : 'left'}
-        fontSize={sizeFromAs(p.as || 'h1')}
-        {...p}
+    <Box css={{ offsetAnchor: '0 10cm' }}>
+      <Anchor id={p.id} $offset={anchorOffset || '-2em'} />
+      <LinkBox
+        role="group"
+        position={'relative'}
+        display={'inline-block'}
+        {..._.omit(linkProps, 'id')}
       >
-        {p.children}
-      </ChakraHeading>
-    </LinkBox>
+        {p.id && (
+          <Icon
+            as={FaLink}
+            display={'none'}
+            position={'absolute'}
+            top={'50%'}
+            size={iconSizeFromAs(p.as || 'h1')}
+            w={iconSizeFromAs(p.as || 'h1')}
+            _hover={{ display: 'block' }}
+            _groupHover={{ display: 'block' }}
+            transform={'translate(-200%, 0)'}
+          />
+        )}
+        <ChakraHeading
+          mb={mbFromLevel(p.as || 'h1')}
+          mt={mtFromLevel(p.as || 'h1')}
+          as={p.as || 'h1'}
+          fontWeight={'200'}
+          textAlign={p.centered ? 'center' : 'left'}
+          fontSize={sizeFromAs(p.as || 'h1')}
+          {..._.omit(p, 'id')}
+        >
+          {p.children}
+        </ChakraHeading>
+      </LinkBox>
+    </Box>
   );
 };
+
+const Anchor = styled.a<{ $offset: string }>`
+  display: block;
+  position: relative;
+  top: ${({ $offset }) => $offset};
+  /* visibility: hidden; */
+`;
 
 const iconSizeFromAs = (as: SupportedHeadingType) => {
   switch (as) {

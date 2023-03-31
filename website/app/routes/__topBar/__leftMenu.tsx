@@ -6,22 +6,8 @@ import {
 } from '@chakra-ui/react';
 import { Link, Outlet, useLocation } from '@remix-run/react';
 import { useState } from 'react';
-import { smallCaps } from './smallCaps';
+import { smallCaps } from '~/utils/smallCaps';
 import { tableOfContents } from './tableOfContents';
-
-// export const loader: LoaderFunction = async ({ request }) => {
-//   const { pathname } = new URL(request.url);
-//   // extract first part of url
-//   const parts = pathname.split('/');
-//   const docsOrBlog = parts[1];
-//   if (docsOrBlog !== 'docs' && docsOrBlog !== 'blog') {
-//     return <></>;
-//   }
-//   if (parts.length < 3) {
-//     return redirect(tableOfContents[docsOrBlog][0].link);
-//   }
-//   return json({});
-// };
 
 export default function Route() {
   const isDesktop = useBreakpointValue({ base: false, md: true });

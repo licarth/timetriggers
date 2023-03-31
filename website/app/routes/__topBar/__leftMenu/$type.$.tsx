@@ -1,6 +1,7 @@
 import type {
   AlertProps,
   AlertStatus,
+  CheckboxProps,
   CodeProps,
   ContainerProps,
   TableProps,
@@ -9,6 +10,7 @@ import {
   Alert,
   AlertIcon,
   Box,
+  Checkbox,
   Code,
   Container,
   ListItem,
@@ -32,8 +34,9 @@ import type { LinkProps } from '@remix-run/react';
 import { Link, useLoaderData } from '@remix-run/react';
 import copy from 'copy-to-clipboard';
 import yaml from 'js-yaml'; // or 'toml', etc.
+import path from 'path';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   CodeExample,
   DateFunctionsCalculator,
@@ -42,7 +45,9 @@ import {
 } from '~/components';
 import { Footer } from '~/components/footer/Footer';
 import { Heading } from '~/components/Headings';
-import { smallCaps } from '../smallCaps';
+import type { ModalImageProps } from '~/components/Markdown';
+import { ModalImage } from '~/components/Markdown';
+import { smallCaps } from '~/utils/smallCaps';
 import { tableOfContents } from '../tableOfContents';
 
 const getArticleContent = async ({
@@ -69,21 +74,23 @@ export async function loader({ params, request }: LoaderArgs) {
   const { pathname } = new URL(request.url);
   const parts = pathname.split('/');
   const blogOrDocs = parts[1];
-  console.log('parts', parts);
   // extract first part of url
 
   if (blogOrDocs !== 'docs' && blogOrDocs !== 'blog') {
-    return json(null);
+    throw new Response('Not found', { status: 404 });
   }
+
   if (parts.length < 3) {
     return redirect(tableOfContents[blogOrDocs][0].link);
   }
 
   if (!params['*']) return json('article-not-found' as const);
+
   const markdown = await getArticleContent({
     article: params['*'],
     blogOrDocs,
   });
+
   if (!markdown) {
     return json('article-not-found' as const);
   }
@@ -113,6 +120,18 @@ export async function loader({ params, request }: LoaderArgs) {
       frontmatter,
     },
     tags: {
+      checkbox: {
+        render: 'Checkbox',
+        transform(node, config) {
+          return new Tag(
+            this.render,
+            {
+              children: node.transformChildren(config),
+            },
+            node.transformChildren(config),
+          );
+        },
+      },
       status_code: {
         render: 'StatusCodeTag',
         transform(node, config) {
@@ -178,6 +197,20 @@ export async function loader({ params, request }: LoaderArgs) {
       ),
     },
     nodes: {
+      image: {
+        render: 'Image',
+        transform(node, config) {
+          return new Tag(
+            this.render,
+            {
+              src: node.attributes.src,
+              alt: node.attributes.alt,
+              title: node.attributes.title,
+            },
+            node.transformChildren(config),
+          );
+        },
+      },
       link: {
         render: 'Link',
         transform(node, config) {
@@ -269,7 +302,12 @@ export async function loader({ params, request }: LoaderArgs) {
   });
   const headings = collectHeadings(content);
 
-  return json({ content, headings, frontmatter });
+  return json({
+    content,
+    headings,
+    frontmatter,
+    articlePath: pathname,
+  });
 }
 
 type HeadingSection = {
@@ -359,7 +397,7 @@ export default function Route() {
     );
   }
 
-  const { content, headings } = response;
+  const { content, headings, articlePath } = response;
 
   return (
     <>
@@ -367,9 +405,27 @@ export default function Route() {
         <Stack maxW={{ base: 'full', md: 'full' }} m={'auto'} p={3}>
           {Markdoc.renderers.react(content, React, {
             components: {
+              Checkbox: (props: CheckboxProps) => {
+                const [isChecked, setChecked] = useState(false);
+                return (
+                  <Text
+                    textDecoration={
+                      isChecked ? 'line-through' : 'none'
+                    }
+                    color={isChecked ? 'gray.400' : 'inherit'}
+                  >
+                    <Checkbox
+                      {...props}
+                      onChange={() => setChecked((s) => !s)}
+                    >
+                      {props.children}
+                    </Checkbox>
+                  </Text>
+                );
+              },
               DateFunctionsCalculator,
               CodeExample,
-              Heading: Heading,
+              Heading,
               InlineCode: (p: CodeProps) => (
                 <Code
                   lineHeight={'120%'}
@@ -389,6 +445,16 @@ export default function Route() {
               Text,
               StatusCodeTag,
               HttpHeader,
+              Image: (props: ModalImageProps) => (
+                <ModalImage
+                  {...props}
+                  src={path.join(
+                    `/md/${articlePath}/`,
+                    '..',
+                    props.src,
+                  )}
+                />
+              ),
               Link: ({
                 href,
                 children,
@@ -446,6 +512,7 @@ const StyledContainer = ({ children }: ContainerProps) => {
       maxW={{ base: 'full', md: 'full' }}
       mt={{ base: 3, md: 10 }}
       overflowY="scroll"
+      mx={{ base: 0, md: 3 }}
     >
       {children}
     </SContainer>
