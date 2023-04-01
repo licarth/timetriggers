@@ -197,6 +197,11 @@ const JobLine = ({ job: jobDocument }: { job: JobDocument }) => {
           >
             <Box p={2} m={2}>
               <Text>id: {jobDocument.jobDefinition.id}</Text>
+              {jobDocument.jobDefinition.customKey && (
+                <Text>
+                  custom key: {jobDocument.jobDefinition.customKey}
+                </Text>
+              )}
               <Text>
                 Scheduled At{' '}
                 <Code fontSize={'0.8em'}>

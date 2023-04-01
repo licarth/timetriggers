@@ -1,5 +1,6 @@
 import {
   Clock,
+  CustomKey,
   e,
   getOneFromFirestore,
   HttpCallCompleted,
@@ -48,6 +49,7 @@ export class FirestoreDatastore implements Datastore {
   private readonly firestore;
   private readonly namespace;
   readonly rootJobsCollectionPath;
+  readonly rootProjectsCollectionPath;
 
   private state: State = "starting";
 
@@ -56,6 +58,7 @@ export class FirestoreDatastore implements Datastore {
     this.firestore = props.firestore;
     this.namespace = props.namespace;
     this.rootJobsCollectionPath = `/namespaces/${props.namespace}/jobs`;
+    this.rootProjectsCollectionPath = `/namespaces/${props.namespace}/projects`;
     console.log(
       `Initializing FirestoreDatastore with root path: ${this.rootJobsCollectionPath}`
     );
@@ -132,9 +135,8 @@ export class FirestoreDatastore implements Datastore {
   ) {
     return TE.tryCatch(
       async () => {
-        const id = JobId.factory();
-        const jobDefinition = new JobDefinition({ ...args, id });
-        const jobDocumentRef = this.jobDocRef(id);
+        const newJobId = JobId.factory();
+        const jobDefinition = new JobDefinition({ ...args, id: newJobId });
         const scheduledWithin =
           jobDefinition.scheduledAt.getTime() - this.clock.now().getTime();
         const doc = {
@@ -143,7 +145,7 @@ export class FirestoreDatastore implements Datastore {
               jobDefinition,
               projectId,
               shards: shardingAlgorithm
-                ? shardingAlgorithm(id).map((s) => s.toString())
+                ? shardingAlgorithm(newJobId).map((s) => s.toString())
                 : [],
               status: new JobStatus({
                 value: "registered",
@@ -159,13 +161,80 @@ export class FirestoreDatastore implements Datastore {
             "2h": scheduledWithin < 1000 * 60 * 60 * 2,
           },
         };
-        const newLocal = {
+        const jobWithServerTimestamp = {
           ..._.merge(doc, {
             status: { registeredAt: FieldValue.serverTimestamp() },
           }),
         };
-        await jobDocumentRef.set(newLocal);
-        return id;
+        await this.firestore.runTransaction(async (t) => {
+          const customKeyAlreadyExists =
+            (args.customKey &&
+              (await t.get(this.customKeyRef(projectId, args.customKey)))
+                .exists) ||
+            false;
+          const existingJobIdFromCustomKey =
+            args.customKey &&
+            ((await t.get(this.customKeyRef(projectId, args.customKey))).get(
+              "id"
+            ) as JobId);
+          console.log("customKeyAlreadyExists", customKeyAlreadyExists);
+          console.log("existingJobIdFromCustomKey", existingJobIdFromCustomKey);
+          if (args.id) {
+            const existingJobRef = this.jobDocRef(args.id);
+            // trigger id provided
+            // it has to exist already
+            const existingJobDoc = await t.get(existingJobRef).then((doc) => {
+              if (!doc.exists) {
+                throw `Failed to reschedule job ${newJobId}: job does not exist` as const;
+              }
+              return pipe(
+                JobDocument.codec("firestore").decode(doc.data()!),
+                e.unsafeGetOrThrow
+              );
+            });
+            if (args.customKey || existingJobDoc.jobDefinition.customKey) {
+              if (existingJobDoc.jobDefinition.customKey === args.customKey) {
+                // Same custom key, nothing to do
+              } else {
+                // New custom key, just make sure no other job already has it, in the same project
+                if (customKeyAlreadyExists) {
+                  throw `Failed to reschedule job ${newJobId}: custom key ${args.customKey} already exists` as const;
+                }
+                t.delete(
+                  this.customKeyRef(
+                    projectId,
+                    existingJobDoc.jobDefinition.customKey!
+                  )
+                );
+              }
+              // Make sure no other job has the same custom key, except the existing one
+            }
+            t.update(existingJobRef, {
+              status: { value: "cancelled" },
+            });
+          }
+          t.create(this.jobDocRef(newJobId), jobWithServerTimestamp);
+          // custom key without id provided, 2 possibilities: schedule or reschedule
+          if (args.customKey) {
+            if (customKeyAlreadyExists && existingJobIdFromCustomKey) {
+              t.update(this.jobDocRef(existingJobIdFromCustomKey), {
+                status: { value: "cancelled" },
+              });
+            }
+            if (!projectId) {
+              throw `projectId is required when using customKey` as const;
+            }
+            // Store in subcollection  project > custom-keys > {customKey} the job id
+            console.log(
+              "setting custom key record",
+              this.customKeyRef(projectId, args.customKey).path
+            );
+            t.set(this.customKeyRef(projectId, args.customKey), {
+              id: newJobId,
+            });
+          }
+        });
+        return newJobId;
       },
       (reason) => `Failed to schedule job: ${reason}`
     );
@@ -770,9 +839,13 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
   }
 
   jobDocRef(jobId: JobId) {
-    return this.firestore
-      .collection(`${this.rootJobsCollectionPath}`)
-      .doc(jobId);
+    return this.firestore.collection(this.rootJobsCollectionPath).doc(jobId);
+  }
+
+  customKeyRef(projectId: ProjectId | undefined, customKey: CustomKey) {
+    return this.firestore.doc(
+      `${this.rootProjectsCollectionPath}/${projectId}/custom-keys/${customKey}`
+    );
   }
 }
 

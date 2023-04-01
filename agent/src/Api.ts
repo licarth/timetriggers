@@ -1,11 +1,11 @@
+import { JobId, JobScheduleArgs, ProjectId } from "@timetriggers/domain";
 import * as TE from "fp-ts/lib/TaskEither.js";
-import { JobId, ProjectId } from "@timetriggers/domain";
-import { JobScheduleArgs } from "@timetriggers/domain";
 
 /**
  * Main interface for scheduling a callback.
  */
 export interface Api {
+  // Schedule or re-schedule if exists
   schedule(
     args: JobScheduleArgs,
     projectId?: ProjectId

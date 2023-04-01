@@ -1,7 +1,6 @@
 import { SystemClock } from "@timetriggers/domain";
 import "source-map-support/register.js";
 import { environmentVariable } from "./environmentVariable";
-import { te } from "./fp-ts";
 import { getOrReportToSentry } from "./Sentry/getOrReportToSentry";
 import { initSentry } from "./Sentry/Sentry";
 import { start } from "./start";

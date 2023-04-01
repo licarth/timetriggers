@@ -1,15 +1,15 @@
+import { e } from "@/fp-ts";
+import { CodecType } from "@/project";
+import { fromClassCodec } from "@iots/index.js";
+import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
-import { fromClassCodec } from "@iots/index.js";
-import { RegisteredAt } from "./RegisteredAt";
-import { QueuedAt } from "./QueuedAt";
-import { CodecType } from "@/project";
-import { StartedAt } from "./StartedAt";
 import { CompletedAt } from "./CompletedAt";
-import * as E from "fp-ts/lib/Either.js";
-import { e } from "@/fp-ts";
-import { ScheduledAt } from "./ScheduledAt";
+import { QueuedAt } from "./QueuedAt";
 import { RateLimitedAt } from "./RateLimit";
+import { RegisteredAt } from "./RegisteredAt";
+import { ScheduledAt } from "./ScheduledAt";
+import { StartedAt } from "./StartedAt";
 
 export class JobStatus {
   value;
@@ -51,6 +51,10 @@ export class JobStatus {
   enqueue(queuedAt: QueuedAt) {
     this.value = "queued";
     this.queuedAt = queuedAt;
+  }
+
+  cancel() {
+    this.value = "cancelled";
   }
 
   markAsRunning(startedAt: StartedAt) {
@@ -124,6 +128,7 @@ export class JobStatus {
           "queued",
           "running",
           "completed",
+          "cancelled",
           "dead"
         ),
         registeredAt: RegisteredAt.codec(codecType),

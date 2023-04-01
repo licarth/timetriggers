@@ -3,7 +3,6 @@ import {
   ClusterNodeInformation,
   CoordinationClient,
 } from "@/Coordination/CoordinationClient";
-import { te } from "@/fp-ts";
 import { withTimeout } from "@/fp-ts/withTimeout";
 import { getOrReportToSentry } from "@/Sentry/getOrReportToSentry";
 import {
@@ -14,6 +13,7 @@ import {
   RateLimitKey,
   RegisteredAt,
   ScheduledAt,
+  te,
 } from "@timetriggers/domain";
 import chalk from "chalk";
 import { addMilliseconds } from "date-fns";

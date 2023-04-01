@@ -1,22 +1,25 @@
+import { CodecType } from "@/project";
+import { fromClassCodec } from "@iots";
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
-import { fromClassCodec } from "@iots";
-import { ScheduledAt } from "./ScheduledAt";
-import { JobId } from "./JobId";
 import { Clock } from "../Clock";
+import { CustomKey } from "./CustomKey";
 import { Http } from "./Http";
+import { JobId } from "./JobId";
 import { JobScheduleArgs } from "./JobScheduleArgs";
-import { CodecType } from "@/project";
+import { ScheduledAt } from "./ScheduledAt";
 
 export class JobDefinition {
   id;
   scheduledAt;
   http;
+  customKey;
 
   constructor(props: JobDefinitionProps) {
     this.id = props.id;
     this.scheduledAt = props.scheduledAt;
     this.http = props.http;
+    this.customKey = props.customKey;
   }
 
   static propsCodec = (codecType: CodecType) =>
@@ -25,6 +28,11 @@ export class JobDefinition {
       Codec.intersect(
         Codec.struct({
           id: JobId.codec,
+        })
+      ),
+      Codec.intersect(
+        Codec.partial({
+          customKey: CustomKey.codec,
         })
       )
     );

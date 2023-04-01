@@ -26,7 +26,6 @@ export const NavItem = ({
   const textColor = useColorModeValue('gray.900', 'white');
   const disabledColor = useColorModeValue('gray.300', 'gray.600');
 
-  console.log(href);
   return (
     <Flex
       mt={15}

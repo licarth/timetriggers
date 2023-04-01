@@ -1,7 +1,8 @@
 import type { Client as ZK } from "node-zookeeper-client";
 import ZooKeeper, { Exception } from "node-zookeeper-client";
-import { debounceTime, Observable, ReplaySubject } from "rxjs";
+import { Observable, ReplaySubject } from "rxjs";
 
+import { te } from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
@@ -9,7 +10,6 @@ import {
   ClusterNodeInformation,
   CoordinationClient,
 } from "./CoordinationClient";
-import { te } from "@/fp-ts";
 
 type ZookeeperCoordinationClientBuildProps = {
   namespace?: string;

@@ -3,9 +3,11 @@ import { rte } from "@/fp-ts";
 import { checkQuota, countUsage } from "@/useCases";
 import {
   Clock,
+  CustomKey,
   getProjectByApiKey,
   Headers,
   Http,
+  JobId,
   JobScheduleArgs,
   RawBody,
   ScheduledAt,
@@ -15,6 +17,17 @@ import bodyParser from "body-parser";
 import { Express } from "express";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
+
+const getLastHeaderValue = (
+  rawHeaders: NodeJS.Dict<string | string[]>,
+  key: string
+) => {
+  const value = rawHeaders[key];
+  if (Array.isArray(value)) {
+    return RTE.left("Header is an array" as const);
+  }
+  return RTE.of(value);
+};
 
 export const initializeEndpoints = ({
   app,
@@ -41,11 +54,19 @@ export const initializeEndpoints = ({
       const apiKeyValue = (req.headers["ttr-api-key"] as string) || "";
       const options =
         ((req.headers["ttr-options"] as string) || "").split(",") || [];
+      const triggerId = req.headers["ttr-trigger-id"];
+      const customKey = req.headers["ttr-custom-key"];
 
       await pipe(
         RTE.Do,
         RTE.bindW("url", () =>
           pipe(Url.parse(req.headers["ttr-url"]), RTE.fromEither)
+        ),
+        RTE.bindW("triggerId", () =>
+          getLastHeaderValue(req.headers, "ttr-trigger-id")
+        ),
+        RTE.bindW("customKey", () =>
+          getLastHeaderValue(req.headers, "ttr-custom-key")
         ),
         RTE.bindW("scheduledAt", () =>
           pipe(
@@ -59,9 +80,7 @@ export const initializeEndpoints = ({
             )
           )
         ),
-        // RTE.mapLeft(x => x),
         RTE.bindW("project", () => getProjectByApiKey({ apiKeyValue })),
-
         RTE.bindW("quota", ({ project }) =>
           pipe(
             checkQuota({ project }),
@@ -78,20 +97,24 @@ export const initializeEndpoints = ({
             req.body instanceof Buffer ? req.body.toString("utf8") : "";
           return RTE.of(new RawBody({ raw }));
         }),
-        RTE.bindW("jobScheduleArgs", ({ rawBody, scheduledAt, url }) =>
-          RTE.of(
-            new JobScheduleArgs({
-              scheduledAt,
-              http: new Http({
-                url,
-                options: {
-                  method: req.method,
-                  headers: Headers.fromExpress(req.headers),
-                  body: rawBody,
-                },
-              }),
-            })
-          )
+        RTE.bindW(
+          "jobScheduleArgs",
+          ({ rawBody, scheduledAt, url, triggerId, customKey }) =>
+            RTE.of(
+              new JobScheduleArgs({
+                scheduledAt,
+                id: triggerId as JobId,
+                customKey: customKey as CustomKey,
+                http: new Http({
+                  url,
+                  options: {
+                    method: req.method,
+                    headers: Headers.fromExpress(req.headers),
+                    body: rawBody,
+                  },
+                }),
+              })
+            )
         ),
         RTE.chainFirstW(
           ({

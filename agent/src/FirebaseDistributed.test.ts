@@ -5,6 +5,7 @@ import {
   JobScheduleArgs,
   ScheduledAt,
   SystemClock,
+  te,
   Url,
 } from "@timetriggers/domain";
 import { addSeconds } from "date-fns";
@@ -17,7 +18,6 @@ import { DatastoreApi } from "./Firebase/DatastoreApi.js";
 import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore";
 import { Processor } from "./Firebase/Processor/Processor.js";
 import { Scheduler } from "./Firebase/Processor/Scheduler.js";
-import { te } from "./fp-ts/te.js";
 import { CallbackReceiver } from "./test/CallbackReceiver.js";
 
 jest.setTimeout(20 * 1000);

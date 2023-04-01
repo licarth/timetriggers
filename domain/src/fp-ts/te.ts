@@ -23,11 +23,7 @@ export namespace te {
     return pipe(
       taskEither,
       TE.getOrElse((error) => {
-        if (error instanceof Error) {
-          throw error;
-        } else {
-          throw new Error(String(error));
-        }
+        throw error;
       })
     )();
   };

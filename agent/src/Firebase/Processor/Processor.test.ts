@@ -1,6 +1,5 @@
 import { AxiosWorkerPool } from "@/AxiosWorkerPool";
 import { externallyResolvablePromise } from "@/externallyResolvablePromise";
-import { te } from "@/fp-ts";
 import { sleep } from "@/sleep";
 import { CallbackReceiver } from "@/test/CallbackReceiver";
 import { Worker } from "@/Worker";
@@ -13,6 +12,7 @@ import {
   JobDocument,
   JobId,
   StatusCode,
+  te,
   TestClock,
   Url,
 } from "@timetriggers/domain";

@@ -18,8 +18,8 @@ import { loaderFromRte } from '~/utils/loaderFromRte.server';
 
 const wireCodec = C.array(Project.codec('string'));
 
-export const loader: LoaderFunction = async ({ request }) =>
-  loaderFromRte(
+export const loader: LoaderFunction = async ({ request }) => {
+  return loaderFromRte(
     pipe(
       RTE.Do,
       RTE.bind('user', () => getUserOrRedirect(request, '/login')),
@@ -35,6 +35,7 @@ export const loader: LoaderFunction = async ({ request }) =>
       RTE.map((projects) => wireCodec.encode(projects)),
     ),
   );
+};
 
 const Document = () => {
   const projects = e.unsafeGetOrThrow(

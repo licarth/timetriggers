@@ -1,7 +1,6 @@
 import { emulatorFirestore } from "@/Firebase/emulatorFirestore";
 import { FirestoreDatastore } from "@/Firebase/Processor/FirestoreDatastore";
-import { te } from "@/fp-ts";
-import { JobId } from "@timetriggers/domain";
+import { JobId, te } from "@timetriggers/domain";
 import { addSeconds } from "date-fns";
 import { initializeApp } from "../Firebase/initializeApp";
 

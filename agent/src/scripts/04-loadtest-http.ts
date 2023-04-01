@@ -6,13 +6,13 @@ import {
   humanReadibleCountdownBetween2Dates,
   humanReadibleMs,
 } from "@/Firebase/Processor/humanReadibleMs";
-import { te } from "@/fp-ts";
 import {
   Http,
   JobId,
   JobScheduleArgs,
   ScheduledAt,
   Shard,
+  te,
   Url,
 } from "@timetriggers/domain";
 import { initializeApp } from "../Firebase/initializeApp";

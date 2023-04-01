@@ -10,9 +10,8 @@ export namespace Url {
     if (typeof url !== "string") {
       throw "url is not a string" as const;
     }
-    const urlObject = new URL(url);
 
-    console.log(urlObject);
+    new URL(url); // Just to make sure it's a valid url
 
     return url as Url;
   };

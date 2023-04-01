@@ -1,3 +1,4 @@
+import { te } from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
@@ -14,7 +15,6 @@ import { Datastore } from "./Firebase/Processor/Datastore";
 import { FirestoreDatastore } from "./Firebase/Processor/FirestoreDatastore";
 import { Processor } from "./Firebase/Processor/Processor";
 import { Scheduler } from "./Firebase/Processor/Scheduler";
-import { te } from "./fp-ts";
 import { HttpApi, initializeHttpApi } from "./HttpApi/initializeHttpApi";
 
 type StartProps = {
