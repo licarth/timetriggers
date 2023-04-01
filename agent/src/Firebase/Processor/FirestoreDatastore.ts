@@ -177,8 +177,6 @@ export class FirestoreDatastore implements Datastore {
             ((await t.get(this.customKeyRef(projectId, args.customKey))).get(
               "id"
             ) as JobId);
-          console.log("customKeyAlreadyExists", customKeyAlreadyExists);
-          console.log("existingJobIdFromCustomKey", existingJobIdFromCustomKey);
           if (args.id) {
             const existingJobRef = this.jobDocRef(args.id);
             // trigger id provided
@@ -225,10 +223,6 @@ export class FirestoreDatastore implements Datastore {
               throw `projectId is required when using customKey` as const;
             }
             // Store in subcollection  project > custom-keys > {customKey} the job id
-            console.log(
-              "setting custom key record",
-              this.customKeyRef(projectId, args.customKey).path
-            );
             t.set(this.customKeyRef(projectId, args.customKey), {
               id: newJobId,
             });
