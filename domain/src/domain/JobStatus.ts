@@ -4,6 +4,7 @@ import { fromClassCodec } from "@iots/index.js";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as Codec from "io-ts/lib/Codec.js";
+import { CancelledAt } from "./CancelledAt";
 import { CompletedAt } from "./CompletedAt";
 import { QueuedAt } from "./QueuedAt";
 import { RateLimitedAt } from "./RateLimit";
@@ -18,6 +19,7 @@ export class JobStatus {
   queuedAt;
   startedAt;
   completedAt;
+  cancelledAt;
 
   constructor(props: JobStatusProps) {
     this.value = props.value;
@@ -26,6 +28,7 @@ export class JobStatus {
     this.queuedAt = props.queuedAt;
     this.startedAt = props.startedAt;
     this.completedAt = props.completedAt;
+    this.cancelledAt = props.cancelledAt;
   }
 
   getTimingsMs(scheduledAt: ScheduledAt) {
@@ -53,8 +56,9 @@ export class JobStatus {
     this.queuedAt = queuedAt;
   }
 
-  cancel() {
+  cancel(cancelledAt: CancelledAt) {
     this.value = "cancelled";
+    this.cancelledAt = cancelledAt;
   }
 
   markAsRunning(startedAt: StartedAt) {
@@ -139,6 +143,7 @@ export class JobStatus {
           startedAt: StartedAt.codec(codecType),
           completedAt: CompletedAt.codec(codecType),
           rateLimitedAt: RateLimitedAt.codec(codecType),
+          cancelledAt: CancelledAt.codec(codecType),
         })
       )
     );

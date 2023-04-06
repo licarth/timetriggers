@@ -22,12 +22,12 @@ export const tableOfContents: { docs: Article[]; blog: Article[] } = {
           link: '/docs/api/schedule',
         },
         {
-          text: 'Cancel a trigger',
-          link: '/docs/api/cancel',
+          text: 'Edit a trigger',
+          link: '/docs/api/edit',
         },
         {
-          text: 'Re-schedule a trigger',
-          link: '/docs/api/reschedule',
+          text: 'Cancel a trigger',
+          link: '/docs/api/cancel',
         },
       ],
     },

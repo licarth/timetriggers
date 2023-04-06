@@ -63,6 +63,7 @@ export const usePastProjectTriggers = ({
           'rate-limited',
           'running',
           'completed',
+          // 'cancelled', // TODO: Find a way to show cancelled triggers
           'dead',
         ]),
         orderBy('jobDefinition.scheduledAt', 'desc'),

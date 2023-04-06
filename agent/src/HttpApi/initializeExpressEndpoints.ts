@@ -54,8 +54,6 @@ export const initializeEndpoints = ({
       const apiKeyValue = (req.headers["ttr-api-key"] as string) || "";
       const options =
         ((req.headers["ttr-options"] as string) || "").split(",") || [];
-      const triggerId = req.headers["ttr-trigger-id"];
-      const customKey = req.headers["ttr-custom-key"];
 
       await pipe(
         RTE.Do,
@@ -182,6 +180,65 @@ export const initializeEndpoints = ({
           });
         })
       )({ firestore, namespace, clock })();
+    })
+    .all("/cancel", async (req, res) => {
+      const apiKeyValue = (req.headers["ttr-api-key"] as string) || "";
+
+      await pipe(
+        RTE.Do,
+        RTE.apSW(
+          "triggerId",
+          getLastHeaderValue(req.headers, "ttr-trigger-id")
+        ),
+        RTE.apSW(
+          "customKey",
+          getLastHeaderValue(req.headers, "ttr-custom-key")
+        ),
+        RTE.apSW("project", getProjectByApiKey({ apiKeyValue })),
+        RTE.chainFirstW(
+          ({ project: { id: projectId }, triggerId, customKey }) => {
+            const op = triggerId
+              ? api.cancel({ _tag: "JobId", jobId: triggerId as JobId })
+              : api.cancel({
+                  _tag: "CustomKey",
+                  customKey: customKey as CustomKey,
+                  projectId,
+                });
+            return pipe(
+              op,
+              RTE.fromTaskEither,
+              rte.sideEffect(() => {
+                res.sendStatus(200);
+              })
+            );
+          }
+          // Todo handle errors due to scheduling
+        ),
+
+        RTE.mapLeft((error) => {
+          if (error === "Project not found") {
+            res.setHeader("ttr-error", "Project not found");
+            res.sendStatus(404);
+          } else if (error === "Quota exceeded") {
+            res.setHeader("ttr-error", "quota exceeded");
+            res.sendStatus(402);
+          } else if (
+            typeof error === "string" &&
+            error.startsWith("date-parsing-error")
+          ) {
+            res.setHeader("ttr-error", error);
+            res.sendStatus(400);
+          } else {
+            console.error(error);
+            res.setHeader(
+              "ttr-error",
+              "internal error, please try again later"
+            );
+            res.sendStatus(500);
+          }
+          return error;
+        })
+      )({ firestore, namespace })();
     });
   return RTE.of(void 0);
 };

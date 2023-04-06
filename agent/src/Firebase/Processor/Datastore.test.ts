@@ -241,6 +241,38 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
         );
         expect(jobs.length).toBe(1);
       });
+      it("should not reschedule a job that already is in any other state than registered", async () => {
+        const projectId = ProjectId.factory();
+        const customKey = "customkey-1" as CustomKey;
+        const job = JobScheduleArgs.factory({
+          clock,
+          customKey,
+          scheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 0)),
+        });
+
+        // Wait until the job is done
+
+        const jobId = await te.unsafeGetOrThrow(
+          datastore.schedule(job, undefined, projectId)
+        );
+
+        job.id = jobId;
+        job.scheduledAt = ScheduledAt.fromDate(addHours(clock.now(), 10));
+        job.customKey = undefined;
+
+        // 2nd schedule of the same job
+        await te.unsafeGetOrThrow(
+          datastore.schedule(job, undefined, projectId)
+        );
+
+        const jobs = await te.unsafeGetOrThrow(
+          datastore.getRegisteredJobsByScheduledAt({
+            limit: 10,
+            maxScheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 24)),
+          })
+        );
+        expect(jobs.length).toBe(1);
+      });
     });
   });
 

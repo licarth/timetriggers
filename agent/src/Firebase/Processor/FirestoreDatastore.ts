@@ -29,6 +29,7 @@ import { emulatorFirestore } from "../emulatorFirestore";
 import { isFirebaseError } from "../isFirebaseError";
 import { shardedFirestoreQuery } from "../shardedFirestoreQuery";
 import {
+  CancelProps,
   Datastore,
   GetJobsScheduledBeforeArgs as GetJobsScheduledBetweenArgs,
   ShardingAlgorithm,
@@ -207,17 +208,22 @@ export class FirestoreDatastore implements Datastore {
               }
               // Make sure no other job has the same custom key, except the existing one
             }
-            t.update(existingJobRef, {
-              status: { value: "cancelled" },
-            });
+            // t.update(existingJobRef, {});
           }
           t.create(this.jobDocRef(newJobId), jobWithServerTimestamp);
           // custom key without id provided, 2 possibilities: schedule or reschedule
           if (args.customKey) {
             if (customKeyAlreadyExists && existingJobIdFromCustomKey) {
-              t.update(this.jobDocRef(existingJobIdFromCustomKey), {
-                status: { value: "cancelled" },
-              });
+              t.set(
+                this.jobDocRef(existingJobIdFromCustomKey),
+                {
+                  status: {
+                    value: "cancelled",
+                    cancelledAt: FieldValue.serverTimestamp(),
+                  },
+                },
+                { merge: true }
+              );
             }
             if (!projectId) {
               throw `projectId is required when using customKey` as const;
@@ -669,9 +675,12 @@ export class FirestoreDatastore implements Datastore {
     return pipe(
       TE.tryCatch(
         async () =>
-          await this.jobDocRef(jobId).update({
-            "status.value": "dead",
-          }),
+          await this.jobDocRef(jobId).set(
+            {
+              "status.value": "dead",
+            },
+            { merge: true }
+          ),
         (reason) => `failed to mark job ${jobId} as dead` as const
       ),
       TE.map(() => undefined)
@@ -747,25 +756,51 @@ export class FirestoreDatastore implements Datastore {
       TE.map(() => void 0)
     );
   }
-
-  cancel(jobId: JobId) {
+  cancel(args: CancelProps) {
     return TE.tryCatch(
       async () => {
-        const jobDefinitionRef = this.firestore
-          .collection(`${this.rootJobsCollectionPath}`)
-          .doc(jobId);
-        await this.firestore.runTransaction(async (transaction) => {
-          const jobDefinitionDoc = await transaction.get(jobDefinitionRef);
-          if (!jobDefinitionDoc.exists) {
-            throw new Error(`Job ${jobId} does not exist`);
-          } else if (jobDefinitionDoc.data()?.status.value !== "registered") {
-            throw new Error(`Job ${jobId} is not registered anymore`);
+        await this.firestore.runTransaction(async (t) => {
+          const doc = await this.getJobDefinitionDocument(t, args);
+          if (!doc.exists) {
+            throw `Job does not exist` as const;
+          } else if (doc.data()?.status.value !== "registered") {
+            throw `Job is not registered anymore` as const;
           }
-          transaction.delete(jobDefinitionRef, { exists: true });
+          if (args._tag === "CustomKey") {
+            t.delete(this.customKeyRef(args.projectId, args.customKey));
+          }
+
+          t.set(
+            doc.ref,
+            {
+              status: {
+                value: "cancelled",
+                cancelledAt: FieldValue.serverTimestamp(),
+              },
+            },
+            { merge: true }
+          );
         });
       },
       (reason) => new Error(`Failed to cancel job: ${reason}`)
     );
+  }
+
+  private async getJobDefinitionDocument(
+    t: FirebaseFirestore.Transaction,
+    args: CancelProps
+  ) {
+    if (args._tag === "CustomKey") {
+      const customKeyDoc = await t.get(
+        this.customKeyRef(args.projectId, args.customKey)
+      );
+      if (!customKeyDoc.exists) {
+        throw `Custom key ${args.customKey} does not exist` as const;
+      }
+      return await t.get(this.jobDocRef(customKeyDoc.data()?.id));
+    } else {
+      return await t.get(this.jobDocRef(args.jobId));
+    }
   }
 
   /**

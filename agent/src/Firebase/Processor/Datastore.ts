@@ -1,4 +1,5 @@
 import {
+  CustomKey,
   HttpCallLastStatus,
   JobDefinition,
   JobDocument,
@@ -26,6 +27,17 @@ export type LastKnownRegisteredJob = {
   id: JobId;
 };
 
+export type CancelProps =
+  | {
+      _tag: "JobId";
+      jobId: JobId;
+    }
+  | {
+      _tag: "CustomKey";
+      customKey: CustomKey;
+      projectId: ProjectId;
+    };
+
 export type WaitForRegisteredJobsByRegisteredAtArgs = {
   registeredAfter?: RegisteredAt;
   maxNoticePeriodMs: number; // Max Notice period for the job (ScheduledAt - RegisteredAt) in milliseconds
@@ -48,7 +60,8 @@ export interface Datastore {
     shardingAlgorithm?: ShardingAlgorithm,
     projectId?: ProjectId
   ): TE.TaskEither<any, JobId>;
-  cancel(jobId: JobId): TE.TaskEither<any, void>;
+
+  cancel(args: CancelProps): TE.TaskEither<any, void>;
 
   /**
    * This is a stream of registered jobs.

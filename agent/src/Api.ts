@@ -1,5 +1,6 @@
 import { JobId, JobScheduleArgs, ProjectId } from "@timetriggers/domain";
 import * as TE from "fp-ts/lib/TaskEither.js";
+import { CancelProps } from "./Firebase/Processor/Datastore";
 
 /**
  * Main interface for scheduling a callback.
@@ -10,6 +11,8 @@ export interface Api {
     args: JobScheduleArgs,
     projectId?: ProjectId
   ): TE.TaskEither<any, JobId>;
-  cancel(args: { jobId: JobId }): TE.TaskEither<any, void>;
+
+  cancel(args: CancelProps): TE.TaskEither<any, void>;
+
   close(): TE.TaskEither<any, void>;
 }

@@ -19,6 +19,7 @@ import _ from "lodash";
 import Multimap from "multimap";
 import { interval, Observable, Subscriber } from "rxjs";
 import {
+  CancelProps,
   Datastore,
   GetJobsScheduledBeforeArgs,
   ShardingAlgorithm,
@@ -227,8 +228,10 @@ export class InMemoryDataStore implements Datastore {
     return TE.right(undefined);
   }
 
-  cancel(jobId: JobId) {
-    this.registeredJobs.delete(jobId);
+  cancel(args: CancelProps) {
+    if (args._tag === "JobId") {
+      this.registeredJobs.delete(args.jobId);
+    }
     return TE.right(undefined);
   }
 
