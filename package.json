@@ -1,0 +1,14 @@
+{
+  "name": "timetriggers-root",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "agent",
+      "domain",
+      "website"
+    ]
+  },
+  "devDependencies": {
+    "typescript": "^4.9.3"
+  }
+}

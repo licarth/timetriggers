@@ -4,12 +4,7 @@ import type {
   LoaderFunction,
 } from '@remix-run/server-runtime';
 import { redirect } from '@remix-run/server-runtime';
-import {
-  createProject,
-  e,
-  projectExists,
-  ProjectSlug,
-} from '@timetriggers/domain';
+import { createProject, ProjectSlug } from '@timetriggers/domain';
 import { pipe } from 'fp-ts/lib/function';
 import * as RTE from 'fp-ts/lib/ReaderTaskEither';
 import { useLoaderData } from 'react-router';
@@ -25,6 +20,7 @@ import {
   actionFromRte,
   loaderFromRte,
 } from '~/utils/loaderFromRte.server';
+import { projectExists } from '../api/use-cases/projectExists';
 
 export const loader: LoaderFunction = ({ request }) =>
   loaderFromRte(
@@ -40,12 +36,22 @@ export const loader: LoaderFunction = ({ request }) =>
       // Check that the name is not already taken
       RTE.chainFirstW((name) =>
         pipe(
-          projectExists({
-            projectSlug: e.unsafeGetOrThrow(ProjectSlug.parse(name)),
-          }),
+          ProjectSlug.parse(name),
+          RTE.fromEither,
+          RTE.map((projectSlug) => ({ projectSlug })),
+          RTE.bindW('projectExists', ({ projectSlug }) =>
+            projectExists({
+              projectSlug,
+            }),
+          ),
+          // RTE.bindW('slugIsAvailable', ({ projectSlug }) =>
+          //   slugIsAvailable({
+          //     projectSlug,
+          //   }),
+          // ),
           //   RTE.orElse(() => RTE.right(undefined)), // If not exists, continue
-          RTE.chainW((exists) =>
-            exists ? RTE.left(redirect('')) : RTE.of(name),
+          RTE.chainW(({ projectExists }) =>
+            projectExists ? RTE.left(redirect('')) : RTE.of(name),
           ), // If exists, retry (via redirect)
         ),
       ),
