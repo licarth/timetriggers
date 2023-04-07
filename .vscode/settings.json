@@ -25,5 +25,6 @@
   "eslint.format.enable": true,
   "files.associations": {
     "*.md": "markdoc"
-  }
+  },
+  "typescript.tsdk": "./domain/node_modules/typescript/lib"
 }
