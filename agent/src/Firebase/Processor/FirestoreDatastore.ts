@@ -20,6 +20,8 @@ import {
 import { format } from "date-fns";
 import type { Firestore } from "firebase-admin/firestore";
 import { FieldValue } from "firebase-admin/firestore";
+import { either } from "fp-ts";
+import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { draw } from "io-ts/lib/Decoder.js";
@@ -757,32 +759,48 @@ export class FirestoreDatastore implements Datastore {
     );
   }
   cancel(args: CancelProps) {
-    return TE.tryCatch(
-      async () => {
-        await this.firestore.runTransaction(async (t) => {
-          const doc = await this.getJobDefinitionDocument(t, args);
-          if (!doc.exists) {
-            throw `Job does not exist` as const;
-          } else if (doc.data()?.status.value !== "registered") {
-            throw `Job is not registered anymore` as const;
-          }
-          if (args._tag === "CustomKey") {
-            t.delete(this.customKeyRef(args.projectId, args.customKey));
-          }
+    return pipe(
+      TE.tryCatch(
+        async () => {
+          return await this.firestore.runTransaction<
+            E.Either<CancelTransactionErrors, void>
+          >(async (t) => {
+            const docEither = await this.getJobDefinitionDocument(t, args);
+            if (E.isLeft(docEither)) {
+              return docEither;
+            }
+            const doc = docEither.right;
+            const statusValue = doc.data()?.status.value;
+            if (!doc.exists) {
+              return either.left(`Job does not exist` as const);
+            } else if (statusValue !== "registered") {
+              return either.left(`Job is not registered anymore` as const);
+            }
+            if (args._tag === "CustomKey") {
+              t.delete(this.customKeyRef(args.projectId, args.customKey));
+            }
 
-          t.set(
-            doc.ref,
-            {
-              status: {
-                value: "cancelled",
-                cancelledAt: FieldValue.serverTimestamp(),
+            t.set(
+              doc.ref,
+              {
+                status: {
+                  value: "cancelled",
+                  cancelledAt: FieldValue.serverTimestamp(),
+                },
               },
-            },
-            { merge: true }
-          );
-        });
-      },
-      (reason) => new Error(`Failed to cancel job: ${reason}`)
+              { merge: true }
+            );
+            return either.right(undefined);
+          });
+        },
+        (reason) => `Failed to cancel job: ${reason}` as const
+      ),
+      TE.chainW(
+        either.fold(
+          (error) => TE.left(error),
+          () => TE.of(undefined)
+        )
+      )
     );
   }
 
@@ -795,11 +813,11 @@ export class FirestoreDatastore implements Datastore {
         this.customKeyRef(args.projectId, args.customKey)
       );
       if (!customKeyDoc.exists) {
-        throw `Custom key ${args.customKey} does not exist` as const;
+        return E.left(`Custom key does not exist` as const);
       }
-      return await t.get(this.jobDocRef(customKeyDoc.data()?.id));
+      return E.of(await t.get(this.jobDocRef(customKeyDoc.data()?.id)));
     } else {
-      return await t.get(this.jobDocRef(args.jobId));
+      return E.of(await t.get(this.jobDocRef(args.jobId)));
     }
   }
 
@@ -982,3 +1000,12 @@ const checkPreconditions = ({
     ),
     TE.map(({ jobDocument }) => jobDocument)
   );
+
+const JobDoesNotExist = "Job does not exist" as const;
+const JobNotRegisteredAnymore = `Job is not registered anymore` as const;
+const CustomKeyDoesNotExist = `Custom key does not exist` as const;
+
+type CancelTransactionErrors =
+  | typeof JobDoesNotExist
+  | typeof JobNotRegisteredAnymore
+  | typeof CustomKeyDoesNotExist;

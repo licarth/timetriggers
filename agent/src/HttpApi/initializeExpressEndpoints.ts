@@ -1,4 +1,5 @@
 import { Api } from "@/Api";
+import { ProductionDatastore } from "@/Firebase/Processor/Datastore";
 import { rte } from "@/fp-ts";
 import { checkQuota, countUsage } from "@/useCases";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@timetriggers/domain";
 import bodyParser from "body-parser";
 import { Express } from "express";
+import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 
@@ -34,10 +36,12 @@ export const initializeEndpoints = ({
   api,
   firestore,
   namespace,
+  datastore,
   clock,
 }: {
   app: Express;
-  api: Api;
+  api: Api; // @deprecated
+  datastore: ProductionDatastore;
   firestore: FirebaseFirestore.Firestore;
   namespace: string;
   clock: Clock;
@@ -138,7 +142,10 @@ export const initializeEndpoints = ({
                 res.setHeader("ttr-trigger-id", jobId);
                 res.sendStatus(201);
               }),
-              RTE.mapLeft((e) => "scheduling error" as const)
+              RTE.mapLeft((e) => {
+                console.log(e);
+                return `scheduling error: ${e}` as const;
+              })
             );
           }
           // Todo handle errors due to scheduling
@@ -148,6 +155,9 @@ export const initializeEndpoints = ({
           if (error === "Project not found") {
             res.setHeader("ttr-error", "Project not found");
             res.sendStatus(404);
+          } else if (error === "Invalid api key") {
+            res.setHeader("ttr-error", "Invalid api key");
+            res.sendStatus(401);
           } else if (error === "not a valid url") {
             res.setHeader("ttr-error", "invalid URL");
             res.sendStatus(400);
@@ -194,12 +204,23 @@ export const initializeEndpoints = ({
           "customKey",
           getLastHeaderValue(req.headers, "ttr-custom-key")
         ),
+        RTE.chainFirstEitherK(({ customKey, triggerId }) => {
+          if (customKey && triggerId) {
+            return E.left(
+              "Cannot specify both a custom key and a trigger id" as const
+            );
+          } else if (!customKey && !triggerId) {
+            return E.left("Must specify a custom key or a trigger id" as const);
+          } else {
+            return E.right(undefined);
+          }
+        }),
         RTE.apSW("project", getProjectByApiKey({ apiKeyValue })),
         RTE.chainFirstW(
           ({ project: { id: projectId }, triggerId, customKey }) => {
             const op = triggerId
-              ? api.cancel({ _tag: "JobId", jobId: triggerId as JobId })
-              : api.cancel({
+              ? datastore.cancel({ _tag: "JobId", jobId: triggerId as JobId })
+              : datastore.cancel({
                   _tag: "CustomKey",
                   customKey: customKey as CustomKey,
                   projectId,
@@ -207,6 +228,7 @@ export const initializeEndpoints = ({
             return pipe(
               op,
               RTE.fromTaskEither,
+              RTE.mapLeft((x) => x),
               rte.sideEffect(() => {
                 res.sendStatus(200);
               })
@@ -214,17 +236,30 @@ export const initializeEndpoints = ({
           }
           // Todo handle errors due to scheduling
         ),
-
         RTE.mapLeft((error) => {
           if (error === "Project not found") {
             res.setHeader("ttr-error", "Project not found");
             res.sendStatus(404);
-          } else if (error === "Quota exceeded") {
-            res.setHeader("ttr-error", "quota exceeded");
-            res.sendStatus(402);
+          } else if (error === "Invalid api key") {
+            res.setHeader("ttr-error", "Invalid api key");
+            res.sendStatus(401);
           } else if (
-            typeof error === "string" &&
-            error.startsWith("date-parsing-error")
+            error === "Job does not exist" ||
+            error === "Custom key does not exist"
+          ) {
+            res.setHeader("ttr-error", "Job not found");
+            res.sendStatus(404);
+          } else if (error === "Job is not registered anymore") {
+            res.setHeader("ttr-error", "Job is not registered anymore");
+            res.sendStatus(410);
+          } else if (error === "firebase-error") {
+            res.setHeader("ttr-error", "Database error");
+            res.sendStatus(500);
+          } else if (
+            (typeof error === "string" &&
+              error.startsWith("date-parsing-error")) ||
+            error == "Cannot specify both a custom key and a trigger id" ||
+            error == "Must specify a custom key or a trigger id"
           ) {
             res.setHeader("ttr-error", error);
             res.sendStatus(400);

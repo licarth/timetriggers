@@ -14,6 +14,8 @@ import {
 } from "@timetriggers/domain";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { Observable } from "rxjs";
+import { FirestoreDatastore } from "./FirestoreDatastore";
+import { InMemoryDataStore } from "./InMemoryDataStore";
 import { ShardsToListenTo } from "./ShardsToListenTo";
 
 export type ShardingAlgorithm = (job: JobId) => Shard[];
@@ -54,6 +56,7 @@ export type GetJobsScheduledBeforeArgs = {
   lastKnownJob?: LastKnownScheduledJob;
 };
 
+export type ProductionDatastore = FirestoreDatastore | InMemoryDataStore;
 export interface Datastore {
   schedule(
     args: JobScheduleArgs,
