@@ -11,11 +11,16 @@ let app: App;
 export function initializeApp({
   appName,
   serviceAccount,
+  useEmulators,
 }: Partial<{
   appName: string;
   serviceAccount: string;
+  useEmulators?: boolean;
 }> = {}) {
-  if (process.env.PUBLIC_USE_EMULATORS === "true" && !serviceAccount) {
+  if (
+    (useEmulators || process.env.PUBLIC_USE_EMULATORS === "true") &&
+    !serviceAccount
+  ) {
     console.log("🔸 Using Emulators in the Jobs");
     process.env["FIRESTORE_EMULATOR_HOST"] = "localhost:8080";
     initializationOptions = {

@@ -1,4 +1,5 @@
 import { Api } from "@/Api";
+import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
 import { ProductionDatastore } from "@/Firebase/Processor/Datastore";
 import { rte } from "@/fp-ts";
 import { checkQuota, countUsage } from "@/useCases";
@@ -12,6 +13,7 @@ import {
   JobScheduleArgs,
   RawBody,
   ScheduledAt,
+  Shard,
   Url,
 } from "@timetriggers/domain";
 import bodyParser from "body-parser";
@@ -19,6 +21,7 @@ import { Express } from "express";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
+import * as TE from "fp-ts/lib/TaskEither.js";
 
 const getLastHeaderValue = (
   rawHeaders: NodeJS.Dict<string | string[]>,
@@ -30,6 +33,19 @@ const getLastHeaderValue = (
   }
   return RTE.of(value);
 };
+
+const preloadedHashingFunction = consistentHashingFirebaseArrayPreloaded(11);
+
+const shardingAlgorithm = (jobId: JobId) =>
+  preloadedHashingFunction(jobId)
+    .slice(1)
+    .map((s) => {
+      const parts = s.split("-");
+      return new Shard({
+        nodeCount: Number(parts[0]),
+        nodeId: Number(parts[1]),
+      });
+    });
 
 export const initializeEndpoints = ({
   app,
@@ -126,7 +142,8 @@ export const initializeEndpoints = ({
             scheduledAt,
           }) => {
             return pipe(
-              api.schedule(jobScheduleArgs, projectId),
+              datastore.schedule(jobScheduleArgs, shardingAlgorithm, projectId),
+              (x) => x as TE.TaskEither<string | Error, JobId>,
               RTE.fromTaskEither,
               rte.sideEffect((jobId) => {
                 if (quota.remaining < Infinity) {

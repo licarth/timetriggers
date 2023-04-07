@@ -20,8 +20,6 @@ import {
 import { format } from "date-fns";
 import type { Firestore } from "firebase-admin/firestore";
 import { FieldValue } from "firebase-admin/firestore";
-import { either } from "fp-ts";
-import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { draw } from "io-ts/lib/Decoder.js";
@@ -38,6 +36,7 @@ import {
   WaitForRegisteredJobsByRegisteredAtArgs,
 } from "./Datastore";
 import { ShardsToListenTo, toShards } from "./ShardsToListenTo";
+import { transaction } from "./transaction";
 
 type State = "starting" | "running" | "stopped";
 
@@ -238,7 +237,7 @@ export class FirestoreDatastore implements Datastore {
         });
         return newJobId;
       },
-      (reason) => `Failed to schedule job: ${reason}`
+      (reason) => `Failed to schedule job: ${reason}` as const
     );
   }
 
@@ -760,65 +759,41 @@ export class FirestoreDatastore implements Datastore {
   }
   cancel(args: CancelProps) {
     return pipe(
-      TE.tryCatch(
-        async () => {
-          return await this.firestore.runTransaction<
-            E.Either<CancelTransactionErrors, void>
-          >(async (t) => {
-            const docEither = await this.getJobDefinitionDocument(t, args);
-            if (E.isLeft(docEither)) {
-              return docEither;
-            }
-            const doc = docEither.right;
+      transaction(this.firestore, (t) =>
+        pipe(
+          this.getJobDefinitionDocument(t, args),
+          TE.chainW((doc) => {
             const statusValue = doc.data()?.status.value;
             if (!doc.exists) {
-              return either.left(`Job does not exist` as const);
+              return TE.left(`Job does not exist` as const);
             } else if (statusValue !== "registered") {
-              return either.left(`Job is not registered anymore` as const);
+              return TE.left(`Job is not registered anymore` as const);
             }
             if (args._tag === "CustomKey") {
               t.delete(this.customKeyRef(args.projectId, args.customKey));
             }
-
-            t.set(
-              doc.ref,
-              {
-                status: {
-                  value: "cancelled",
-                  cancelledAt: FieldValue.serverTimestamp(),
-                },
-              },
-              { merge: true }
-            );
-            return either.right(undefined);
-          });
-        },
-        (reason) => `Failed to cancel job: ${reason}` as const
-      ),
-      TE.chainW(
-        either.fold(
-          (error) => TE.left(error),
-          () => TE.of(undefined)
+            return TE.right(undefined);
+          })
         )
       )
     );
   }
 
-  private async getJobDefinitionDocument(
+  private getJobDefinitionDocument(
     t: FirebaseFirestore.Transaction,
     args: CancelProps
   ) {
-    if (args._tag === "CustomKey") {
-      const customKeyDoc = await t.get(
-        this.customKeyRef(args.projectId, args.customKey)
-      );
-      if (!customKeyDoc.exists) {
-        return E.left(`Custom key does not exist` as const);
-      }
-      return E.of(await t.get(this.jobDocRef(customKeyDoc.data()?.id)));
-    } else {
-      return E.of(await t.get(this.jobDocRef(args.jobId)));
-    }
+    return args._tag === "CustomKey"
+      ? pipe(
+          get(this.customKeyRef(args.projectId, args.customKey), t),
+          TE.chainW((doc) => {
+            if (!doc.exists) {
+              return TE.left(`Custom key does not exist` as const);
+            }
+            return get(this.jobDocRef(doc.data()?.id), t);
+          })
+        )
+      : get(this.jobDocRef(args.jobId), t);
   }
 
   /**
@@ -1009,3 +984,14 @@ type CancelTransactionErrors =
   | typeof JobDoesNotExist
   | typeof JobNotRegisteredAnymore
   | typeof CustomKeyDoesNotExist;
+
+// get<T>(documentRef: DocumentReference<T>): Promise<DocumentSnapshot<T>>;
+// fp-ts version of get
+const get = <T>(
+  documentRef: FirebaseFirestore.DocumentReference<T>,
+  t?: FirebaseFirestore.Transaction
+) =>
+  TE.tryCatch(
+    () => (t ? t.get(documentRef) : documentRef.get()),
+    (e) => `failed to get document ${documentRef}: ${String(e)}` as const
+  );
