@@ -1,6 +1,6 @@
 import { e } from "@/fp-ts";
 import { ApiKey, Project } from "@/project";
-import * as E from "fp-ts/lib/Either";
+import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
@@ -19,19 +19,30 @@ export const getProjectByApiKey = ({
   pipe(
     RTE.ask<Dependencies>(),
     RTE.chainW(({ firestore, namespace }) =>
-      TE.tryCatchK(
-        async () => {
-          const snapshot = await firestore
-            .collection(`/namespaces/${namespace}/projects`)
-            .orderBy(`apiKeys.${apiKeyValue}`)
-            .limit(1)
-            .get();
+      pipe(
+        apiKeyValue,
+        E.fromPredicate(
+          (apiKeyValue) => apiKeyValue.length > 0,
+          () => "Invalid api key" as const
+        ),
+        TE.fromEither,
+        TE.chainW(
+          TE.tryCatchK(
+            async () => {
+              const snapshot = await firestore
+                .collection(`/namespaces/${namespace}/projects`)
+                .orderBy(`apiKeys.${apiKeyValue}`)
+                .limit(1)
+                .get();
 
-          return snapshot.docs;
-        },
-        (reason) => {
-          return "firebase-error" as const;
-        }
+              return snapshot.docs;
+            },
+            (reason) => {
+              return "firebase-error" as const;
+            }
+          )
+        ),
+        RTE.fromTaskEither
       )
     ),
     RTE.filterOrElseW(

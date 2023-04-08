@@ -1,4 +1,5 @@
 import {
+  CustomKey,
   HttpCallLastStatus,
   JobDefinition,
   JobDocument,
@@ -13,6 +14,8 @@ import {
 } from "@timetriggers/domain";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { Observable } from "rxjs";
+import { FirestoreDatastore } from "./FirestoreDatastore";
+import { InMemoryDataStore } from "./InMemoryDataStore";
 import { ShardsToListenTo } from "./ShardsToListenTo";
 
 export type ShardingAlgorithm = (job: JobId) => Shard[];
@@ -25,6 +28,17 @@ export type LastKnownRegisteredJob = {
   registeredAt: RegisteredAt;
   id: JobId;
 };
+
+export type CancelProps =
+  | {
+      _tag: "JobId";
+      jobId: JobId;
+    }
+  | {
+      _tag: "CustomKey";
+      customKey: CustomKey;
+      projectId: ProjectId;
+    };
 
 export type WaitForRegisteredJobsByRegisteredAtArgs = {
   registeredAfter?: RegisteredAt;
@@ -42,13 +56,15 @@ export type GetJobsScheduledBeforeArgs = {
   lastKnownJob?: LastKnownScheduledJob;
 };
 
+export type ProductionDatastore = FirestoreDatastore | InMemoryDataStore;
 export interface Datastore {
   schedule(
     args: JobScheduleArgs,
     shardingAlgorithm?: ShardingAlgorithm,
     projectId?: ProjectId
-  ): TE.TaskEither<any, JobId>;
-  cancel(jobId: JobId): TE.TaskEither<any, void>;
+  ): TE.TaskEither<any, JobDocument>;
+
+  cancel(args: CancelProps): TE.TaskEither<any, void>;
 
   /**
    * This is a stream of registered jobs.

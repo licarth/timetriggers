@@ -1,21 +1,24 @@
 import { Api } from "@/Api";
+import { ProductionDatastore } from "@/Firebase/Processor/Datastore";
+import { Clock } from "@timetriggers/domain";
 import { pipe } from "fp-ts/lib/function.js";
-import * as TE from "fp-ts/lib/TaskEither.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
+import * as TE from "fp-ts/lib/TaskEither.js";
 import { createExpressApp } from "./createExpressApp";
 import { initializeEndpoints } from "./initializeExpressEndpoints";
-import { Clock } from "@timetriggers/domain";
 
 export const initializeHttpApi = ({
   api,
   port,
   firestore,
   namespace,
+  datastore,
 }: {
   api: Api;
   port: number;
   firestore: FirebaseFirestore.Firestore;
   namespace: string;
+  datastore: ProductionDatastore;
 }) =>
   pipe(
     RTE.of({ api }),
@@ -27,7 +30,7 @@ export const initializeHttpApi = ({
     ),
     RTE.bindW("expressApp", () => createExpressApp(port)),
     RTE.chainFirstW(({ clock, expressApp: { app } }) =>
-      initializeEndpoints({ app, api, firestore, namespace, clock })
+      initializeEndpoints({ app, api, firestore, namespace, clock, datastore })
     ),
     RTE.bindW("httpApi", function ({ expressApp: { start } }) {
       const server = start();

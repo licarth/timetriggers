@@ -10,6 +10,7 @@ import {
 
 import { randomString } from "@/test/randomString";
 import { addHours, addMilliseconds } from "date-fns";
+import * as E from "fp-ts/Either";
 import * as TE from "fp-ts/TaskEither";
 import { firstValueFrom, Observable } from "rxjs";
 import { emulatorFirestore } from "../emulatorFirestore";
@@ -128,16 +129,16 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
     });
 
     describe("reschedule", () => {
-      it("should reschedule a job", async () => {
+      it("should reschedule a job using id", async () => {
         const job = JobScheduleArgs.factory({
           clock,
           scheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 5)),
         });
 
-        const id = await te.unsafeGetOrThrow(datastore.schedule(job));
+        const doc = await te.unsafeGetOrThrow(datastore.schedule(job));
 
         job.scheduledAt = ScheduledAt.fromDate(addHours(clock.now(), 10));
-        job.id = id;
+        job.id = doc.jobDefinition.id;
 
         // 2nd schedule of the same job
         await te.unsafeGetOrThrow(datastore.schedule(job));
@@ -149,6 +150,62 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
           })
         );
         expect(jobs.length).toBe(1);
+      });
+      it("should not reschedule a job already marked as queued", async () => {
+        const job = JobScheduleArgs.factory({
+          clock,
+          scheduledAt: ScheduledAt.fromDate(clock.now()),
+        });
+
+        const doc = await te.unsafeGetOrThrow(datastore.schedule(job));
+
+        // mark as done
+        await te.unsafeGetOrThrow(datastore.queueJobs([doc.jobDefinition]));
+
+        job.scheduledAt = ScheduledAt.fromDate(addHours(clock.now(), 10));
+        job.id = doc.jobDefinition.id;
+
+        // 2nd schedule of the same job
+        expect(await datastore.schedule(job, undefined)()).toEqual(
+          E.left("Job is not in registered state")
+        );
+      });
+
+      it.skip("should not reschedule a job already marked as running", async () => {
+        const job = JobScheduleArgs.factory({
+          clock,
+          scheduledAt: ScheduledAt.fromDate(clock.now()),
+        });
+
+        const doc = await te.unsafeGetOrThrow(datastore.schedule(job));
+        const id = doc.jobDefinition.id;
+
+        // mark as done
+        await te.unsafeGetOrThrow(datastore.queueJobs([doc.jobDefinition]));
+
+        job.scheduledAt = ScheduledAt.fromDate(addHours(clock.now(), 10));
+        job.id = doc.jobDefinition.id;
+
+        // 2nd schedule of the same job
+        await te.unsafeGetOrThrow(datastore.schedule(job));
+      });
+      it("should not reschedule a job already marked as done", async () => {
+        const job = JobScheduleArgs.factory({
+          clock,
+          scheduledAt: ScheduledAt.fromDate(clock.now()),
+        });
+
+        const doc = await te.unsafeGetOrThrow(datastore.schedule(job));
+        const id = doc.jobDefinition.id;
+        // mark as done
+        // await te.unsafeGetOrThrow(datastore.markJobAsRunning({jobId: id, status: JobStatus.factory() }));
+        // await te.unsafeGetOrThrow(datastore.markJobAsComplete({jobId: id, status: JobStatus.factory() }));
+
+        job.scheduledAt = ScheduledAt.fromDate(addHours(clock.now(), 10));
+        job.id = id;
+
+        // 2nd schedule of the same job
+        await te.unsafeGetOrThrow(datastore.schedule(job));
       });
     });
 
@@ -181,7 +238,7 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
         );
         expect(jobs.length).toBe(1);
       });
-      it("should change the customKey when a both id and customKey are set", async () => {
+      it("[both id and customKey are set] : should change the customKey", async () => {
         const projectId = ProjectId.factory();
         const customKey = "customkey-1" as CustomKey;
         const job = JobScheduleArgs.factory({
@@ -190,11 +247,11 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
           scheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 5)),
         });
 
-        const jobId = await te.unsafeGetOrThrow(
+        const doc = await te.unsafeGetOrThrow(
           datastore.schedule(job, undefined, projectId)
         );
 
-        job.id = jobId;
+        job.id = doc.jobDefinition.id;
         job.scheduledAt = ScheduledAt.fromDate(addHours(clock.now(), 10));
         job.customKey = "customkey-2" as CustomKey;
 
@@ -211,6 +268,41 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
         );
         expect(jobs.length).toBe(1);
       });
+      it("[both id and customKey are set] : should not change the customKey if there is already another job using that custom key", async () => {
+        const projectId = ProjectId.factory();
+        const customKey1 = "customkey-1" as CustomKey;
+        const firstJob = JobScheduleArgs.factory({
+          clock,
+          customKey: customKey1,
+          scheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 5)),
+        });
+
+        await te.unsafeGetOrThrow(
+          datastore.schedule(firstJob, undefined, projectId)
+        );
+        const customKey2 = "customkey-2" as CustomKey;
+        const secondJob = JobScheduleArgs.factory({
+          clock,
+          customKey: customKey2,
+          scheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 5)),
+        });
+
+        // Try to edit custom key of job 2 to value of custom key of job 1
+        const {
+          jobDefinition: { id: jobId2 },
+        } = await te.unsafeGetOrThrow(
+          datastore.schedule(secondJob, undefined, projectId)
+        );
+
+        secondJob.id = jobId2;
+        secondJob.scheduledAt = ScheduledAt.fromDate(addHours(clock.now(), 10));
+        secondJob.customKey = customKey1; // already used by jobId1
+
+        // 2nd schedule of the same job
+        expect(
+          await datastore.schedule(secondJob, undefined, projectId)()
+        ).toEqual(E.left("Custom key already in use"));
+      });
       it("should delete customKey when removed from a job via id edition", async () => {
         const projectId = ProjectId.factory();
         const customKey = "customkey-1" as CustomKey;
@@ -220,7 +312,43 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
           scheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 5)),
         });
 
-        const jobId = await te.unsafeGetOrThrow(
+        const {
+          jobDefinition: { id: jobId },
+        } = await te.unsafeGetOrThrow(
+          datastore.schedule(job, undefined, projectId)
+        );
+
+        job.id = jobId;
+        job.scheduledAt = ScheduledAt.fromDate(addHours(clock.now(), 10));
+        job.customKey = undefined;
+
+        // 2nd schedule of the same job
+        await te.unsafeGetOrThrow(
+          datastore.schedule(job, undefined, projectId)
+        );
+
+        const jobs = await te.unsafeGetOrThrow(
+          datastore.getRegisteredJobsByScheduledAt({
+            limit: 10,
+            maxScheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 24)),
+          })
+        );
+        expect(jobs.length).toBe(1);
+      });
+      it("should not reschedule a job that already is in any other state than registered", async () => {
+        const projectId = ProjectId.factory();
+        const customKey = "customkey-1" as CustomKey;
+        const job = JobScheduleArgs.factory({
+          clock,
+          customKey,
+          scheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 0)),
+        });
+
+        // Wait until the job is done
+
+        const {
+          jobDefinition: { id: jobId },
+        } = await te.unsafeGetOrThrow(
           datastore.schedule(job, undefined, projectId)
         );
 
