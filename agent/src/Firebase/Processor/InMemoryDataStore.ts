@@ -6,6 +6,7 @@ import {
   JobId,
   JobScheduleArgs,
   JobStatus,
+  ProjectId,
   QueuedAt,
   RateLimit,
   RegisteredAt,
@@ -13,6 +14,7 @@ import {
   StartedAt,
   SystemClock,
 } from "@timetriggers/domain";
+import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import _ from "lodash";
@@ -237,41 +239,46 @@ export class InMemoryDataStore implements Datastore {
 
   schedule(
     jobDefinition: JobScheduleArgs,
-    shardingAlgorithm?: ShardingAlgorithm
-  ): TE.TaskEither<Error, JobId> {
-    const jobId = JobId.factory();
-    const shards = shardingAlgorithm ? shardingAlgorithm(jobId) : undefined;
-    // Make sure shards start at 2 and increment 1 by 1:
-    if (shards) {
-      if (
-        !_.isEqual(
-          shards.map((s) => s.nodeCount),
-          _.range(2, shards.length + 2)
-        )
-      ) {
-        return TE.left(
-          new Error("Shards must start at 2 and increment 1 by 1")
-        );
-      }
-      this.shardsByJobId.set(jobId, shards);
-    }
-    if (shardingAlgorithm && shards) {
-      for (const shard of shards) {
-        this.queuesJobByShardIndex.set(shard.toString(), jobId);
-      }
-    }
-    this.registeredJobs.set(
-      jobId,
-      new JobDocument({
-        jobDefinition: { ...jobDefinition, id: jobId },
-        shards: shards?.map((s) => String(s)) || [],
-        status: new JobStatus({
-          value: "registered",
-          registeredAt: RegisteredAt.fromDate(this.clock.now()),
-        }),
-      })
+    shardingAlgorithm?: ShardingAlgorithm,
+    projectId?: ProjectId
+  ) {
+    return pipe(
+      () => {
+        const jobId = JobId.factory();
+        const shards = shardingAlgorithm ? shardingAlgorithm(jobId) : undefined;
+        // Make sure shards start at 2 and increment 1 by 1:
+        if (shards) {
+          if (
+            !_.isEqual(
+              shards.map((s) => s.nodeCount),
+              _.range(2, shards.length + 2)
+            )
+          ) {
+            return E.left(
+              "Shards must start at 2 and increment 1 by 1" as const
+            );
+          }
+          this.shardsByJobId.set(jobId, shards);
+        }
+        if (shardingAlgorithm && shards) {
+          for (const shard of shards) {
+            this.queuesJobByShardIndex.set(shard.toString(), jobId);
+          }
+        }
+        const jobDocument = new JobDocument({
+          jobDefinition: { ...jobDefinition, id: jobId },
+          shards: shards?.map((s) => String(s)) || [],
+          status: new JobStatus({
+            value: "registered",
+            registeredAt: RegisteredAt.fromDate(this.clock.now()),
+          }),
+        });
+        this.registeredJobs.set(jobId, jobDocument);
+        return E.of(jobDocument);
+      },
+      (x) => x(),
+      TE.fromEither
     );
-    return TE.of(jobId);
   }
 
   getRegisteredJobsByScheduledAt(

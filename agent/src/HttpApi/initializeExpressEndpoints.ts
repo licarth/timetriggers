@@ -14,6 +14,7 @@ import {
   RawBody,
   ScheduledAt,
   Shard,
+  te,
   Url,
 } from "@timetriggers/domain";
 import bodyParser from "body-parser";
@@ -22,6 +23,10 @@ import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
+
+interface Tagged {
+  _tag: string;
+}
 
 const getLastHeaderValue = (
   rawHeaders: NodeJS.Dict<string | string[]>,
@@ -134,18 +139,17 @@ export const initializeEndpoints = ({
               })
             )
         ),
-        RTE.chainFirstW(
+        RTE.chainFirstTaskEitherKW(
           ({
             jobScheduleArgs,
             project: { id: projectId },
             quota,
             scheduledAt,
-          }) => {
-            return pipe(
+          }) =>
+            pipe(
               datastore.schedule(jobScheduleArgs, shardingAlgorithm, projectId),
-              (x) => x as TE.TaskEither<string | Error, JobId>,
-              RTE.fromTaskEither,
-              rte.sideEffect((jobId) => {
+              TE.map((x) => x), // This is needed to merge the TE types :/
+              te.sideEffect(({ jobDefinition: { id: jobId } }) => {
                 if (quota.remaining < Infinity) {
                   res.setHeader(
                     "ttr-month-quota-remaining",
@@ -158,26 +162,26 @@ export const initializeEndpoints = ({
                 );
                 res.setHeader("ttr-trigger-id", jobId);
                 res.sendStatus(201);
-              }),
-              RTE.mapLeft((e) => {
-                console.log(e);
-                return `scheduling error: ${e}` as const;
               })
-            );
-          }
+            )
+          // }
           // Todo handle errors due to scheduling
         ),
 
         RTE.mapLeft((error) => {
-          if (error === "Project not found") {
-            res.setHeader("ttr-error", "Project not found");
+          if (
+            error === "Project not found" ||
+            error === "Failed to reschedule job. Job does not exist."
+          ) {
+            res.setHeader("ttr-error", error);
             res.sendStatus(404);
           } else if (error === "Invalid api key") {
             res.setHeader("ttr-error", "Invalid api key");
             res.sendStatus(401);
+          } else if (error === "Custom key already in use") {
+            res.setHeader("ttr-error", error);
+            res.sendStatus(409);
           } else if (error === "not a valid url") {
-            res.setHeader("ttr-error", "invalid URL");
-            res.sendStatus(400);
           } else if (error === "Quota exceeded") {
             res.setHeader("ttr-error", "quota exceeded");
             res.sendStatus(402);

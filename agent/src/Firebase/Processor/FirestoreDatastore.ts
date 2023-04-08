@@ -20,6 +20,7 @@ import {
 import { format } from "date-fns";
 import type { Firestore } from "firebase-admin/firestore";
 import { FieldValue } from "firebase-admin/firestore";
+import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { draw } from "io-ts/lib/Decoder.js";
@@ -135,109 +136,211 @@ export class FirestoreDatastore implements Datastore {
     shardingAlgorithm?: ShardingAlgorithm | undefined,
     projectId?: ProjectId
   ) {
-    return TE.tryCatch(
-      async () => {
-        const newJobId = JobId.factory();
-        const jobDefinition = new JobDefinition({ ...args, id: newJobId });
-        const scheduledWithin =
-          jobDefinition.scheduledAt.getTime() - this.clock.now().getTime();
-        const doc = {
-          ...JobDocument.codec("firestore").encode(
-            new JobDocument({
-              jobDefinition,
-              projectId,
-              shards: shardingAlgorithm
-                ? shardingAlgorithm(newJobId).map((s) => s.toString())
-                : [],
-              status: new JobStatus({
-                value: "registered",
-                registeredAt: RegisteredAt.fromDate(this.clock.now()), // Will be overriden by server timestamp !
-              }),
-            })
-          ),
-          scheduledWithin: {
-            "1s": scheduledWithin < 1000,
-            "1m": scheduledWithin < 1000 * 60,
-            "10m": scheduledWithin < 1000 * 60 * 10,
-            "1h": scheduledWithin < 1000 * 60 * 60,
-            "2h": scheduledWithin < 1000 * 60 * 60 * 2,
-          },
-        };
-        const jobWithServerTimestamp = {
-          ..._.merge(doc, {
-            status: { registeredAt: FieldValue.serverTimestamp() },
-          }),
-        };
-        await this.firestore.runTransaction(async (t) => {
-          const customKeyAlreadyExists =
-            (args.customKey &&
-              (await t.get(this.customKeyRef(projectId, args.customKey)))
-                .exists) ||
-            false;
-          const existingJobIdFromCustomKey =
-            args.customKey &&
-            ((await t.get(this.customKeyRef(projectId, args.customKey))).get(
-              "id"
-            ) as JobId);
+    const newJobId = JobId.factory();
+    const jobDefinition = new JobDefinition({ ...args, id: newJobId });
+    const scheduledWithin =
+      jobDefinition.scheduledAt.getTime() - this.clock.now().getTime();
+    const jobDocument = new JobDocument({
+      jobDefinition,
+      projectId,
+      shards: shardingAlgorithm
+        ? shardingAlgorithm(newJobId).map((s) => s.toString())
+        : [],
+      status: new JobStatus({
+        value: "registered",
+        registeredAt: RegisteredAt.fromDate(this.clock.now()), // Will be overriden by server timestamp !
+      }),
+    });
+    const doc = {
+      ...JobDocument.codec("firestore").encode(jobDocument),
+      scheduledWithin: {
+        "1s": scheduledWithin < 1000,
+        "1m": scheduledWithin < 1000 * 60,
+        "10m": scheduledWithin < 1000 * 60 * 10,
+        "1h": scheduledWithin < 1000 * 60 * 60,
+        "2h": scheduledWithin < 1000 * 60 * 60 * 2,
+      },
+    };
+    const jobWithServerTimestamp = {
+      ..._.merge(doc, {
+        status: { registeredAt: FieldValue.serverTimestamp() },
+      }),
+    };
+
+    return transaction(this.firestore, (t) =>
+      pipe(
+        TE.Do,
+        TE.apSW(
+          "customKeyAlreadyExists",
+          args.customKey
+            ? pipe(
+                get(this.customKeyRef(projectId, args.customKey), t),
+                TE.map((d) => d.exists)
+              )
+            : TE.right(false)
+        ),
+        TE.apSW(
+          "existingJobIdFromCustomKey",
+          args.customKey
+            ? pipe(
+                get(this.customKeyRef(projectId, args.customKey), t),
+                TE.map((d) => d.get("id") as JobId)
+              )
+            : TE.right(undefined)
+        ),
+        TE.bindW(
+          "schedulingCase",
+          ({
+            customKeyAlreadyExists,
+            existingJobIdFromCustomKey,
+          }): TE.TaskEither<
+            | `failed to get document ${string}: ${string}`
+            | "Job does not exist"
+            | "Could not decode Job document",
+            | { _tag: "id-based-reschedule"; existingJob: JobDocument }
+            | { _tag: "custom-key-based-reschedule"; existingJob: JobDocument }
+            | { _tag: "new-schedule" }
+          > => {
+            // Possible cases
+            // 1. New schedule
+            // 2. Id-based reschedule
+            // 3. CustomKey-based reschedule
+            if (args.id && !args.customKey) {
+              return pipe(
+                TE.of({ _tag: "id-based-reschedule" as const }),
+                TE.bindW("existingJob", () =>
+                  this.getJobDocumentFromRef(this.jobDocRef(args.id!), t)
+                )
+              );
+            } else if (
+              !args.id &&
+              args.customKey &&
+              customKeyAlreadyExists &&
+              existingJobIdFromCustomKey
+            ) {
+              return pipe(
+                TE.of({ _tag: "custom-key-based-reschedule" as const }),
+                TE.bindW("existingJob", () =>
+                  this.getJobDocumentFromRef(
+                    this.jobDocRef(existingJobIdFromCustomKey),
+                    t
+                  )
+                )
+              );
+            } else {
+              return TE.right({ _tag: "new-schedule" as const });
+            }
+          }
+        ),
+        TE.chainFirstEitherKW(
+          E.fromPredicate(
+            ({ schedulingCase }) =>
+              !(
+                (schedulingCase._tag === "id-based-reschedule" ||
+                  schedulingCase._tag === "custom-key-based-reschedule") &&
+                schedulingCase.existingJob.status.value !== "registered"
+              ),
+            () => "Job is not in registered state" as const
+          )
+        ),
+        TE.chainFirstW(({ customKeyAlreadyExists }) => {
           if (args.id) {
             const existingJobRef = this.jobDocRef(args.id);
-            // trigger id provided
-            // it has to exist already
-            const existingJobDoc = await t.get(existingJobRef).then((doc) => {
-              if (!doc.exists) {
-                throw `Failed to reschedule job ${newJobId}: job does not exist` as const;
-              }
-              return pipe(
-                JobDocument.codec("firestore").decode(doc.data()!),
-                e.unsafeGetOrThrow
-              );
-            });
-            if (args.customKey || existingJobDoc.jobDefinition.customKey) {
-              if (existingJobDoc.jobDefinition.customKey === args.customKey) {
-                // Same custom key, nothing to do
-              } else {
-                // New custom key, just make sure no other job already has it, in the same project
-                if (customKeyAlreadyExists) {
-                  throw `Failed to reschedule job ${newJobId}: custom key ${args.customKey} already exists` as const;
+            return pipe(
+              TE.Do,
+              TE.bindW("existingJobDocById", () =>
+                this.getJobDocumentFromRef(existingJobRef, t)
+              ),
+              TE.chainFirstW(({ existingJobDocById }) => {
+                if (
+                  args.customKey ||
+                  existingJobDocById.jobDefinition.customKey
+                ) {
+                  if (
+                    existingJobDocById.jobDefinition.customKey ===
+                    args.customKey
+                  ) {
+                    // Same custom key, nothing to do
+                  } else {
+                    // New custom key for existing job, just make sure no other job already has it, in the same project
+                    if (customKeyAlreadyExists) {
+                      return TE.left(`Custom key already in use` as const);
+                    }
+                    t.delete(
+                      this.customKeyRef(
+                        projectId,
+                        existingJobDocById.jobDefinition.customKey!
+                      )
+                    );
+                  }
+                  // Make sure no other job has the same custom key, except the existing one
                 }
-                t.delete(
-                  this.customKeyRef(
-                    projectId,
-                    existingJobDoc.jobDefinition.customKey!
-                  )
+                return TE.right(undefined);
+              })
+            );
+          } else {
+            return TE.right(undefined);
+          }
+        }),
+        te.sideEffect(() => {
+          t.create(this.jobDocRef(newJobId), jobWithServerTimestamp);
+        }),
+        TE.chainFirstW(
+          ({ customKeyAlreadyExists, existingJobIdFromCustomKey }) => {
+            // custom key without id provided, 2 possibilities: schedule or reschedule
+            if (args.customKey) {
+              if (customKeyAlreadyExists && existingJobIdFromCustomKey) {
+                if (args.id && args.id !== existingJobIdFromCustomKey) {
+                  return TE.left(`Custom key already in use` as const);
+                }
+                // Make sure the job is still in registered state
+                t.set(
+                  this.jobDocRef(existingJobIdFromCustomKey),
+                  {
+                    status: {
+                      value: "cancelled",
+                      cancelledAt: FieldValue.serverTimestamp(),
+                    },
+                  },
+                  { merge: true }
+                );
+              } else if (args.id) {
+                t.set(
+                  this.jobDocRef(args.id),
+                  {
+                    status: {
+                      value: "cancelled",
+                      cancelledAt: FieldValue.serverTimestamp(),
+                    },
+                  },
+                  { merge: true }
                 );
               }
-              // Make sure no other job has the same custom key, except the existing one
+
+              // if we are just
+              if (!projectId) {
+                return TE.left(
+                  `projectId is required when using customKey` as const
+                );
+              }
+              // Store in subcollection  project > custom-keys > {customKey} the job id
+              t.set(this.customKeyRef(projectId, args.customKey), {
+                id: newJobId,
+              });
             }
-            // t.update(existingJobRef, {});
+            return TE.right(undefined);
           }
-          t.create(this.jobDocRef(newJobId), jobWithServerTimestamp);
-          // custom key without id provided, 2 possibilities: schedule or reschedule
-          if (args.customKey) {
-            if (customKeyAlreadyExists && existingJobIdFromCustomKey) {
-              t.set(
-                this.jobDocRef(existingJobIdFromCustomKey),
-                {
-                  status: {
-                    value: "cancelled",
-                    cancelledAt: FieldValue.serverTimestamp(),
-                  },
-                },
-                { merge: true }
-              );
-            }
-            if (!projectId) {
-              throw `projectId is required when using customKey` as const;
-            }
-            // Store in subcollection  project > custom-keys > {customKey} the job id
-            t.set(this.customKeyRef(projectId, args.customKey), {
-              id: newJobId,
-            });
+        ),
+        TE.chainFirstW(() => {
+          // TODO Remove this : we do notn delete jobs, we just cancel them
+          if (args.id && !args.customKey) {
+            t.delete(this.jobDocRef(args.id));
           }
-        });
-        return newJobId;
-      },
-      (reason) => `Failed to schedule job: ${reason}` as const
+          // How do we delete in case where we reschedule with custom key?
+          return TE.right(undefined);
+        }),
+        TE.map(() => jobDocument)
+      )
     );
   }
 
@@ -757,11 +860,12 @@ export class FirestoreDatastore implements Datastore {
       TE.map(() => void 0)
     );
   }
+
   cancel(args: CancelProps) {
     return pipe(
       transaction(this.firestore, (t) =>
         pipe(
-          this.getJobDefinitionDocument(t, args),
+          this.getCancelJobDefinitionDocument(t, args),
           TE.chainW((doc) => {
             const statusValue = doc.data()?.status.value;
             if (!doc.exists) {
@@ -772,6 +876,16 @@ export class FirestoreDatastore implements Datastore {
             if (args._tag === "CustomKey") {
               t.delete(this.customKeyRef(args.projectId, args.customKey));
             }
+            t.set(
+              doc.ref,
+              {
+                status: {
+                  value: "cancelled",
+                  cancelledAt: FieldValue.serverTimestamp(),
+                },
+              },
+              { merge: true }
+            );
             return TE.right(undefined);
           })
         )
@@ -779,7 +893,7 @@ export class FirestoreDatastore implements Datastore {
     );
   }
 
-  private getJobDefinitionDocument(
+  private getCancelJobDefinitionDocument(
     t: FirebaseFirestore.Transaction,
     args: CancelProps
   ) {
@@ -867,6 +981,27 @@ ${errors.map((e) => indent(draw(e), 4)).join("\n--\n")}]
   customKeyRef(projectId: ProjectId | undefined, customKey: CustomKey) {
     return this.firestore.doc(
       `${this.rootProjectsCollectionPath}/${projectId}/custom-keys/${customKey}`
+    );
+  }
+
+  private getJobDocumentFromRef(
+    ref: FirebaseFirestore.DocumentReference,
+    t?: FirebaseFirestore.Transaction
+  ) {
+    return pipe(
+      get(ref, t),
+      TE.chainW((doc) => {
+        if (!doc.exists) {
+          return TE.left(`Job does not exist` as const);
+        }
+        return TE.right(doc);
+      }),
+      TE.chainEitherKW((doc) =>
+        pipe(
+          JobDocument.codec("firestore").decode(doc.data()),
+          E.mapLeft((e) => `Could not decode Job document` as const)
+        )
+      )
     );
   }
 }

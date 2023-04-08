@@ -15,7 +15,7 @@ export const transaction = <E, A>(
   updateTaskEitherFn: (
     transaction: FirebaseFirestore.Transaction
   ) => TE.TaskEither<E, A>
-): TE.TaskEither<E | TransactionError, A> => {
+): TE.TaskEither<E | `Transaction Error: ${string}`, A> => {
   return TE.tryCatch(
     () =>
       firestore.runTransaction(async (transaction) => {
@@ -34,10 +34,11 @@ export const transaction = <E, A>(
     (e) => {
       return (e as UpdateFunctionError<E>)._tag === "UpdateFunctionError"
         ? (e as UpdateFunctionError<E>).error
-        : {
-            _tag: "TransactionError",
-            message: String(e),
-          };
+        : // : {
+          //     _tag: "TransactionError",
+          //     message: String(e),
+          //   };
+          (`Transaction Error: ${String(e)}` as const);
     }
   );
 };
