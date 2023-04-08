@@ -169,10 +169,7 @@ export const initializeEndpoints = ({
         ),
 
         RTE.mapLeft((error) => {
-          if (
-            error === "Project not found" ||
-            error === "Failed to reschedule job. Job does not exist."
-          ) {
+          if (error === "Project not found" || error === "Job does not exist") {
             res.setHeader("ttr-error", error);
             res.sendStatus(404);
           } else if (error === "Invalid api key") {
@@ -181,13 +178,16 @@ export const initializeEndpoints = ({
           } else if (error === "Custom key already in use") {
             res.setHeader("ttr-error", error);
             res.sendStatus(409);
-          } else if (error === "not a valid url") {
+          } else if (error === "Job is not in registered state") {
+            res.setHeader("ttr-error", error);
+            res.sendStatus(410);
           } else if (error === "Quota exceeded") {
             res.setHeader("ttr-error", "quota exceeded");
             res.sendStatus(402);
           } else if (
-            typeof error === "string" &&
-            error.startsWith("date-parsing-error")
+            (typeof error === "string" &&
+              error.startsWith("date-parsing-error")) ||
+            error === "not a valid url"
           ) {
             res.setHeader("ttr-error", error);
             res.sendStatus(400);

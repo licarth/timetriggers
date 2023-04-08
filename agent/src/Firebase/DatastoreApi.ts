@@ -1,7 +1,7 @@
 import { AbstractApi, AbstractApiProps } from "@/AbstractApi";
 import { consistentHashingFirebaseArrayPreloaded } from "@/ConsistentHashing/ConsistentHashing";
 import { JobId, JobScheduleArgs, ProjectId, Shard } from "@timetriggers/domain";
-import { pipe } from "fp-ts/lib/function";
+import { pipe } from "fp-ts/lib/function.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { CancelProps, Datastore } from "./Processor/Datastore";
 
