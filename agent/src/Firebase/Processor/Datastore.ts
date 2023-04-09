@@ -57,20 +57,23 @@ export type GetJobsScheduledBeforeArgs = {
 };
 
 export type ProductionDatastore = FirestoreDatastore | InMemoryDataStore;
+export type ScheduleResponse =
+  | {
+      jobDocument: JobDocument;
+      operation: "schedule";
+    }
+  | {
+      jobDocument: JobDocument;
+      operation: "reschedule";
+      replacedJob: JobDocument;
+    };
+
 export interface Datastore {
   schedule(
     args: JobScheduleArgs,
     shardingAlgorithm?: ShardingAlgorithm,
     projectId?: ProjectId
-  ): TE.TaskEither<
-    any,
-    | { jobDocument: JobDocument; operation: "schedule" }
-    | {
-        jobDocument: JobDocument;
-        operation: "reschedule";
-        replacedJob: JobDocument;
-      }
-  >;
+  ): TE.TaskEither<any, ScheduleResponse>;
 
   cancel(args: CancelProps): TE.TaskEither<any, void>;
 

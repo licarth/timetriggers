@@ -24,6 +24,7 @@ import {
   CancelProps,
   Datastore,
   GetJobsScheduledBeforeArgs,
+  ScheduleResponse,
   ShardingAlgorithm,
   WaitForRegisteredJobsByRegisteredAtArgs,
 } from "./Datastore";
@@ -278,10 +279,13 @@ export class InMemoryDataStore implements Datastore {
       },
       (x) => x(),
       TE.fromEither,
-      TE.map((jobDocument) => ({
-        operation: "schedule" as const,
-        jobDocument,
-      }))
+      TE.map(
+        (jobDocument) =>
+          ({
+            operation: "schedule" as const,
+            jobDocument,
+          } as ScheduleResponse)
+      )
     );
   }
 

@@ -4,6 +4,7 @@ import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 // Start an application that listens to Firebase and triggers the job
 export const createExpressApp = (port: number) => {
   const app = express();
+  app.disable("x-powered-by");
 
   // app.use(express.json());
 

@@ -112,13 +112,13 @@ export const action: ActionFunction = ({ params, request }) =>
   actionFromRte(
     pipe(
       RTE.Do,
-      RTE.apSW(
-        'projectSlug',
-        getProjectSlugOrRedirect(params.projectSlug, 'projects'),
-      ),
       rte.apSWMerge(
         pipe(
           RTE.Do,
+          RTE.apSW(
+            'projectSlug',
+            getProjectSlugOrRedirect(params.projectSlug, 'projects'),
+          ),
           RTE.apSW('user', getUserOrRedirect(request)),
           RTE.bindW('project', ({ projectSlug }) =>
             getProjectBySlugOrRedirect({ projectSlug }, '..'),

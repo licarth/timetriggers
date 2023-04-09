@@ -35,7 +35,7 @@ export class DatastoreApi extends AbstractApi {
             }),
         projectId
       ),
-      TE.map((jobDocument) => jobDocument.jobDefinition.id)
+      TE.map(({ jobDocument }) => jobDocument.jobDefinition.id)
     );
   }
 

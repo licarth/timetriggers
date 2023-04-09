@@ -135,7 +135,9 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
           scheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 5)),
         });
 
-        const doc = await te.unsafeGetOrThrow(datastore.schedule(job));
+        const { jobDocument: doc } = await te.unsafeGetOrThrow(
+          datastore.schedule(job)
+        );
 
         job.scheduledAt = ScheduledAt.fromDate(addHours(clock.now(), 10));
         job.id = doc.jobDefinition.id;
@@ -157,7 +159,9 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
           scheduledAt: ScheduledAt.fromDate(clock.now()),
         });
 
-        const doc = await te.unsafeGetOrThrow(datastore.schedule(job));
+        const { jobDocument: doc } = await te.unsafeGetOrThrow(
+          datastore.schedule(job)
+        );
 
         // mark as done
         await te.unsafeGetOrThrow(datastore.queueJobs([doc.jobDefinition]));
@@ -177,8 +181,9 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
           scheduledAt: ScheduledAt.fromDate(clock.now()),
         });
 
-        const doc = await te.unsafeGetOrThrow(datastore.schedule(job));
-        const id = doc.jobDefinition.id;
+        const { jobDocument: doc } = await te.unsafeGetOrThrow(
+          datastore.schedule(job)
+        );
 
         // mark as done
         await te.unsafeGetOrThrow(datastore.queueJobs([doc.jobDefinition]));
@@ -195,8 +200,10 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
           scheduledAt: ScheduledAt.fromDate(clock.now()),
         });
 
-        const doc = await te.unsafeGetOrThrow(datastore.schedule(job));
-        const id = doc.jobDefinition.id;
+        const { jobDocument } = await te.unsafeGetOrThrow(
+          datastore.schedule(job)
+        );
+        const id = jobDocument.jobDefinition.id;
         // mark as done
         // await te.unsafeGetOrThrow(datastore.markJobAsRunning({jobId: id, status: JobStatus.factory() }));
         // await te.unsafeGetOrThrow(datastore.markJobAsComplete({jobId: id, status: JobStatus.factory() }));
@@ -247,7 +254,7 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
           scheduledAt: ScheduledAt.fromDate(addHours(clock.now(), 5)),
         });
 
-        const doc = await te.unsafeGetOrThrow(
+        const { jobDocument: doc } = await te.unsafeGetOrThrow(
           datastore.schedule(job, undefined, projectId)
         );
 
@@ -289,7 +296,9 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
 
         // Try to edit custom key of job 2 to value of custom key of job 1
         const {
-          jobDefinition: { id: jobId2 },
+          jobDocument: {
+            jobDefinition: { id: jobId2 },
+          },
         } = await te.unsafeGetOrThrow(
           datastore.schedule(secondJob, undefined, projectId)
         );
@@ -313,7 +322,9 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
         });
 
         const {
-          jobDefinition: { id: jobId },
+          jobDocument: {
+            jobDefinition: { id: jobId },
+          },
         } = await te.unsafeGetOrThrow(
           datastore.schedule(job, undefined, projectId)
         );
@@ -347,7 +358,9 @@ describe.each(Object.entries(datastores))("%s", (name, datastoreBuilder) => {
         // Wait until the job is done
 
         const {
-          jobDefinition: { id: jobId },
+          jobDocument: {
+            jobDefinition: { id: jobId },
+          },
         } = await te.unsafeGetOrThrow(
           datastore.schedule(job, undefined, projectId)
         );

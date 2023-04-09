@@ -155,23 +155,28 @@ export const initializeEndpoints = ({
             pipe(
               datastore.schedule(jobScheduleArgs, shardingAlgorithm, projectId),
               TE.map((x) => x), // This is needed to merge the TE types :/
-              te.sideEffect(({ jobDefinition: { id: jobId } }) => {
-                if (quota.remaining < Infinity) {
+              te.sideEffect(
+                ({
+                  jobDocument: {
+                    jobDefinition: { id: jobId },
+                  },
+                  operation,
+                }) => {
+                  if (quota.remaining < Infinity) {
+                    res.setHeader(
+                      "ttr-month-quota-remaining",
+                      quota.remaining - 1
+                    );
+                  }
                   res.setHeader(
-                    "ttr-month-quota-remaining",
-                    quota.remaining - 1
+                    "ttr-scheduled-at",
+                    ScheduledAt.formatUTCFloorSecond(scheduledAt)
                   );
+                  res.setHeader("ttr-trigger-id", jobId);
+                  res.sendStatus(operation === "schedule" ? 201 : 200);
                 }
-                res.setHeader(
-                  "ttr-scheduled-at",
-                  ScheduledAt.formatUTCFloorSecond(scheduledAt)
-                );
-                res.setHeader("ttr-trigger-id", jobId);
-                res.sendStatus(201);
-              })
+              )
             )
-          // }
-          // Todo handle errors due to scheduling
         ),
 
         RTE.mapLeft((error) => {
