@@ -4,7 +4,11 @@ import type {
   LoaderFunction,
 } from '@remix-run/server-runtime';
 import { redirect } from '@remix-run/server-runtime';
-import { createProject, ProjectSlug } from '@timetriggers/domain';
+import {
+  createProject,
+  ProjectSlug,
+  slugIsAvailable,
+} from '@timetriggers/domain';
 import { pipe } from 'fp-ts/lib/function';
 import * as RTE from 'fp-ts/lib/ReaderTaskEither';
 import { useLoaderData } from 'react-router';
@@ -20,7 +24,6 @@ import {
   actionFromRte,
   loaderFromRte,
 } from '~/utils/loaderFromRte.server';
-import { projectExists } from '../api/use-cases/projectExists';
 
 export const loader: LoaderFunction = ({ request }) =>
   loaderFromRte(
@@ -39,19 +42,13 @@ export const loader: LoaderFunction = ({ request }) =>
           ProjectSlug.parse(name),
           RTE.fromEither,
           RTE.map((projectSlug) => ({ projectSlug })),
-          RTE.bindW('projectExists', ({ projectSlug }) =>
-            projectExists({
+          RTE.bindW('slugIsAvailable', ({ projectSlug }) =>
+            slugIsAvailable({
               projectSlug,
             }),
           ),
-          // RTE.bindW('slugIsAvailable', ({ projectSlug }) =>
-          //   slugIsAvailable({
-          //     projectSlug,
-          //   }),
-          // ),
-          //   RTE.orElse(() => RTE.right(undefined)), // If not exists, continue
-          RTE.chainW(({ projectExists }) =>
-            projectExists ? RTE.left(redirect('')) : RTE.of(name),
+          RTE.chainW(({ slugIsAvailable }) =>
+            slugIsAvailable ? RTE.of(name) : RTE.left(redirect('')),
           ), // If exists, retry (via redirect)
         ),
       ),
@@ -62,10 +59,9 @@ export const action: ActionFunction = ({ params, request }) =>
   actionFromRte(
     pipe(
       RTE.Do,
-      RTE.bindW('creator', () =>
-        getUserOrRedirect(request, '/login'),
-      ),
-      RTE.bindW('slug', () =>
+      RTE.apSW('creator', getUserOrRedirect(request, '/login')),
+      RTE.apSW(
+        'slug',
         pipe(
           async () =>
             (await request.formData()).get('projectName')?.toString(),

@@ -17,7 +17,7 @@ export const getProjectUsageFromSlug = ({
 }) =>
   pipe(
     RTE.ask<Dependencies>(),
-    RTE.bindW("project", () => getProjectBySlug({ projectSlug })),
+    RTE.apSW("project", getProjectBySlug({ projectSlug })),
     RTE.chainW(({ project: { id } }) =>
       getOneFromFirestore(
         MonthlyUsage,

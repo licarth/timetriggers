@@ -19,7 +19,7 @@ import {
 import { useLoaderData } from '@remix-run/react';
 import type { LoaderFunction } from '@remix-run/server-runtime';
 import type { JobDocument, ScheduledAt } from '@timetriggers/domain';
-import { e, Project } from '@timetriggers/domain';
+import { e, Project, rte } from '@timetriggers/domain';
 import { format, formatDistance } from 'date-fns';
 import * as E from 'fp-ts/lib/Either';
 import { pipe } from 'fp-ts/lib/function';
@@ -53,12 +53,18 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   return loaderFromRte(
     pipe(
       RTE.Do,
-      RTE.bind('projectSlug', () =>
-        getProjectSlugOrRedirect(params.projectSlug, '/projects'),
-      ),
-      RTE.bind('user', () => getUserOrRedirect(request)),
-      RTE.bindW('project', ({ projectSlug }) =>
-        getProjectBySlugOrRedirect({ projectSlug }, '..'),
+      RTE.apS('user', getUserOrRedirect(request)),
+      rte.apSWMerge(
+        pipe(
+          RTE.Do,
+          RTE.apSW(
+            'projectSlug',
+            getProjectSlugOrRedirect(params.projectSlug, '/projects'),
+          ),
+          RTE.bindW('project', ({ projectSlug }) =>
+            getProjectBySlugOrRedirect({ projectSlug }, '..'),
+          ),
+        ),
       ),
       RTE.map(({ project }) => wireCodec.encode({ project })),
     ),

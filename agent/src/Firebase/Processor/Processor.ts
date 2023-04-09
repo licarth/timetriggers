@@ -100,7 +100,7 @@ export class Processor extends ClusterTopologyDatastoreAware {
           },
         }),
       }),
-      TE.bindW("worker", () => this.workerPool.nextWorker()),
+      TE.apSW("worker", this.workerPool.nextWorker()),
       // TODO mark job as running
       TE.chainFirstEitherKW(() =>
         status.markAsRunning(StartedAt.fromDate(this.clock.now()))

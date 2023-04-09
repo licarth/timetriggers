@@ -32,12 +32,7 @@ const wireCodec = pipe(
 );
 
 export const loader: LoaderFunction = async ({ request }) =>
-  loaderFromRte(
-    pipe(
-      RTE.Do,
-      RTE.bindW('user', () => getUser(request)),
-    ),
-  );
+  loaderFromRte(pipe(RTE.Do, RTE.apSW('user', getUser(request))));
 
 export default () => {
   const isDesktop = useBreakpointValue({ base: false, md: true });

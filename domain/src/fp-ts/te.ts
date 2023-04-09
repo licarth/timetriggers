@@ -87,6 +87,36 @@ export namespace te {
       };
       return loop();
     };
+
+  export const apSWMerge: <A, E2, B>(
+    fb: TE.TaskEither<E2, B>
+  ) => <R1, E1>(fa: TE.TaskEither<E1, A>) => TE.TaskEither<E1 | E2, A & B> =
+    (fb) => (fa) =>
+      //@ts-ignore
+      pipe(
+        fa,
+        //@ts-ignore
+        TE.apSW("___SomeRandomName___", fb), // cannot use a Symbol
+        TE.map(({ ___SomeRandomName___, ...rest }) => ({
+          ...rest,
+          ...___SomeRandomName___,
+        }))
+      );
+
+  export const bindWMerge: <A, E2, B>(
+    f: (a: A) => TE.TaskEither<E2, B>
+  ) => <R1, E1>(fa: TE.TaskEither<E1, A>) => TE.TaskEither<E1 | E2, A & B> =
+    (f) => (fa) =>
+      //@ts-ignore
+      pipe(
+        fa,
+        //@ts-ignore
+        TE.bindW("___SomeRandomName___", (a: A) => f(a)), // cannot use a Symbol
+        TE.map(({ ___SomeRandomName___, ...rest }) => ({
+          ...rest,
+          ...___SomeRandomName___,
+        }))
+      );
 }
 
 const batchTasks =

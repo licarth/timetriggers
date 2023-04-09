@@ -3,6 +3,7 @@ import styled from '@emotion/styled';
 import { Outlet, useLoaderData } from '@remix-run/react';
 import type { LoaderFunction } from '@remix-run/server-runtime';
 import type { ProjectSlug } from '@timetriggers/domain';
+import { rte } from '@timetriggers/domain';
 import { loaderFromRte } from '~/utils/loaderFromRte.server';
 
 import {
@@ -92,29 +93,38 @@ const getUserPrefsOrDefault = (request: Request) =>
     RTE.orElseW(() => RTE.right(UserPrefs.default())),
   );
 
-export const loader: LoaderFunction = async ({ request }) => {
-  return loaderFromRte(
+export const loader: LoaderFunction = async ({ request }) =>
+  loaderFromRte(
     pipe(
-      RTE.Do,
-      RTE.bindW('user', () => getUserOrRedirect(request, '/login')),
-      RTE.bindW('projects', ({ user }) =>
-        getProjectsForUser(user.id),
-      ),
-      RTE.bindW('projectSlug', () => {
-        const url = new URL(request.url);
-        const projectSlug = url.pathname.split('/')[2];
-        return RTE.right(projectSlug as ProjectSlug);
+      RTE.of({
+        projectSlug: new URL(request.url).pathname.split(
+          '/',
+        )[2] as ProjectSlug,
       }),
-      RTE.bindW('projectMonthlyUsage', ({ projectSlug }) =>
-        projectSlug
-          ? getProjectUsageFromSlug({ projectSlug })
-          : RTE.right(undefined),
+      RTE.chainW(({ projectSlug }) =>
+        pipe(
+          RTE.Do,
+          rte.apSWMerge(
+            pipe(
+              RTE.Do,
+              RTE.apSW('user', getUserOrRedirect(request, '/login')),
+              RTE.bindW('projects', ({ user }) =>
+                getProjectsForUser(user.id),
+              ),
+            ),
+          ),
+          RTE.apSW('userPrefs', getUserPrefsOrDefault(request)),
+          RTE.apSW(
+            'projectMonthlyUsage',
+            projectSlug
+              ? getProjectUsageFromSlug({ projectSlug })
+              : RTE.right(undefined),
+          ),
+        ),
       ),
-      RTE.bindW('userPrefs', () => getUserPrefsOrDefault(request)),
       RTE.map(wireCodec.encode),
     ),
   );
-};
 
 export const ErrorBoundary = ({ error }: { error: Error }) => {
   console.error(error);

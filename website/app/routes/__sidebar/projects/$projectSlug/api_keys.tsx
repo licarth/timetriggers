@@ -49,6 +49,7 @@ import {
   e,
   FirebaseUser,
   Project,
+  rte,
   storeApiKey,
   UtcDate,
 } from '@timetriggers/domain';
@@ -79,10 +80,11 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   return loaderFromRte(
     pipe(
       RTE.Do,
-      RTE.bind('projectSlug', () =>
+      RTE.apSW(
+        'projectSlug',
         getProjectSlugOrRedirect(params.projectSlug, '/projects'),
       ),
-      RTE.bind('user', () => getUserOrRedirect(request)),
+      RTE.apSW('user', getUserOrRedirect(request)),
       RTE.bindW('project', ({ projectSlug }) =>
         getProjectBySlugOrRedirect({ projectSlug }, '..'),
       ),
@@ -110,15 +112,21 @@ export const action: ActionFunction = ({ params, request }) =>
   actionFromRte(
     pipe(
       RTE.Do,
-      RTE.bindW('projectSlug', () =>
+      RTE.apSW(
+        'projectSlug',
         getProjectSlugOrRedirect(params.projectSlug, 'projects'),
       ),
-      RTE.bindW('user', () => getUserOrRedirect(request)),
-      (x) => x,
-      RTE.bindW('project', ({ projectSlug }) =>
-        getProjectBySlugOrRedirect({ projectSlug }, '..'),
+      rte.apSWMerge(
+        pipe(
+          RTE.Do,
+          RTE.apSW('user', getUserOrRedirect(request)),
+          RTE.bindW('project', ({ projectSlug }) =>
+            getProjectBySlugOrRedirect({ projectSlug }, '..'),
+          ),
+        ),
       ),
-      RTE.bindW('apiKey', () =>
+      RTE.apSW(
+        'apiKey',
         pipe(
           () => request.json(),
           RTE.fromTask,

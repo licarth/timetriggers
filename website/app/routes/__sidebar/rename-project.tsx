@@ -23,16 +23,17 @@ export const action: ActionFunction = ({ request }) =>
   actionFromRte(
     pipe(
       RTE.Do,
-      RTE.bindW('user', () => getUserOrRedirect(request)),
-      RTE.bindW('postParams', () => {
-        return pipe(
+      RTE.apSW('user', getUserOrRedirect(request)),
+      RTE.apSW(
+        'postParams',
+        pipe(
           () => request.formData(),
           RTE.fromTask,
           RTE.map(Object.fromEntries),
           RTE.chainEitherK(postCodec.decode),
           rte.leftSideEffect((e) => console.log(draw(e))),
-        );
-      }),
+        ),
+      ),
       RTE.bindW('isAvailable', ({ postParams: { slug } }) =>
         pipe(
           projectExists({ projectSlug: slug }),

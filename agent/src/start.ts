@@ -44,21 +44,22 @@ export const start = (props: StartProps) =>
       namespace: props.namespace,
       rootDocumentPath: `/namespaces/${props.namespace}/jobs`,
     })),
-    RTE.bind("datastore", ({ firestore, rootDocumentPath }) =>
-      RTE.of(
+    RTE.apSW(
+      "coordinationClient",
+      props.scheduler?.enabled || props.processor?.enabled
+        ? RTE.fromTaskEither(getCoordinationClient(props))
+        : RTE.of(undefined)
+    ),
+    RTE.let(
+      "datastore",
+      ({ firestore }) =>
         new FirestoreDatastore({
           firestore,
           namespace: props.namespace,
         })
-      )
     ),
     RTE.bindW("api", (other) =>
       props.api.enabled ? buildApi({ ...props, ...other }) : RTE.of(undefined)
-    ),
-    RTE.bindW("coordinationClient", () =>
-      props.scheduler?.enabled || props.processor?.enabled
-        ? RTE.fromTaskEither(getCoordinationClient(props))
-        : RTE.of(undefined)
     ),
     RTE.bindW(
       "scheduler",

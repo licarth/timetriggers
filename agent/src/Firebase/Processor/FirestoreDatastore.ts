@@ -170,28 +170,25 @@ export class FirestoreDatastore implements Datastore {
     return transaction(this.firestore, (t) =>
       pipe(
         TE.Do,
-        TE.apSW(
-          "customKeyAlreadyExists",
+        te.apSWMerge(
           args.customKey
             ? pipe(
-                get(this.customKeyRef(projectId, args.customKey), t),
-                TE.map((d) => d.exists)
+                TE.Do,
+                TE.apS(
+                  "doc",
+                  get(this.customKeyRef(projectId, args.customKey), t)
+                ),
+                TE.let("exists", ({ doc }) => doc.exists),
+                TE.let("jobId", ({ doc, exists }) =>
+                  exists ? (doc.get("id") as JobId) : undefined
+                ),
+                TE.map(({ jobId }) => ({ existingJobIdFromCustomKey: jobId }))
               )
-            : TE.right(false)
-        ),
-        TE.apSW(
-          "existingJobIdFromCustomKey",
-          args.customKey
-            ? pipe(
-                get(this.customKeyRef(projectId, args.customKey), t),
-                TE.map((d) => d.get("id") as JobId)
-              )
-            : TE.right(undefined)
+            : TE.right({ existingJobIdFromCustomKey: undefined })
         ),
         TE.bindW(
           "schedulingCase",
           ({
-            customKeyAlreadyExists,
             existingJobIdFromCustomKey,
           }): TE.TaskEither<
             | `failed to get document ${string}: ${string}`
@@ -208,19 +205,20 @@ export class FirestoreDatastore implements Datastore {
             if (args.id && !args.customKey) {
               return pipe(
                 TE.of({ _tag: "id-based-reschedule" as const }),
-                TE.bindW("existingJob", () =>
+                TE.apSW(
+                  "existingJob",
                   this.getJobDocumentFromRef(this.jobDocRef(args.id!), t)
                 )
               );
             } else if (
               !args.id &&
               args.customKey &&
-              customKeyAlreadyExists &&
               existingJobIdFromCustomKey
             ) {
               return pipe(
                 TE.of({ _tag: "custom-key-based-reschedule" as const }),
-                TE.bindW("existingJob", () =>
+                TE.apSW(
+                  "existingJob",
                   this.getJobDocumentFromRef(
                     this.jobDocRef(existingJobIdFromCustomKey),
                     t
@@ -243,12 +241,13 @@ export class FirestoreDatastore implements Datastore {
             () => "Job is not in registered state" as const
           )
         ),
-        TE.chainFirstW(({ customKeyAlreadyExists }) => {
+        TE.chainFirstW(({ existingJobIdFromCustomKey }) => {
           if (args.id) {
             const existingJobRef = this.jobDocRef(args.id);
             return pipe(
               TE.Do,
-              TE.bindW("existingJobDocById", () =>
+              TE.apSW(
+                "existingJobDocById",
                 this.getJobDocumentFromRef(existingJobRef, t)
               ),
               TE.chainFirstW(({ existingJobDocById }) => {
@@ -263,7 +262,7 @@ export class FirestoreDatastore implements Datastore {
                     // Same custom key, nothing to do
                   } else {
                     // New custom key for existing job, just make sure no other job already has it, in the same project
-                    if (customKeyAlreadyExists) {
+                    if (existingJobIdFromCustomKey) {
                       return TE.left(`Custom key already in use` as const);
                     }
                     t.delete(
@@ -285,52 +284,50 @@ export class FirestoreDatastore implements Datastore {
         te.sideEffect(() => {
           t.create(this.jobDocRef(newJobId), jobWithServerTimestamp);
         }),
-        TE.chainFirstW(
-          ({ customKeyAlreadyExists, existingJobIdFromCustomKey }) => {
-            // custom key without id provided, 2 possibilities: schedule or reschedule
-            if (args.customKey) {
-              if (customKeyAlreadyExists && existingJobIdFromCustomKey) {
-                if (args.id && args.id !== existingJobIdFromCustomKey) {
-                  return TE.left(`Custom key already in use` as const);
-                }
-                // Make sure the job is still in registered state
-                t.set(
-                  this.jobDocRef(existingJobIdFromCustomKey),
-                  {
-                    status: {
-                      value: "cancelled",
-                      cancelledAt: FieldValue.serverTimestamp(),
-                    },
-                  },
-                  { merge: true }
-                );
-              } else if (args.id) {
-                t.set(
-                  this.jobDocRef(args.id),
-                  {
-                    status: {
-                      value: "cancelled",
-                      cancelledAt: FieldValue.serverTimestamp(),
-                    },
-                  },
-                  { merge: true }
-                );
+        TE.chainFirstW(({ existingJobIdFromCustomKey }) => {
+          // custom key without id provided, 2 possibilities: schedule or reschedule
+          if (args.customKey) {
+            if (existingJobIdFromCustomKey) {
+              if (args.id && args.id !== existingJobIdFromCustomKey) {
+                return TE.left(`Custom key already in use` as const);
               }
-
-              // if we are just
-              if (!projectId) {
-                return TE.left(
-                  `projectId is required when using customKey` as const
-                );
-              }
-              // Store in subcollection  project > custom-keys > {customKey} the job id
-              t.set(this.customKeyRef(projectId, args.customKey), {
-                id: newJobId,
-              });
+              // Make sure the job is still in registered state
+              t.set(
+                this.jobDocRef(existingJobIdFromCustomKey),
+                {
+                  status: {
+                    value: "cancelled",
+                    cancelledAt: FieldValue.serverTimestamp(),
+                  },
+                },
+                { merge: true }
+              );
+            } else if (args.id) {
+              t.set(
+                this.jobDocRef(args.id),
+                {
+                  status: {
+                    value: "cancelled",
+                    cancelledAt: FieldValue.serverTimestamp(),
+                  },
+                },
+                { merge: true }
+              );
             }
-            return TE.right(undefined);
+
+            // if we are just
+            if (!projectId) {
+              return TE.left(
+                `projectId is required when using customKey` as const
+              );
+            }
+            // Store in subcollection  project > custom-keys > {customKey} the job id
+            t.set(this.customKeyRef(projectId, args.customKey), {
+              id: newJobId,
+            });
           }
-        ),
+          return TE.right(undefined);
+        }),
         TE.chainFirstW(() => {
           // TODO Remove this : we do notn delete jobs, we just cancel them
           if (args.id && !args.customKey) {
@@ -834,7 +831,8 @@ export class FirestoreDatastore implements Datastore {
                     }) =>
                       pipe(status.executionLagMs(scheduledAt), TE.fromEither)
                   ),
-                  TE.bindW("durationMs", ({}) =>
+                  TE.apSW(
+                    "durationMs",
                     pipe(status.durationMs(), TE.fromEither)
                   ),
                   TE.map(({ executionLagMs, durationMs }) => {
@@ -1073,7 +1071,8 @@ const checkPreconditions = ({
 }) =>
   pipe(
     TE.Do,
-    TE.bind("docData", () =>
+    TE.apSW(
+      "docData",
       TE.tryCatch(
         () => transaction.get(docRef),
         (e) => `failed to get job document ${docRef}` as const

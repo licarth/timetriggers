@@ -1,7 +1,7 @@
+import type { CardProps } from '@chakra-ui/react';
 import {
   Button,
   Card,
-  CardProps,
   HStack,
   Icon,
   Input,
@@ -16,6 +16,7 @@ import {
   FirebaseUser,
   Project,
   ProjectSlug,
+  rte,
   UtcDate,
 } from '@timetriggers/domain';
 import { pipe } from 'fp-ts/lib/function';
@@ -41,12 +42,18 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   return loaderFromRte(
     pipe(
       RTE.Do,
-      RTE.bind('projectSlug', () =>
+      RTE.bindW('projectSlug', () =>
         getProjectSlugOrRedirect(params.projectSlug, '/projects'),
       ),
-      RTE.bind('user', () => getUserOrRedirect(request)),
-      RTE.bindW('project', ({ projectSlug }) =>
-        getProjectBySlugOrRedirect({ projectSlug }, '..'),
+      rte.bindWMerge(({ projectSlug }) =>
+        pipe(
+          RTE.Do,
+          RTE.apSW('user', getUserOrRedirect(request)),
+          RTE.apSW(
+            'project',
+            getProjectBySlugOrRedirect({ projectSlug }, '..'),
+          ),
+        ),
       ),
       RTE.map(({ user, project }) => {
         if (project && project.hasReadAccess(user.id)) {

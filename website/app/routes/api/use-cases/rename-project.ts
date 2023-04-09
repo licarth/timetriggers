@@ -1,11 +1,11 @@
 import type { ActionFunction } from '@remix-run/server-runtime';
 import { json } from '@remix-run/server-runtime';
 import {
-  projectExists,
   ProjectId,
   ProjectSlug,
   renameProject,
   rte,
+  slugIsAvailable,
 } from '@timetriggers/domain';
 import { pipe } from 'fp-ts/lib/function';
 import * as RTE from 'fp-ts/lib/ReaderTaskEither';
@@ -23,29 +23,38 @@ export const action: ActionFunction = ({ request }) =>
   actionFromRte(
     pipe(
       RTE.Do,
-      RTE.bindW('user', () => getUserOrRedirect(request)),
-      RTE.chainFirstW(({ user }) => {
-        console.log('user', user);
-        console.log('isSuperAdmin', user.isSuperAdmin());
-        return user.isSuperAdmin()
-          ? RTE.right(undefined)
-          : RTE.left(
-              json({ message: 'Not authorized' }, { status: 403 }),
-            );
-      }),
-      RTE.bindW('postParams', () => {
-        return pipe(
-          () => request.formData(),
-          RTE.fromTask,
-          RTE.map(Object.fromEntries),
-          RTE.chainEitherK(postCodec.decode),
-          rte.leftSideEffect((e) => console.log(draw(e))),
-        );
-      }),
-      RTE.bindW('isAvailable', ({ postParams: { slug } }) =>
+      rte.apSWMerge(
         pipe(
-          projectExists({ projectSlug: slug }),
-          RTE.map((bool) => !bool),
+          RTE.Do,
+          RTE.apSW('user', getUserOrRedirect(request)),
+          RTE.chainFirstW(({ user }) => {
+            return user.isSuperAdmin()
+              ? RTE.right(undefined)
+              : RTE.left(
+                  json(
+                    { message: 'Not authorized' },
+                    { status: 403 },
+                  ),
+                );
+          }),
+        ),
+      ),
+      rte.apSWMerge(
+        pipe(
+          RTE.Do,
+          RTE.apSW(
+            'postParams',
+            pipe(
+              () => request.formData(),
+              RTE.fromTask,
+              RTE.map(Object.fromEntries),
+              RTE.chainEitherK(postCodec.decode),
+              rte.leftSideEffect((e) => console.log(draw(e))),
+            ),
+          ),
+          RTE.bindW('isAvailable', ({ postParams: { slug } }) =>
+            slugIsAvailable({ projectSlug: slug }),
+          ),
         ),
       ),
       RTE.chainFirstW(

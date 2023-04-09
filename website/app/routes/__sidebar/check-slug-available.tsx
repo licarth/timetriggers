@@ -1,6 +1,10 @@
 import type { LoaderFunction } from '@remix-run/server-runtime';
 import { json, redirect } from '@remix-run/server-runtime';
-import { ProjectSlug, slugIsAvailable } from '@timetriggers/domain';
+import {
+  ProjectSlug,
+  rte,
+  slugIsAvailable,
+} from '@timetriggers/domain';
 import { pipe } from 'fp-ts/lib/function';
 import * as RTE from 'fp-ts/lib/ReaderTaskEither';
 import * as C from 'io-ts/lib/Codec.js';
@@ -24,22 +28,31 @@ export const loader: LoaderFunction = async ({ request }) => {
   return loaderFromRte(
     pipe(
       RTE.Do,
-      RTE.bindW('user', () => getUserOrRedirect(request)),
-      RTE.bindW('slug', () =>
+      RTE.apSW('user', getUserOrRedirect(request)),
+      rte.apSWMerge(
         pipe(
-          slugString,
-          ProjectSlug.parse,
-          RTE.fromEither,
-          RTE.mapLeft(() =>
-            json(
-              { isAvailable: false, message: 'slug is not valid' },
-              { status: 400 },
+          RTE.Do,
+          RTE.apSW(
+            'slug',
+            pipe(
+              slugString,
+              ProjectSlug.parse,
+              RTE.fromEither,
+              RTE.mapLeft(() =>
+                json(
+                  {
+                    isAvailable: false,
+                    message: 'slug is not valid',
+                  },
+                  { status: 400 },
+                ),
+              ),
             ),
           ),
+          RTE.bindW('isAvailable', ({ slug }) =>
+            slugIsAvailable({ projectSlug: slug }),
+          ),
         ),
-      ),
-      RTE.bindW('isAvailable', ({ slug }) =>
-        slugIsAvailable({ projectSlug: slug }),
       ),
       RTE.map(wireCodec.encode),
     ),

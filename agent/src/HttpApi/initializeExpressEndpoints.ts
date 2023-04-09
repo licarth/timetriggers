@@ -82,16 +82,20 @@ export const initializeEndpoints = ({
 
       await pipe(
         RTE.Do,
-        RTE.bindW("url", () =>
+        RTE.apSW(
+          "url",
           pipe(Url.parse(req.headers["ttr-url"]), RTE.fromEither)
         ),
-        RTE.bindW("triggerId", () =>
+        RTE.apSW(
+          "triggerId",
           getLastHeaderValue(req.headers, "ttr-trigger-id")
         ),
-        RTE.bindW("customKey", () =>
+        RTE.apSW(
+          "customKey",
           getLastHeaderValue(req.headers, "ttr-custom-key")
         ),
-        RTE.bindW("scheduledAt", () =>
+        RTE.apSW(
+          "scheduledAt",
           pipe(
             req.headers["ttr-scheduled-at"] as string,
             ScheduledAt.fromQueryLanguage,
@@ -103,7 +107,15 @@ export const initializeEndpoints = ({
             )
           )
         ),
-        RTE.bindW("project", () => getProjectByApiKey({ apiKeyValue })),
+        RTE.apSW("project", getProjectByApiKey({ apiKeyValue })),
+        RTE.apSW(
+          "rawBody",
+          RTE.of(
+            new RawBody({
+              raw: req.body instanceof Buffer ? req.body.toString("utf8") : "",
+            })
+          )
+        ),
         RTE.bindW("quota", ({ project }) =>
           pipe(
             checkQuota({ project }),
@@ -114,12 +126,6 @@ export const initializeEndpoints = ({
             )
           )
         ),
-        RTE.bindW("rawBody", () => {
-          // If it's a buffer, call toString on it
-          const raw =
-            req.body instanceof Buffer ? req.body.toString("utf8") : "";
-          return RTE.of(new RawBody({ raw }));
-        }),
         RTE.bindW(
           "jobScheduleArgs",
           ({ rawBody, scheduledAt, url, triggerId, customKey }) =>
@@ -225,7 +231,8 @@ export const initializeEndpoints = ({
           "customKey",
           getLastHeaderValue(req.headers, "ttr-custom-key")
         ),
-        RTE.chainFirstEitherK(({ customKey, triggerId }) => {
+        RTE.apSW("project", getProjectByApiKey({ apiKeyValue })),
+        RTE.chainFirstEitherKW(({ customKey, triggerId }) => {
           if (customKey && triggerId) {
             return E.left(
               "Cannot specify both a custom key and a trigger id" as const
@@ -236,7 +243,6 @@ export const initializeEndpoints = ({
             return E.right(undefined);
           }
         }),
-        RTE.apSW("project", getProjectByApiKey({ apiKeyValue })),
         RTE.chainFirstW(
           ({ project: { id: projectId }, triggerId, customKey }) => {
             const op = triggerId

@@ -23,8 +23,7 @@ export namespace rte {
 
   export const askDeps = <DepsType>() => RTE.ask<DepsType>();
 
-  export const bindDeps = <DepsType>() =>
-    RTE.bindW("deps", () => askDeps<DepsType>());
+  export const bindDeps = <DepsType>() => RTE.apSW("deps", askDeps<DepsType>());
 
   export const finallyTask =
     <R, E, A>(task: T.Task<any>) =>
