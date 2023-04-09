@@ -62,7 +62,15 @@ export interface Datastore {
     args: JobScheduleArgs,
     shardingAlgorithm?: ShardingAlgorithm,
     projectId?: ProjectId
-  ): TE.TaskEither<any, JobDocument>;
+  ): TE.TaskEither<
+    any,
+    | { jobDocument: JobDocument; operation: "schedule" }
+    | {
+        jobDocument: JobDocument;
+        operation: "reschedule";
+        replacedJob: JobDocument;
+      }
+  >;
 
   cancel(args: CancelProps): TE.TaskEither<any, void>;
 

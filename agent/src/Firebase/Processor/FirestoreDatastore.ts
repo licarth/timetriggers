@@ -336,7 +336,18 @@ export class FirestoreDatastore implements Datastore {
           // How do we delete in case where we reschedule with custom key?
           return TE.right(undefined);
         }),
-        TE.map(() => jobDocument)
+        TE.map(({ schedulingCase }) =>
+          schedulingCase._tag === "new-schedule"
+            ? {
+                operation: "schedule" as const,
+                jobDocument,
+              }
+            : {
+                operation: "reschedule" as const,
+                jobDocument,
+                replacedJob: schedulingCase.existingJob,
+              }
+        )
       )
     );
   }

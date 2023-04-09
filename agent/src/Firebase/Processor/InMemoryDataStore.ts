@@ -277,7 +277,11 @@ export class InMemoryDataStore implements Datastore {
         return E.of(jobDocument);
       },
       (x) => x(),
-      TE.fromEither
+      TE.fromEither,
+      TE.map((jobDocument) => ({
+        operation: "schedule" as const,
+        jobDocument,
+      }))
     );
   }
 
