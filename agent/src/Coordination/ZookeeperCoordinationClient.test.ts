@@ -37,12 +37,10 @@ describe("Zookeeper CoordinationClient", () => {
     expect(
       await pipe(
         TE.Do,
-        TE.apSW(
-          "firstClient",
+        TE.bindW("firstClient", () =>
           ZookeeperCoordinationClient.build({ namespace })
         ),
-        TE.apSW(
-          "otherClients",
+        TE.bindW("otherClients", () =>
           pipe(
             _.times(5, () => ZookeeperCoordinationClient.build({ namespace })),
             TE.sequenceArray
