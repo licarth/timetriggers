@@ -126,6 +126,11 @@ const Document = withEmotionCache(
             />
           ))}
           <script
+            src="https://cdn.usefathom.com/script.js"
+            data-site="RVAIFYHY"
+            defer
+          />
+          <script
             dangerouslySetInnerHTML={{
               __html: `window.ENV = ${JSON.stringify(data.ENV)}`,
             }}
